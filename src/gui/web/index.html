@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tack_comfyui_start_tool</title>
+
+    <!-- Fonts: Space Grotesk + Inter + Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+
+    <!-- Tailwind CSS (pre-compiled) -->
+    <link rel="stylesheet" href="css/tailwind.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/custom.css">
+</head>
+<body class="bg-surface-container-lowest text-on-surface font-body antialiased min-h-screen flex overflow-hidden">
+
+    <!-- ══════ SIDEBAR ══════ -->
+    <aside id="sidebar" class="w-64 h-screen bg-surface-dim border-r border-outline-variant/20 flex flex-col fixed left-0 top-0 z-30">
+
+        <!-- Logo / Brand -->
+        <div class="px-6 py-5 border-b border-outline-variant/20">
+            <h1 class="font-headline text-lg font-bold tracking-widest uppercase text-on-surface">CONSOLE</h1>
+            <div class="mt-2 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                <span class="text-[10px] font-label uppercase tracking-[0.2em] text-primary">SYSTEM_ACTIVE</span>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="flex-1 py-4 overflow-y-auto">
+            <a href="#" data-page="home" class="nav-item active flex items-center gap-4 px-6 py-4 text-[11px] font-label uppercase tracking-[0.15em] font-medium transition-all duration-200 cursor-pointer">
+                <span class="material-symbols-outlined text-[20px]">home</span>
+                <span data-i18n="sidebar_home">首頁</span>
+            </a>
+            <a href="#" data-page="environments" class="nav-item flex items-center gap-4 px-6 py-4 text-[11px] font-label uppercase tracking-[0.15em] font-medium transition-all duration-200 cursor-pointer">
+                <span class="material-symbols-outlined text-[20px]">dns</span>
+                <span data-i18n="sidebar_environments">Environments</span>
+            </a>
+            <a href="#" data-page="launcher" class="nav-item flex items-center gap-4 px-6 py-4 text-[11px] font-label uppercase tracking-[0.15em] font-medium transition-all duration-200 cursor-pointer">
+                <span class="material-symbols-outlined text-[20px]">rocket_launch</span>
+                <span data-i18n="sidebar_launch">Launcher</span>
+            </a>
+            <a href="#" data-page="plugins" class="nav-item flex items-center gap-4 px-6 py-4 text-[11px] font-label uppercase tracking-[0.15em] font-medium transition-all duration-200 cursor-pointer">
+                <span class="material-symbols-outlined text-[20px]">extension</span>
+                <span data-i18n="sidebar_plugins">Plugins</span>
+            </a>
+            <a href="#" data-page="versions" class="nav-item flex items-center gap-4 px-6 py-4 text-[11px] font-label uppercase tracking-[0.15em] font-medium transition-all duration-200 cursor-pointer">
+                <span class="material-symbols-outlined text-[20px]">history</span>
+                <span data-i18n="sidebar_versions">Versions</span>
+            </a>
+            <a href="#" data-page="snapshots" class="nav-item flex items-center gap-4 px-6 py-4 text-[11px] font-label uppercase tracking-[0.15em] font-medium transition-all duration-200 cursor-pointer">
+                <span class="material-symbols-outlined text-[20px]">inventory_2</span>
+                <span data-i18n="sidebar_snapshots">Snapshots</span>
+            </a>
+        </nav>
+
+        <!-- Footer -->
+        <div class="px-6 py-5 border-t border-outline-variant/20 space-y-4">
+            <!-- Language switcher -->
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-[18px] text-on-surface-variant">translate</span>
+                <select id="lang-switcher" class="select flex-1 py-1 text-[11px]">
+                    <option value="zh-TW">繁體中文</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
+            <div class="text-[9px] font-label uppercase tracking-widest text-on-surface-variant/50">
+                v0.1.0 — The Obsidian Edge
+            </div>
+        </div>
+    </aside>
+
+    <!-- ══════ MAIN CONTENT ══════ -->
+    <main class="ml-64 flex-1 min-h-screen flex flex-col min-w-0 bg-surface">
+
+        <!-- Top bar -->
+        <header class="h-16 bg-surface border-b border-outline-variant/20 flex items-center px-8 sticky top-0 z-20 shrink-0">
+            <h2 id="page-title" class="font-headline text-xl font-black tracking-tighter uppercase text-on-surface" data-i18n="sidebar_environments">環境管理</h2>
+            <div class="flex-1"></div>
+        </header>
+
+        <!-- Page content container -->
+        <div id="main-content" class="flex-1 overflow-y-auto p-8">
+            <!-- Page modules render here -->
+            <div class="flex items-center justify-center h-full text-on-surface-variant">
+                <span class="material-symbols-outlined text-4xl spinner">progress_activity</span>
+            </div>
+        </div>
+
+        <!-- Status bar -->
+        <footer class="h-10 bg-surface-container-lowest border-t border-outline-variant/10 flex items-center justify-between px-8 shrink-0">
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                    <span class="text-[9px] font-label uppercase tracking-widest text-on-surface" data-i18n="status_ready">NODE-01: ONLINE</span>
+                </div>
+                <div class="text-[9px] font-label uppercase tracking-widest text-on-surface-variant/50" data-i18n="ready">就緒</div>
+            </div>
+            <div class="text-[9px] font-label tracking-widest text-on-surface-variant/30">
+                tack_comfyui_start_tool
+            </div>
+        </footer>
+    </main>
+
+    <!-- ══════ MODAL OVERLAY ══════ -->
+    <div id="modal-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center">
+        <div id="modal-container" class="bg-surface-container-high border border-outline-variant/20 w-full max-w-lg mx-4 transform transition-all modal-enter">
+            <!-- Modal content injected by JS -->
+        </div>
+    </div>
+
+    <!-- ══════ PROGRESS PANEL CONTAINER ══════ -->
+    <div id="progress-container" class="fixed top-20 right-4 z-40 space-y-2 w-80">
+        <!-- Progress panels injected by JS -->
+    </div>
+
+    <!-- ══════ TOAST CONTAINER ══════ -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2">
+        <!-- Toasts injected by JS -->
+    </div>
+
+    <!-- ══════ SCRIPTS ══════ -->
+    <!-- QWebChannel (provided by Qt) -->
+    <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+
+    <!-- App modules -->
+    <script src="js/i18n.js"></script>
+    <script src="js/bridge.js"></script>
+    <script src="js/app.js"></script>
+
+    <!-- Page modules -->
+    <script src="js/pages/home.js"></script>
+    <script src="js/pages/environments.js"></script>
+    <script src="js/pages/launcher.js"></script>
+    <script src="js/pages/versions.js"></script>
+    <script src="js/pages/snapshots.js"></script>
+    <script src="js/pages/plugins.js"></script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+
+# Testing / Coverage
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Linting
+.ruff_cache/
+
+# Logs
+debug.log
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# ComfyUI environments (user data, large)
+environments/
+
+# Snapshots (user data)
+snapshots/
+
+# Runtime state
+state/
+
+# OMC orchestration state
+.omc/
+
+# OS
+Thumbs.db
+.DS_Store

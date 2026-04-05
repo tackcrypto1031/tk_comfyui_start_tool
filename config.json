@@ -1,0 +1,32 @@
+{
+  "version": "0.1.0",
+  "default_env": "main",
+  "python_path": null,
+  "comfyui_repo_url": "https://github.com/comfyanonymous/ComfyUI.git",
+  "base_dir": ".",
+  "environments_dir": "./environments",
+  "models_dir": "./models",
+  "snapshots_dir": "./snapshots",
+  "max_snapshots": 20,
+  "auto_snapshot": true,
+  "auto_open_browser": true,
+  "pytorch_index_url": "https://download.pytorch.org/whl/cu124",
+  "default_port": 8188,
+  "theme": "dark",
+  "language": "zh-TW",
+  "log_level": "INFO",
+  "model_subdirs": [
+    "checkpoints", "loras", "vae", "controlnet",
+    "clip", "embeddings", "upscale_models"
+  ],
+  "conflict_analyzer": {
+    "critical_packages": [
+      "torch", "torchvision", "torchaudio",
+      "numpy", "scipy", "transformers",
+      "safetensors", "Pillow", "xformers",
+      "opencv-python", "opencv-python-headless",
+      "accelerate", "onnxruntime", "onnxruntime-gpu"
+    ],
+    "auto_analyze_on_install": true
+  }
+}

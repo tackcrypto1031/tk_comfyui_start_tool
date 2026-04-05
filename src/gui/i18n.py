@@ -1,0 +1,293 @@
+"""Simple JSON-based i18n system."""
+
+TRANSLATIONS = {
+    "en": {
+        # Main window
+        "app_title": "tack_comfyui_start_tool",
+        "ready": "Ready",
+
+        # Sidebar
+        "sidebar_environments": "Environments",
+        "sidebar_launch": "Launch",
+        "sidebar_plugins": "Plugins",
+        "sidebar_versions": "Versions",
+        "sidebar_snapshots": "Snapshots",
+
+        # Language
+        "language": "Language",
+
+        # Env panel
+        "env_create": "Create",
+        "env_clone": "Clone",
+        "env_delete": "Delete",
+        "env_refresh": "Refresh",
+        "env_col_name": "Name",
+        "env_col_branch": "Branch",
+        "env_col_commit": "Commit",
+        "env_col_sandbox": "Sandbox",
+        "env_col_created": "Created",
+        "env_create_title": "Create Environment",
+        "env_clone_title": "Clone Environment",
+        "env_name": "Name:",
+        "env_branch": "Branch:",
+        "env_commit": "Commit:",
+        "env_commit_placeholder": "Leave empty for latest",
+        "env_source": "Source:",
+        "env_new_name": "New Name:",
+        "env_creating": "Creating '{}'...",
+        "env_cloning": "Cloning '{}' to '{}'...",
+        "env_deleting": "Deleting '{}'...",
+        "env_count": "{} environment(s)",
+        "env_confirm_delete": "Delete environment '{}'?",
+        "env_select_to_clone": "Select an environment to clone.",
+        "env_select_to_delete": "Select an environment to delete.",
+        "env_version_type": "Version:",
+        "env_fetch_versions": "Fetch Versions",
+        "env_select_version": "Select a version...",
+        "env_fetching_versions": "Fetching available versions...",
+        "loading": "Loading...",
+        "info": "Info",
+        "error": "Error",
+        "confirm": "Confirm",
+        "yes": "Yes",
+
+        # Launcher panel
+        "launch_environment": "Environment:",
+        "launch_port": "Port:",
+        "launch_start": "Start",
+        "launch_stop": "Stop",
+        "launch_refresh": "Refresh",
+        "launch_log": "Log Output",
+        "launch_status": "Status:",
+        "launch_status_stopped": "Stopped",
+        "launch_status_running": "Running (PID: {}, Port: {})",
+        "launch_starting": "Starting ComfyUI...",
+        "launch_stopping": "Stopping ComfyUI...",
+        "launch_started": "ComfyUI started (PID: {}, Port: {})",
+        "launch_stopped": "ComfyUI stopped.",
+        "launch_select_env": "Select an environment first.",
+
+        # Plugin panel
+        "plugin_environment": "Environment:",
+        "plugin_url_placeholder": "Plugin Git URL or local path...",
+        "plugin_analyze": "Analyze",
+        "plugin_conflict_report": "Conflict Report",
+        "plugin_risk_level": "Risk Level:",
+        "plugin_col_package": "Package",
+        "plugin_col_current": "Current",
+        "plugin_col_new": "New",
+        "plugin_col_type": "Type",
+        "plugin_col_risk": "Risk",
+        "plugin_analyzing": "Analyzing...",
+        "plugin_analysis_complete": "Analysis complete.",
+        "plugin_select_env_and_path": "Select an environment and enter a plugin path.",
+
+        # Version panel
+        "version_environment": "Environment:",
+        "version_target": "Target:",
+        "version_load": "Load Commits",
+        "version_switch": "Switch to Selected",
+        "version_update": "Update to Latest",
+        "version_col_hash": "Hash",
+        "version_col_message": "Message",
+        "version_col_author": "Author",
+        "version_col_date": "Date",
+        "version_loading": "Loading commits...",
+        "version_switching": "Switching version...",
+        "version_updating": "Updating...",
+        "version_switched": "Version switched.",
+        "version_updated": "Updated to latest.",
+        "version_select_commit": "Select a commit to switch to.",
+        "version_confirm_switch": "Switch to commit {}?",
+        "version_confirm_update": "Update to latest version?",
+        "version_type": "Version Type:",
+        "version_type_branch": "Branch",
+        "version_type_tag": "Tag",
+        "version_available_tags": "Available Tags",
+        "version_available_branches": "Available Branches",
+        "version_fetching": "Fetching versions...",
+        "version_fetch_failed": "Failed to fetch versions: {}",
+        "version_refresh_versions": "Refresh Versions",
+        "version_tag": "Tag:",
+        "version_no_tags": "No tags found",
+        "version_install_tag": "Install Selected Tag",
+        "version_tag_count": "{} tag(s) available",
+        "version_branch_count": "{} branch(es) available",
+
+        # Snapshot panel
+        "snapshot_environment": "Environment:",
+        "snapshot_create": "Create",
+        "snapshot_restore": "Restore",
+        "snapshot_delete": "Delete",
+        "snapshot_refresh": "Refresh",
+        "snapshot_col_id": "ID",
+        "snapshot_col_trigger": "Trigger",
+        "snapshot_col_commit": "Commit",
+        "snapshot_col_created": "Created",
+        "snapshot_creating": "Creating snapshot...",
+        "snapshot_restoring": "Restoring...",
+        "snapshot_created": "Snapshot created: {}",
+        "snapshot_restored": "Restored from {}",
+        "snapshot_deleted": "Snapshot deleted.",
+        "snapshot_select_to_restore": "Select a snapshot to restore.",
+        "snapshot_select_to_delete": "Select a snapshot to delete.",
+        "snapshot_confirm_restore": "Restore from '{}'?",
+        "snapshot_confirm_delete": "Delete snapshot '{}'?",
+        "snapshot_count": "{} snapshot(s)",
+    },
+    "zh-TW": {
+        # Main window
+        "app_title": "tack_comfyui_start_tool",
+        "ready": "就緒",
+
+        # Sidebar
+        "sidebar_environments": "環境管理",
+        "sidebar_launch": "啟動器",
+        "sidebar_plugins": "插件管理",
+        "sidebar_versions": "版本控制",
+        "sidebar_snapshots": "快照管理",
+
+        # Language
+        "language": "語言",
+
+        # Env panel
+        "env_create": "建立",
+        "env_clone": "複製",
+        "env_delete": "刪除",
+        "env_refresh": "重新整理",
+        "env_col_name": "名稱",
+        "env_col_branch": "分支",
+        "env_col_commit": "提交",
+        "env_col_sandbox": "沙箱",
+        "env_col_created": "建立時間",
+        "env_create_title": "建立環境",
+        "env_clone_title": "複製環境",
+        "env_name": "名稱：",
+        "env_branch": "分支：",
+        "env_commit": "提交：",
+        "env_commit_placeholder": "留空使用最新版",
+        "env_source": "來源：",
+        "env_new_name": "新名稱：",
+        "env_creating": "正在建立 '{}'...",
+        "env_cloning": "正在複製 '{}' 到 '{}'...",
+        "env_deleting": "正在刪除 '{}'...",
+        "env_count": "{} 個環境",
+        "env_confirm_delete": "確定刪除環境 '{}'？",
+        "env_select_to_clone": "請先選擇要複製的環境",
+        "env_select_to_delete": "請先選擇要刪除的環境",
+        "env_version_type": "版本：",
+        "env_fetch_versions": "取得版本列表",
+        "env_select_version": "選擇版本...",
+        "env_fetching_versions": "正在取得可用版本...",
+        "loading": "載入中...",
+        "info": "提示",
+        "error": "錯誤",
+        "confirm": "確認",
+        "yes": "是",
+
+        # Launcher panel
+        "launch_environment": "環境：",
+        "launch_port": "埠號：",
+        "launch_start": "啟動",
+        "launch_stop": "停止",
+        "launch_refresh": "重新整理",
+        "launch_log": "日誌輸出",
+        "launch_status": "狀態：",
+        "launch_status_stopped": "已停止",
+        "launch_status_running": "運行中（PID: {}，埠號: {}）",
+        "launch_starting": "正在啟動 ComfyUI...",
+        "launch_stopping": "正在停止 ComfyUI...",
+        "launch_started": "ComfyUI 已啟動（PID: {}，埠號: {}）",
+        "launch_stopped": "ComfyUI 已停止",
+        "launch_select_env": "請先選擇環境",
+
+        # Plugin panel
+        "plugin_environment": "環境：",
+        "plugin_url_placeholder": "插件 Git URL 或本地路徑...",
+        "plugin_analyze": "分析",
+        "plugin_conflict_report": "衝突報告",
+        "plugin_risk_level": "風險等級：",
+        "plugin_col_package": "套件",
+        "plugin_col_current": "目前版本",
+        "plugin_col_new": "新版本",
+        "plugin_col_type": "類型",
+        "plugin_col_risk": "風險",
+        "plugin_analyzing": "分析中...",
+        "plugin_analysis_complete": "分析完成",
+        "plugin_select_env_and_path": "請選擇環境並輸入插件路徑",
+
+        # Version panel
+        "version_environment": "環境：",
+        "version_target": "目標：",
+        "version_load": "載入提交紀錄",
+        "version_switch": "切換至選取版本",
+        "version_update": "更新至最新版",
+        "version_col_hash": "雜湊值",
+        "version_col_message": "訊息",
+        "version_col_author": "作者",
+        "version_col_date": "日期",
+        "version_loading": "正在載入提交紀錄...",
+        "version_switching": "正在切換版本...",
+        "version_updating": "正在更新...",
+        "version_switched": "版本已切換",
+        "version_updated": "已更新至最新版",
+        "version_select_commit": "請先選擇要切換的提交",
+        "version_confirm_switch": "確定切換至提交 {}？",
+        "version_confirm_update": "確定更新至最新版本？",
+        "version_type": "版本類型：",
+        "version_type_branch": "分支",
+        "version_type_tag": "標籤",
+        "version_available_tags": "可用標籤",
+        "version_available_branches": "可用分支",
+        "version_fetching": "正在取得版本...",
+        "version_fetch_failed": "取得版本失敗：{}",
+        "version_refresh_versions": "重新整理版本",
+        "version_tag": "標籤：",
+        "version_no_tags": "未找到標籤",
+        "version_install_tag": "安裝選取標籤",
+        "version_tag_count": "{} 個標籤可用",
+        "version_branch_count": "{} 個分支可用",
+
+        # Snapshot panel
+        "snapshot_environment": "環境：",
+        "snapshot_create": "建立",
+        "snapshot_restore": "還原",
+        "snapshot_delete": "刪除",
+        "snapshot_refresh": "重新整理",
+        "snapshot_col_id": "快照 ID",
+        "snapshot_col_trigger": "觸發原因",
+        "snapshot_col_commit": "提交",
+        "snapshot_col_created": "建立時間",
+        "snapshot_creating": "正在建立快照...",
+        "snapshot_restoring": "正在還原...",
+        "snapshot_created": "快照已建立：{}",
+        "snapshot_restored": "已從 {} 還原",
+        "snapshot_deleted": "快照已刪除",
+        "snapshot_select_to_restore": "請先選擇要還原的快照",
+        "snapshot_select_to_delete": "請先選擇要刪除的快照",
+        "snapshot_confirm_restore": "確定從 '{}' 還原？",
+        "snapshot_confirm_delete": "確定刪除快照 '{}'？",
+        "snapshot_count": "{} 個快照",
+    },
+}
+
+_current_lang = "en"
+
+
+def set_language(lang: str) -> None:
+    """Set the active language."""
+    global _current_lang
+    if lang in TRANSLATIONS:
+        _current_lang = lang
+
+
+def get_language() -> str:
+    """Return the active language code."""
+    return _current_lang
+
+
+def t(key: str) -> str:
+    """Get translated string for key, falling back to English."""
+    return TRANSLATIONS.get(_current_lang, TRANSLATIONS["en"]).get(
+        key, TRANSLATIONS["en"].get(key, key)
+    )
