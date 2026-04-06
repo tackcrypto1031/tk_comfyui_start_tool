@@ -78,7 +78,7 @@
     background-color: #191919;
     color: #ababab;
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -98,7 +98,7 @@
 }
 .data-table tbody td {
     padding: 10px 16px;
-    font-size: 13px;
+    font-size: 14px;
     color: #ffffff;
 }
 .data-table tbody tr.selected {
@@ -109,7 +109,7 @@
 /* Button styles */
 .btn {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -167,7 +167,7 @@
     color: #ffffff;
     border: 1px solid #484848;
     padding: 10px 14px;
-    font-size: 13px;
+    font-size: 14px;
     font-family: 'Inter', sans-serif;
     width: 100%;
     transition: border-color 0.15s;
@@ -183,7 +183,7 @@
 }
 .input-label {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -198,7 +198,7 @@
     color: #ffffff;
     border: 1px solid #484848;
     padding: 10px 14px;
-    font-size: 13px;
+    font-size: 14px;
     font-family: 'Inter', sans-serif;
     width: 100%;
     transition: border-color 0.15s;
@@ -233,7 +233,7 @@
 }
 .card-header {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -244,7 +244,7 @@
 /* Badge/Chip styles */
 .badge {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -277,7 +277,7 @@
 /* Toast notifications */
 .toast {
     padding: 12px 20px;
-    font-size: 13px;
+    font-size: 14px;
     font-family: 'Inter', sans-serif;
     border-left: 3px solid;
     animation: toast-in 0.3s ease-out;
@@ -323,7 +323,7 @@
     background-color: #000000;
     border: 1px solid #191919;
     font-family: 'Consolas', 'Cascadia Code', monospace;
-    font-size: 12px;
+    font-size: 13px;
     color: #ababab;
     padding: 12px;
     overflow-y: auto;
@@ -359,7 +359,7 @@
 }
 .tab-item {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -382,7 +382,7 @@
     border-bottom-color: #cc97ff;
 }
 .tab-item .tab-badge {
-    font-size: 10px;
+    font-size: 11px;
     padding: 1px 6px;
     background-color: rgba(204, 151, 255, 0.15);
     color: #cc97ff;
@@ -414,7 +414,7 @@
     gap: 12px;
     font-family: 'Space Grotesk', sans-serif;
     font-weight: 700;
-    font-size: 12px;
+    font-size: 13px;
     letter-spacing: 0.2em;
     text-transform: uppercase;
     color: #ffffff;
@@ -547,7 +547,7 @@
     justify-content: space-between;
 }
 .progress-panel-detail {
-    font-size: 10px;
+    font-size: 11px;
     color: #ababab;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -594,4 +594,34 @@
 }
 .progress-panel-dismiss:hover {
     color: #f87171;
+}
+
+/* ── CJK / zh-Hant Language Overrides ─────────────────── */
+
+/* Font: use Microsoft JhengHei for Chinese */
+html[lang="zh-Hant"] {
+    font-family: 'Microsoft JhengHei', 'Inter', 'Segoe UI', sans-serif;
+}
+html[lang="zh-Hant"] .font-headline,
+html[lang="zh-Hant"] .font-label {
+    font-family: 'Microsoft JhengHei', 'Space Grotesk', 'Segoe UI', sans-serif;
+}
+
+/* Reduce letter-spacing for CJK (Chinese characters are already full-width) */
+html[lang="zh-Hant"] .nav-item,
+html[lang="zh-Hant"] .btn,
+html[lang="zh-Hant"] .data-table thead th,
+html[lang="zh-Hant"] .input-label,
+html[lang="zh-Hant"] .card-header,
+html[lang="zh-Hant"] .badge,
+html[lang="zh-Hant"] .tab-item,
+html[lang="zh-Hant"] .section-title {
+    letter-spacing: 0.02em;
+}
+
+/* Sidebar nav and status labels */
+html[lang="zh-Hant"] [class*="tracking-[0.15em]"],
+html[lang="zh-Hant"] [class*="tracking-[0.2em]"],
+html[lang="zh-Hant"] [class*="tracking-widest"] {
+    letter-spacing: 0.02em;
 }

@@ -371,6 +371,7 @@ const I18N = (function() {
     function setLanguage(lang) {
         if (TRANSLATIONS[lang]) {
             currentLang = lang;
+            document.documentElement.lang = lang === 'zh-TW' ? 'zh-Hant' : 'en';
             retranslateAll();
         }
     }

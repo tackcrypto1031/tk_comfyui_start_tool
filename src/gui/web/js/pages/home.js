@@ -99,7 +99,7 @@
                             card.icon +
                         '</span>' +
                         '<span style="' +
-                            'font-family: \'Space Grotesk\', sans-serif; font-size: 13px; ' +
+                            'font-family: \'Space Grotesk\', sans-serif; font-size: 14px; ' +
                             'font-weight: 700; letter-spacing: 0.1em; ' +
                             'text-transform: uppercase; color: #ffffff;' +
                         '">' + t(card.i18nKey) + '</span>' +
