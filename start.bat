@@ -1,3 +1,7 @@
 @echo off
 cd /d "%~dp0"
-start "" pythonw launcher.py
+if exist "%~dp0tools\python\pythonw.exe" (
+    start "" "%~dp0tools\python\pythonw.exe" launcher.py
+) else (
+    start "" pythonw launcher.py
+)

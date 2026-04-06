@@ -39,6 +39,9 @@ state/
 # OMC orchestration state
 .omc/
 
+# Embedded tools (installed by install.bat)
+tools/
+
 # OS
 Thumbs.db
 .DS_Store

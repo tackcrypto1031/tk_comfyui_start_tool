@@ -1,7 +1,14 @@
 """Launcher — GUI (QWebEngineView) or CLI mode selector."""
+import os
 import sys
 import ctypes
 from pathlib import Path
+
+# Set up embedded tools paths (must be before any gitpython import)
+_root = Path(__file__).parent
+_tools_git = _root / "tools" / "git" / "cmd" / "git.exe"
+if _tools_git.exists():
+    os.environ["GIT_PYTHON_GIT_EXECUTABLE"] = str(_tools_git)
 
 # Set AppUserModelID so Windows shows our icon on the taskbar
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("tack.comfyui.starter")
