@@ -36,6 +36,8 @@ class EnvManager:
 
     def create_environment(self, name: str, branch: str = "master",
                            commit: Optional[str] = None,
+                           python_version: str = "",
+                           cuda_tag: str = "",
                            progress_callback=None) -> Environment:
         """Create a new ComfyUI environment with venv, cloned repo, and metadata."""
         self._validate_name(name)
@@ -51,10 +53,20 @@ class EnvManager:
                 progress_callback(step, pct, detail)
 
         try:
-            # 1. Create venv
+            # 1. Create venv (with optional custom Python)
             _report("venv", 5, "Creating virtual environment...")
             venv_path = env_dir / "venv"
-            pip_ops.create_venv(str(venv_path))
+            if python_version:
+                from src.core.version_manager import VersionManager
+                vm = VersionManager(self.config)
+                bundled_ver = self._get_bundled_python_version()
+                if python_version != bundled_ver:
+                    python_exe = str(vm.get_python_executable(python_version, bundled_ver))
+                    pip_ops.create_venv(str(venv_path), python_executable=python_exe)
+                else:
+                    pip_ops.create_venv(str(venv_path))
+            else:
+                pip_ops.create_venv(str(venv_path))
 
             # 2. Clone ComfyUI
             _report("clone", 15, "Cloning ComfyUI repository...")
@@ -69,12 +81,15 @@ class EnvManager:
 
             # 3. Install PyTorch with CUDA support (must be BEFORE requirements.txt)
             _report("pytorch", 35, "Installing PyTorch (CUDA)...")
-            pytorch_index = self.config.get("pytorch_index_url", "")
-            if pytorch_index:
-                pip_ops.run_pip_with_progress(str(venv_path), [
-                    "install", "torch", "torchvision", "torchaudio",
-                    "--index-url", pytorch_index,
-                ], progress_callback=lambda line: _report("pytorch", 35, line))
+            if cuda_tag:
+                pytorch_index = f"https://download.pytorch.org/whl/{cuda_tag}"
+            else:
+                pytorch_index = self.config.get("pytorch_index_url", "https://download.pytorch.org/whl/cu124")
+            effective_cuda_tag = cuda_tag or pytorch_index.rstrip("/").split("/")[-1]
+            pip_ops.run_pip_with_progress(str(venv_path), [
+                "install", "torch", "torchvision", "torchaudio",
+                "--index-url", pytorch_index,
+            ], progress_callback=lambda line: _report("pytorch", 35, line))
 
             # 4. Install ComfyUI dependencies
             _report("dependencies", 55, "Installing ComfyUI dependencies...")
@@ -101,7 +116,6 @@ class EnvManager:
             # 6. Get environment info
             _report("finalize", 90, "Saving environment metadata...")
             comfyui_commit = git_ops.get_current_commit(str(comfyui_path))
-            python_version = pip_ops.get_python_version(str(venv_path))
             pip_freeze = pip_ops.freeze(str(venv_path))
 
             # Generate extra_model_paths.yaml
@@ -117,6 +131,9 @@ class EnvManager:
                     "commit": manager_commit,
                 })
 
+            # Detect installed PyTorch version
+            installed_pytorch = pip_freeze.get("torch", "")
+
             # 7. Create and save environment metadata
             now = datetime.now(timezone.utc).isoformat()
             env = Environment(
@@ -124,7 +141,9 @@ class EnvManager:
                 created_at=now,
                 comfyui_commit=comfyui_commit,
                 comfyui_branch=branch,
-                python_version=python_version,
+                python_version=python_version if python_version else pip_ops.get_python_version(str(venv_path)),
+                cuda_tag=effective_cuda_tag,
+                pytorch_version=installed_pytorch,
                 pip_freeze=pip_freeze,
                 custom_nodes=custom_nodes,
                 path=str(env_dir),
@@ -393,6 +412,21 @@ class EnvManager:
                 "Use only letters, digits, underscores, and hyphens. "
                 "Must start with a letter or digit."
             )
+
+    def _get_bundled_python_version(self) -> str:
+        """Get the version of the bundled Python in tools/python/."""
+        import subprocess as _sp
+        tools_python = Path(self.config.get("base_dir", ".")) / "tools" / "python" / "python.exe"
+        if tools_python.exists():
+            try:
+                result = _sp.run(
+                    [str(tools_python), "--version"],
+                    capture_output=True, text=True, check=True,
+                )
+                return result.stdout.strip().replace("Python ", "")
+            except Exception:
+                pass
+        return ""
 
     def _generate_extra_model_paths(self, comfyui_path: Path) -> None:
         """Generate extra_model_paths.yaml pointing to shared models directory."""

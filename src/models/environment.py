@@ -14,6 +14,8 @@ class Environment:
     comfyui_commit: str = ""
     comfyui_branch: str = "master"
     python_version: str = ""
+    cuda_tag: str = ""
+    pytorch_version: str = ""
     pip_freeze: dict = field(default_factory=dict)
     custom_nodes: list = field(default_factory=list)
     snapshots: list = field(default_factory=list)
