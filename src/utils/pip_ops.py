@@ -17,10 +17,15 @@ def get_venv_python(venv_path: str) -> str:
     return str(Path(venv_path) / "bin" / "python")
 
 
-def create_venv(venv_path: str) -> None:
-    """Create a Python virtual environment."""
+def create_venv(venv_path: str, python_executable: str = "") -> None:
+    """Create a Python virtual environment.
+
+    If *python_executable* is provided it is used instead of the running
+    interpreter, allowing venvs to be created for a different Python version.
+    """
+    executable = python_executable if python_executable else sys.executable
     subprocess.run(
-        [sys.executable, "-m", "venv", venv_path],
+        [executable, "-m", "venv", venv_path],
         check=True,
         capture_output=True,
         text=True,

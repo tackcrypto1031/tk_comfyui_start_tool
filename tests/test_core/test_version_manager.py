@@ -208,3 +208,30 @@ class TestRefresh:
             manager = VersionManager(sample_config)
             with pytest.raises(RuntimeError, match="Failed to refresh CUDA tags"):
                 manager.refresh_cuda_tags()
+
+
+class TestGetPythonExecutable:
+    """Test get_python_executable path resolution."""
+
+    def test_get_python_executable_bundled(self, sample_config, tmp_path):
+        manager = VersionManager(sample_config)
+        # Create fake bundled python
+        bundled_path = manager.tools_dir / "python" / "python.exe"
+        bundled_path.parent.mkdir(parents=True, exist_ok=True)
+        bundled_path.touch()
+        result = manager.get_python_executable("3.11.9", bundled_version="3.11.9")
+        assert result == bundled_path
+
+    def test_get_python_executable_custom(self, sample_config, tmp_path):
+        manager = VersionManager(sample_config)
+        # Create fake custom python
+        custom_path = manager.tools_dir / "python_3.10.16" / "python.exe"
+        custom_path.parent.mkdir(parents=True, exist_ok=True)
+        custom_path.touch()
+        result = manager.get_python_executable("3.10.16", bundled_version="3.11.9")
+        assert result == custom_path
+
+    def test_get_python_executable_not_installed(self, sample_config):
+        manager = VersionManager(sample_config)
+        with pytest.raises(FileNotFoundError, match="not installed"):
+            manager.get_python_executable("3.10.16")

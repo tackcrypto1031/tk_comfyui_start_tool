@@ -1,4 +1,5 @@
 """Version manager - GPU detection, Python/CUDA version lists, and cache."""
+import hashlib
 import json
 import logging
 import re
@@ -153,6 +154,93 @@ class VersionManager:
         }
         self._save_cache(data)
         return data
+
+    def get_python_executable(self, version: str, bundled_version: str = "") -> Path:
+        """Return path to python.exe for the given version.
+
+        If version matches bundled_version (and bundled_version is not empty),
+        returns tools/python/python.exe. Otherwise returns tools/python_{version}/python.exe.
+        Raises FileNotFoundError if the executable does not exist.
+        """
+        if bundled_version and version == bundled_version:
+            path = self.tools_dir / "python" / "python.exe"
+        else:
+            path = self.tools_dir / f"python_{version}" / "python.exe"
+        if not path.exists():
+            raise FileNotFoundError(f"Python {version} is not installed. Expected at: {path}")
+        return path
+
+    def download_python(self, version: str, url: str, sha256: str = "",
+                        progress_callback=None) -> Path:
+        """Download and install an embedded Python build.
+
+        Downloads the zip from *url* to tools/_temp/, verifies SHA256 if provided,
+        extracts to tools/python_{version}/, enables pip via ._pth patch, runs
+        get-pip.py, and cleans up. Returns the destination directory Path.
+        Skips download if python.exe already exists in the destination.
+        """
+        dest = self.tools_dir / f"python_{version}"
+        if (dest / "python.exe").exists():
+            logger.debug("Python %s already installed at %s — skipping download", version, dest)
+            return dest
+
+        temp_dir = self.tools_dir / "_temp"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        zip_path = temp_dir / f"python-{version}-embed.zip"
+
+        # Download zip
+        if progress_callback:
+            progress_callback(f"Downloading Python {version}...")
+        response = requests.get(url, timeout=60, stream=True)
+        response.raise_for_status()
+        with open(zip_path, "wb") as f:
+            for chunk in response.iter_content(chunk_size=65536):
+                f.write(chunk)
+
+        # Verify SHA256
+        if sha256:
+            if progress_callback:
+                progress_callback("Verifying SHA256...")
+            digest = hashlib.sha256(zip_path.read_bytes()).hexdigest()
+            if digest.lower() != sha256.lower():
+                zip_path.unlink(missing_ok=True)
+                raise ValueError(f"SHA256 mismatch for Python {version}: expected {sha256}, got {digest}")
+
+        # Extract
+        if progress_callback:
+            progress_callback(f"Extracting Python {version}...")
+        import zipfile
+        dest.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(zip_path) as zf:
+            zf.extractall(dest)
+
+        # Enable pip: replace #import site with import site in ._pth files
+        for pth_file in dest.glob("python*._pth"):
+            text = pth_file.read_text(encoding="utf-8")
+            patched = text.replace("#import site", "import site")
+            pth_file.write_text(patched, encoding="utf-8")
+
+        # Download and run get-pip.py
+        if progress_callback:
+            progress_callback("Installing pip...")
+        get_pip_path = temp_dir / "get-pip.py"
+        pip_response = requests.get("https://bootstrap.pypa.io/get-pip.py", timeout=30)
+        pip_response.raise_for_status()
+        get_pip_path.write_bytes(pip_response.content)
+
+        python_exe = dest / "python.exe"
+        kwargs = {"capture_output": True, "text": True, "check": True}
+        if sys.platform == "win32":
+            kwargs["creationflags"] = _CREATE_NO_WINDOW
+        subprocess.run([str(python_exe), str(get_pip_path)], **kwargs)
+
+        # Cleanup
+        zip_path.unlink(missing_ok=True)
+        get_pip_path.unlink(missing_ok=True)
+
+        if progress_callback:
+            progress_callback(f"Python {version} installed.")
+        return dest
 
     def _load_cache(self) -> dict | None:
         """Load version cache from disk. Returns None if not found or invalid."""
