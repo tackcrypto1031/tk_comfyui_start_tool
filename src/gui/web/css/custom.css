@@ -415,6 +415,15 @@
     100% { transform: translateX(350%); }
 }
 
+/* ── Home Cards ── */
+.home-card-disabled {
+    opacity: 0.4;
+    cursor: not-allowed !important;
+}
+.home-card-disabled .material-symbols-outlined {
+    color: #6b6b6b !important;
+}
+
 /* ── Progress Panel ── */
 .progress-panel {
     background-color: #262626;
