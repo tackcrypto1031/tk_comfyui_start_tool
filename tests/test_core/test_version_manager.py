@@ -115,31 +115,29 @@ class TestCache:
 class TestRefresh:
     """Test online refresh methods."""
 
-    PYTHON_JSON = {
-        "versions": [
-            {
-                "company": "PythonEmbed",
-                "sort-version": "3.12.0",
-                "display-name": "Python 3.12.0",
-                "url": "https://example.com/python-3.12.0-embed-amd64.zip",
-                "hash": {"sha256": "abc123"},
-            },
-            {
-                "company": "PythonEmbed",
-                "sort-version": "3.11.0",
-                "display-name": "Python 3.11.0",
-                "url": "https://example.com/python-3.11.0-embed-amd64.zip",
-                "hash": {"sha256": "def456"},
-            },
-            {
-                "company": "PythonCore",
-                "sort-version": "3.10.0",
-                "display-name": "Python 3.10.0",
-                "url": "https://example.com/python-3.10.0.exe",
-                "hash": {"sha256": "ghi789"},
-            },
-        ]
-    }
+    PYTHON_JSON = [
+        {
+            "company": "PythonEmbed",
+            "sort-version": "3.12.0",
+            "display-name": "Python 3.12.0",
+            "url": "https://example.com/python-3.12.0-embed-amd64.zip",
+            "hash": {"sha256": "abc123"},
+        },
+        {
+            "company": "PythonEmbed",
+            "sort-version": "3.11.0",
+            "display-name": "Python 3.11.0",
+            "url": "https://example.com/python-3.11.0-embed-amd64.zip",
+            "hash": {"sha256": "def456"},
+        },
+        {
+            "company": "PythonCore",
+            "sort-version": "3.10.0",
+            "display-name": "Python 3.10.0",
+            "url": "https://example.com/python-3.10.0.exe",
+            "hash": {"sha256": "ghi789"},
+        },
+    ]
 
     CUDA_HTML = """
     <html><body>

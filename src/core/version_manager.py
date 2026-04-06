@@ -111,13 +111,14 @@ class VersionManager:
         """Fetch Python embeddable versions from python.org and return sorted list."""
         try:
             response = requests.get("https://www.python.org/ftp/python/index-windows.json", timeout=15)
-            data = response.json()
-            versions = data.get("versions", [])
+            entries = response.json()  # flat list of entries, not a dict
+            if isinstance(entries, dict):
+                entries = entries.get("versions", [])
         except Exception as e:
             raise RuntimeError(f"Failed to refresh Python versions: {e}") from e
 
         result = []
-        for entry in versions:
+        for entry in entries:
             if entry.get("company") != "PythonEmbed":
                 continue
             url = entry.get("url", "")
@@ -130,6 +131,8 @@ class VersionManager:
                 "sha256": entry.get("hash", {}).get("sha256", ""),
             })
 
+        # Filter out alpha/beta/rc versions and sort stable versions descending
+        result = [v for v in result if re.fullmatch(r"\d+\.\d+\.\d+", v["version"])]
         result.sort(key=lambda v: [int(x) for x in v["version"].split(".")], reverse=True)
         return result
 

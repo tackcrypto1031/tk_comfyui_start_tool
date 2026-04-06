@@ -249,16 +249,19 @@
                 var cudaSelect = document.getElementById('create-cuda');
                 if (cudaSelect) {
                     cudaSelect.innerHTML = '';
+                    var recommendedTag = gpu.recommended_cuda_tag || 'cpu';
+                    console.log('GPU detection result:', JSON.stringify(gpu), 'recommended:', recommendedTag);
                     lists.cuda_tags.forEach(function(tag) {
                         var opt = document.createElement('option');
                         opt.value = tag;
                         opt.textContent = tag === 'cpu' ? 'CPU Only' : tag.toUpperCase();
-                        if (tag === gpu.recommended_cuda_tag) {
+                        if (tag === recommendedTag) {
                             opt.textContent += ' (' + t('env_recommended') + ')';
-                            opt.selected = true;
                         }
                         cudaSelect.appendChild(opt);
                     });
+                    // Set selected value after all options are added (more reliable than opt.selected)
+                    cudaSelect.value = recommendedTag;
                 }
 
                 // Version hint
@@ -270,8 +273,8 @@
                         hint.textContent = t('env_version_hint_offline');
                     }
                 }
-            }).catch(function() {
-                // Silently keep defaults
+            }).catch(function(e) {
+                console.error('Failed to load version lists or detect GPU:', e);
             });
 
             // Refresh button

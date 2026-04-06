@@ -42,10 +42,27 @@ def main():
         window.setWindowIcon(app_icon)
         window.setMinimumSize(1200, 800)
 
-        # Web view with channel
+        # Web view with JS console logging
         view = QWebEngineView()
 
+        # Capture JS console messages to debug.log
+        import logging as _logging
+        _js_logger = _logging.getLogger("js_console")
+        _js_logger.setLevel(_logging.DEBUG)
+        _log_path = Path(__file__).parent / "debug.log"
+        _fh = _logging.FileHandler(str(_log_path), encoding="utf-8")
+        _fh.setFormatter(_logging.Formatter("%(asctime)s [JS] %(message)s"))
+        _js_logger.addHandler(_fh)
+
+        class LoggingPage(QWebEnginePage):
+            def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
+                _js_logger.info(f"L{level} {sourceID}:{lineNumber} {message}")
+
+        page = LoggingPage(view)
+        view.setPage(page)
+
         # Enable remote content loading (CDN for Tailwind, Fonts)
+        # Must be AFTER setPage so settings apply to the active page
         settings = view.settings()
         settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
         settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
@@ -54,7 +71,7 @@ def main():
         channel = QWebChannel()
         bridge = Bridge(config)
         channel.registerObject("bridge", bridge)
-        view.page().setWebChannel(channel)
+        page.setWebChannel(channel)
 
         # Load the SPA
         html_path = Path(__file__).parent / "src" / "gui" / "web" / "index.html"

@@ -80,12 +80,17 @@ class EnvManager:
             )
 
             # 3. Install PyTorch with CUDA support (must be BEFORE requirements.txt)
-            _report("pytorch", 35, "Installing PyTorch (CUDA)...")
-            if cuda_tag:
-                pytorch_index = f"https://download.pytorch.org/whl/{cuda_tag}"
-            else:
-                pytorch_index = self.config.get("pytorch_index_url", "https://download.pytorch.org/whl/cu124")
-            effective_cuda_tag = cuda_tag or pytorch_index.rstrip("/").split("/")[-1]
+            _report("pytorch", 35, "Detecting GPU...")
+            if not cuda_tag:
+                # Auto-detect GPU when no CUDA tag specified
+                from src.core.version_manager import VersionManager
+                vm = VersionManager(self.config)
+                gpu_info = vm.detect_gpu()
+                cuda_tag = gpu_info["recommended_cuda_tag"]
+                _report("pytorch", 35, f"Detected: {cuda_tag}")
+            effective_cuda_tag = cuda_tag
+            pytorch_index = f"https://download.pytorch.org/whl/{effective_cuda_tag}"
+            _report("pytorch", 35, f"Installing PyTorch ({effective_cuda_tag})...")
             pip_ops.run_pip_with_progress(str(venv_path), [
                 "install", "torch", "torchvision", "torchaudio",
                 "--index-url", pytorch_index,

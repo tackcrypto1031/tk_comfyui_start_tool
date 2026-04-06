@@ -316,13 +316,17 @@ class Bridge(QObject):
     def detect_gpu(self):
         """Detect GPU and return recommended CUDA tag."""
         from src.core.version_manager import VersionManager
+        logger.info("detect_gpu called")
         vm = VersionManager(self.config)
-        return self._safe_call(vm.detect_gpu)
+        result = self._safe_call(vm.detect_gpu)
+        logger.info(f"detect_gpu result: {result[:200]}")
+        return result
 
     @Slot(result=str)
     def get_version_lists(self):
         """Return Python versions and CUDA tags."""
         from src.core.version_manager import VersionManager
+        logger.info("get_version_lists called")
         vm = VersionManager(self.config)
         def _get():
             return {
@@ -330,7 +334,9 @@ class Bridge(QObject):
                 "cuda_tags": vm.get_cuda_tags(),
                 "cache_info": vm.get_cache_info(),
             }
-        return self._safe_call(_get)
+        result = self._safe_call(_get)
+        logger.info(f"get_version_lists result: {result[:200]}")
+        return result
 
     @Slot(str)
     def refresh_version_lists(self, request_id):
