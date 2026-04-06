@@ -110,3 +110,101 @@ class TestCache:
         manager = VersionManager(sample_config)
         info = manager.get_cache_info()
         assert info is None
+
+
+class TestRefresh:
+    """Test online refresh methods."""
+
+    PYTHON_JSON = {
+        "versions": [
+            {
+                "company": "PythonEmbed",
+                "sort-version": "3.12.0",
+                "display-name": "Python 3.12.0",
+                "url": "https://example.com/python-3.12.0-embed-amd64.zip",
+                "hash": {"sha256": "abc123"},
+            },
+            {
+                "company": "PythonEmbed",
+                "sort-version": "3.11.0",
+                "display-name": "Python 3.11.0",
+                "url": "https://example.com/python-3.11.0-embed-amd64.zip",
+                "hash": {"sha256": "def456"},
+            },
+            {
+                "company": "PythonCore",
+                "sort-version": "3.10.0",
+                "display-name": "Python 3.10.0",
+                "url": "https://example.com/python-3.10.0.exe",
+                "hash": {"sha256": "ghi789"},
+            },
+        ]
+    }
+
+    CUDA_HTML = """
+    <html><body>
+    <a href="cpu/">cpu/</a>
+    <a href="cu118/">cu118/</a>
+    <a href="cu121/">cu121/</a>
+    <a href="cu124/">cu124/</a>
+    <a href="cu126/">cu126/</a>
+    <a href="nightly/">nightly/</a>
+    </body></html>
+    """
+
+    def test_refresh_python_versions_success(self, sample_config):
+        mock_response = MagicMock()
+        mock_response.json.return_value = self.PYTHON_JSON
+        with patch("requests.get", return_value=mock_response):
+            manager = VersionManager(sample_config)
+            result = manager.refresh_python_versions()
+        # Only PythonEmbed entries returned
+        assert len(result) == 2
+        # Sorted descending by version
+        assert result[0]["version"] == "3.12.0"
+        assert result[1]["version"] == "3.11.0"
+        # Fields present
+        assert result[0]["display"] == "Python 3.12.0"
+        assert "url" in result[0]
+        assert "sha256" in result[0]
+
+    def test_refresh_cuda_tags_success(self, sample_config):
+        mock_response = MagicMock()
+        mock_response.text = self.CUDA_HTML
+        with patch("requests.get", return_value=mock_response):
+            manager = VersionManager(sample_config)
+            result = manager.refresh_cuda_tags()
+        # nightly excluded
+        assert "nightly" not in result
+        # cpu first
+        assert result[0] == "cpu"
+        # cu tags sorted numerically after cpu
+        assert result == ["cpu", "cu118", "cu121", "cu124", "cu126"]
+
+    def test_refresh_all_saves_cache(self, sample_config):
+        manager = VersionManager(sample_config)
+        py_versions = [{"version": "3.12.0", "display": "Python 3.12.0", "url": "", "sha256": ""}]
+        cuda_tags = ["cpu", "cu124"]
+        with patch.object(manager, "refresh_python_versions", return_value=py_versions), \
+             patch.object(manager, "refresh_cuda_tags", return_value=cuda_tags):
+            result = manager.refresh_all()
+        # Cache file written
+        assert manager._cache_path.exists()
+        loaded = manager._load_cache()
+        assert loaded is not None
+        assert loaded["python"] == py_versions
+        assert loaded["cuda_tags"] == cuda_tags
+        assert "last_updated" in loaded
+        # Return value matches cache
+        assert result["python"] == py_versions
+        assert result["cuda_tags"] == cuda_tags
+
+    def test_refresh_failure_raises(self, sample_config):
+        with patch("requests.get", side_effect=Exception("network error")):
+            manager = VersionManager(sample_config)
+            with pytest.raises(RuntimeError, match="Failed to refresh Python versions"):
+                manager.refresh_python_versions()
+        with patch("requests.get", side_effect=Exception("network error")):
+            manager = VersionManager(sample_config)
+            with pytest.raises(RuntimeError, match="Failed to refresh CUDA tags"):
+                manager.refresh_cuda_tags()

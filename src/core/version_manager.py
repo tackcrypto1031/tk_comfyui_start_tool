@@ -1,9 +1,13 @@
 """Version manager - GPU detection, Python/CUDA version lists, and cache."""
 import json
 import logging
+import re
 import subprocess
-from datetime import datetime
+import sys
+from datetime import datetime, timezone
 from pathlib import Path
+
+import requests
 
 logger = logging.getLogger("version_manager")
 
@@ -34,13 +38,13 @@ class VersionManager:
     def __init__(self, config: dict):
         self.config = config
         self.base_dir = Path(config["base_dir"])
-        self._cache_path = self.base_dir / "tools" / "version_cache.json"
+        self.tools_dir = self.base_dir / "tools"
+        self._cache_path = self.tools_dir / "version_cache.json"
 
     def detect_gpu(self) -> dict:
         """Detect GPU via nvidia-smi and return driver CUDA version + recommended tag."""
         try:
             kwargs = {"capture_output": True, "text": True, "timeout": 10}
-            import sys
             if sys.platform == "win32":
                 kwargs["creationflags"] = _CREATE_NO_WINDOW
             result = subprocess.run(["nvidia-smi"], **kwargs)
@@ -53,7 +57,6 @@ class VersionManager:
             return {"has_gpu": False, "cuda_driver_version": "", "recommended_cuda_tag": "cpu"}
 
         # Parse "CUDA Version: XX.Y" from output
-        import re
         match = re.search(r"CUDA Version:\s*(\d+\.\d+)", output)
         if not match:
             logger.debug("nvidia-smi ran but no CUDA Version found")
@@ -93,9 +96,63 @@ class VersionManager:
             return cache["cuda_tags"]
         return DEFAULT_CUDA_TAGS
 
-    def get_cache_info(self) -> dict | None:
-        """Return the full cache dict or None if no cache exists."""
-        return self._load_cache()
+    def get_cache_info(self):
+        """Return last_updated timestamp from cache, or None."""
+        cache = self._load_cache()
+        if cache:
+            return cache.get("last_updated")
+        return None
+
+    def refresh_python_versions(self) -> list:
+        """Fetch Python embeddable versions from python.org and return sorted list."""
+        try:
+            response = requests.get("https://www.python.org/ftp/python/index-windows.json", timeout=15)
+            data = response.json()
+            versions = data.get("versions", [])
+        except Exception as e:
+            raise RuntimeError(f"Failed to refresh Python versions: {e}") from e
+
+        result = []
+        for entry in versions:
+            if entry.get("company") != "PythonEmbed":
+                continue
+            url = entry.get("url", "")
+            if "64" not in url or "arm64" in url:
+                continue
+            result.append({
+                "version": entry["sort-version"],
+                "display": entry["display-name"],
+                "url": url,
+                "sha256": entry.get("hash", {}).get("sha256", ""),
+            })
+
+        result.sort(key=lambda v: [int(x) for x in v["version"].split(".")], reverse=True)
+        return result
+
+    def refresh_cuda_tags(self) -> list:
+        """Fetch CUDA wheel tags from PyTorch download index and return sorted list."""
+        try:
+            response = requests.get("https://download.pytorch.org/whl/", timeout=15)
+            html = response.text
+        except Exception as e:
+            raise RuntimeError(f"Failed to refresh CUDA tags: {e}") from e
+
+        tags = re.findall(r'href="(cu\d+|cpu)/"', html)
+        cpu_tags = [t for t in tags if t == "cpu"]
+        cu_tags = sorted(set(t for t in tags if t.startswith("cu")), key=lambda t: int(t[2:]))
+        return cpu_tags + cu_tags
+
+    def refresh_all(self) -> dict:
+        """Refresh both version lists, save to cache, and return cache data."""
+        python_versions = self.refresh_python_versions()
+        cuda_tags = self.refresh_cuda_tags()
+        data = {
+            "last_updated": datetime.now(timezone.utc).isoformat(),
+            "python": python_versions,
+            "cuda_tags": cuda_tags,
+        }
+        self._save_cache(data)
+        return data
 
     def _load_cache(self) -> dict | None:
         """Load version cache from disk. Returns None if not found or invalid."""
