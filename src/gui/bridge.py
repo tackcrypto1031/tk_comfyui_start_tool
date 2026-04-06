@@ -227,6 +227,16 @@ class Bridge(QObject):
         """List all running ComfyUI instances."""
         return self._safe_call(self.launcher.list_running)
 
+    @Slot(int, result=str)
+    def open_browser(self, port):
+        """Open browser to localhost:<port>."""
+        import webbrowser
+        try:
+            webbrowser.open(f"http://localhost:{port}")
+            return json.dumps({"success": True})
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
     # ── Snapshots ──
 
     @Slot(str, result=str)

@@ -151,6 +151,7 @@ var BridgeAPI = (function() {
         stopComfyUI: function(envName) { return callSlot('stop_comfyui', envName); },
         getLaunchStatus: function(envName) { return callSlot('get_launch_status', envName); },
         listRunning: function() { return callSlot('list_running'); },
+        openBrowser: function(port) { return callSlot('open_browser', port); },
 
         // Snapshots
         listSnapshots: function(envName) { return callSlot('list_snapshots', envName); },

@@ -109,5 +109,19 @@ class ComfyUILauncher:
             if pid_file.exists():
                 data = json.loads(pid_file.read_text())
                 if process_manager.is_process_running(data["pid"]):
-                    running.append({"env_name": entry.name, **data})
+                    info = {"env_name": entry.name, **data}
+                    # Read version info from env_meta.json
+                    meta_file = entry / "env_meta.json"
+                    if meta_file.exists():
+                        try:
+                            meta = json.loads(meta_file.read_text())
+                            info["branch"] = meta.get("comfyui_branch", "")
+                            info["commit"] = meta.get("comfyui_commit", "")
+                        except Exception:
+                            info["branch"] = ""
+                            info["commit"] = ""
+                    else:
+                        info["branch"] = ""
+                        info["commit"] = ""
+                    running.append(info)
         return running

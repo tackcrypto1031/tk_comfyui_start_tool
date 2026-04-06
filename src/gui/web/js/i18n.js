@@ -93,6 +93,22 @@ const I18N = (function() {
             "launch_export_no_log": "No log file found for this environment.",
             "launch_export_cancelled": "Export cancelled.",
 
+            // Launcher tabs
+            "launch_tab_launcher": "Launcher",
+            "launch_tab_running": "Running List",
+            "launch_running_env": "Environment",
+            "launch_running_port": "Port",
+            "launch_running_pid": "PID",
+            "launch_running_version": "Version",
+            "launch_running_actions": "Actions",
+            "launch_running_empty": "No running environments.",
+            "launch_running_open": "Open Browser",
+            "launch_running_stop": "Stop",
+            "launch_running_stopping": "Stopping...",
+            "launch_running_stopped_ok": "Environment stopped.",
+            "launch_running_count": "{} running",
+            "launch_port_conflict": "Port {} is in use, auto-changed to {}",
+
             // Plugin panel
             "plugin_environment": "Environment:",
             "plugin_url_placeholder": "Plugin Git URL or local path...",
@@ -248,6 +264,22 @@ const I18N = (function() {
             "launch_export_success": "日誌匯出成功",
             "launch_export_no_log": "此環境尚無日誌檔案",
             "launch_export_cancelled": "已取消匯出",
+
+            // Launcher tabs
+            "launch_tab_launcher": "啟動器",
+            "launch_tab_running": "運行列表",
+            "launch_running_env": "環境名稱",
+            "launch_running_port": "埠號",
+            "launch_running_pid": "PID",
+            "launch_running_version": "版本",
+            "launch_running_actions": "操作",
+            "launch_running_empty": "目前沒有運行中的環境",
+            "launch_running_open": "開啟瀏覽器",
+            "launch_running_stop": "停止",
+            "launch_running_stopping": "正在停止...",
+            "launch_running_stopped_ok": "環境已停止",
+            "launch_running_count": "{} 個運行中",
+            "launch_port_conflict": "埠號 {} 已被佔用，自動改為 {}",
 
             // Plugin panel
             "plugin_environment": "環境：",
