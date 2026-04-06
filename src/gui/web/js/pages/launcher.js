@@ -45,6 +45,12 @@
                 <div>
                     <div class="text-xs font-label uppercase tracking-wider text-on-surface-variant mb-2">${t('launch_log')}</div>
                     <div id="launch-log" class="log-output h-80"></div>
+                    <div class="mt-2 flex justify-end">
+                        <button id="launch-btn-export-log" class="btn btn-secondary">
+                            <span class="material-symbols-outlined text-[18px]">download</span>
+                            ${t('launch_export_log')}
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
@@ -53,6 +59,7 @@
         document.getElementById('launch-btn-start').addEventListener('click', doStart);
         document.getElementById('launch-btn-stop').addEventListener('click', doStop);
         document.getElementById('launch-btn-refresh').addEventListener('click', loadEnvs);
+        document.getElementById('launch-btn-export-log').addEventListener('click', doExportLog);
 
         // Dropdown change → remember selection + immediate status fetch
         document.getElementById('launch-env').addEventListener('change', function() {
@@ -174,6 +181,27 @@
     function startPolling() {
         if (pollTimer) clearInterval(pollTimer);
         pollTimer = setInterval(pollStatus, 5000);
+    }
+
+    function doExportLog() {
+        const envSelect = document.getElementById('launch-env');
+        if (!envSelect || !envSelect.value) {
+            App.showToast(t('launch_select_env'), 'info');
+            return;
+        }
+        BridgeAPI.exportLog(envSelect.value).then(function(result) {
+            if (result.cancelled) {
+                App.showToast(t('launch_export_cancelled'), 'info');
+            } else {
+                App.showToast(t('launch_export_success'), 'success');
+            }
+        }).catch(function(e) {
+            if (String(e).indexOf('no_log') !== -1) {
+                App.showToast(t('launch_export_no_log'), 'error');
+            } else {
+                App.showToast(String(e), 'error');
+            }
+        });
     }
 
     function appendLog(msg) {

@@ -164,6 +164,9 @@ var BridgeAPI = (function() {
         // Progress polling
         pollProgress: function(requestId) { return callSlot('poll_progress', requestId); },
 
+        // Log Export
+        exportLog: function(envName) { return callSlot('export_log', envName); },
+
         // Utility
         openFolder: function(envName, subfolder) { return callSlot('open_folder', envName, subfolder); },
         openUrl: function(url) { return callSlot('open_url', url); },

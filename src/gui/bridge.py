@@ -300,6 +300,40 @@ class Bridge(QObject):
             }
         self._run_async(request_id, _analyze)
 
+    # ── Log Export ──
+
+    @Slot(str, result=str)
+    def export_log(self, env_name):
+        """Export comfyui.log for the given environment via a save-file dialog."""
+        import shutil
+        from datetime import datetime
+        from PySide6.QtWidgets import QFileDialog, QApplication
+
+        def _export():
+            envs = self.env_manager.list_environments()
+            env = next((e for e in envs if e.name == env_name), None)
+            if not env:
+                raise ValueError(f"Environment not found: {env_name}")
+
+            log_path = Path(env.path) / "comfyui.log"
+            if not log_path.exists():
+                raise FileNotFoundError("no_log")
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            default_name = f"comfyui_log_{env_name}_{timestamp}.log"
+
+            parent = QApplication.activeWindow()
+            save_path, _ = QFileDialog.getSaveFileName(
+                parent, "Export Log", default_name, "Log Files (*.log);;All Files (*)"
+            )
+            if not save_path:
+                return {"cancelled": True}
+
+            shutil.copy2(str(log_path), save_path)
+            return {"exported": save_path}
+
+        return self._safe_call(_export)
+
     # ── Utility ──
 
     ALLOWED_SUBFOLDERS = {"output", "models", "custom_nodes", ""}

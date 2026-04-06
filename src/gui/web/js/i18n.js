@@ -88,6 +88,10 @@ const I18N = (function() {
             "launch_started": "ComfyUI started (PID: {}, Port: {})",
             "launch_stopped": "ComfyUI stopped.",
             "launch_select_env": "Select an environment first.",
+            "launch_export_log": "Export Log",
+            "launch_export_success": "Log exported successfully.",
+            "launch_export_no_log": "No log file found for this environment.",
+            "launch_export_cancelled": "Export cancelled.",
 
             // Plugin panel
             "plugin_environment": "Environment:",
@@ -240,6 +244,10 @@ const I18N = (function() {
             "launch_started": "ComfyUI 已啟動（PID: {}，埠號: {}）",
             "launch_stopped": "ComfyUI 已停止",
             "launch_select_env": "請先選擇環境",
+            "launch_export_log": "匯出日誌",
+            "launch_export_success": "日誌匯出成功",
+            "launch_export_no_log": "此環境尚無日誌檔案",
+            "launch_export_cancelled": "已取消匯出",
 
             // Plugin panel
             "plugin_environment": "環境：",
