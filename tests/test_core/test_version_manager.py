@@ -235,3 +235,48 @@ class TestGetPythonExecutable:
         manager = VersionManager(sample_config)
         with pytest.raises(FileNotFoundError, match="not installed"):
             manager.get_python_executable("3.10.16")
+
+
+class TestReinstallPytorch:
+    def test_reinstall_pytorch_updates_meta(self, tmp_path):
+        """reinstall_pytorch calls pip uninstall + install and updates env_meta."""
+        config = {
+            "base_dir": str(tmp_path),
+            "environments_dir": str(tmp_path / "environments"),
+        }
+        vm = VersionManager(config)
+
+        # Create fake env with meta
+        env_dir = tmp_path / "environments" / "test1"
+        env_dir.mkdir(parents=True)
+        (env_dir / "venv").mkdir()
+        meta = {
+            "name": "test1",
+            "created_at": "2026-04-06",
+            "cuda_tag": "cu124",
+            "pytorch_version": "2.5.0",
+        }
+        (env_dir / "env_meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+        with patch("src.utils.pip_ops.run_pip") as mock_uninstall:
+            with patch("src.utils.pip_ops.run_pip_with_progress") as mock_install:
+                with patch("src.utils.pip_ops.freeze", return_value={"torch": "2.6.0"}):
+                    result = vm.reinstall_pytorch("test1", "cu126")
+
+        assert result["cuda_tag"] == "cu126"
+        assert result["pytorch_version"] == "2.6.0"
+        # Verify pip uninstall was called
+        mock_uninstall.assert_called_once()
+        assert "uninstall" in mock_uninstall.call_args[0][1]
+        # Verify pip install was called with new index
+        mock_install.assert_called_once()
+        assert "cu126" in str(mock_install.call_args)
+
+    def test_reinstall_pytorch_env_not_found(self, tmp_path):
+        config = {
+            "base_dir": str(tmp_path),
+            "environments_dir": str(tmp_path / "environments"),
+        }
+        vm = VersionManager(config)
+        with pytest.raises(FileNotFoundError):
+            vm.reinstall_pytorch("nonexistent", "cu126")
