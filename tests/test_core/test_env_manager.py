@@ -48,9 +48,9 @@ class TestCreateEnvironment:
         env = manager.create_environment("dev", branch="develop")
 
         assert env.comfyui_branch == "develop"
-        mock_git.clone_repo.assert_called_once()
-        clone_kwargs = mock_git.clone_repo.call_args
-        assert clone_kwargs[1].get("branch") == "develop" or clone_kwargs[0][2] == "develop" if len(clone_kwargs[0]) > 2 else True
+        assert mock_git.clone_repo.call_count >= 1
+        comfy_clone_call = mock_git.clone_repo.call_args_list[0]
+        assert comfy_clone_call[1].get("branch") == "develop"
 
     @patch("src.core.env_manager.pip_ops")
     @patch("src.core.env_manager.git_ops")
@@ -334,7 +334,7 @@ class TestCloneEnvironment:
 
         # Verify pip install -r was called with a freeze file
         install_calls = [
-            c for c in mock_pip.run_pip.call_args_list
+            c for c in mock_pip.run_pip_with_progress.call_args_list
             if "install" in c[0][1] and "-r" in c[0][1]
         ]
         assert len(install_calls) >= 1

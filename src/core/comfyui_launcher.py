@@ -1,15 +1,31 @@
 """ComfyUI process launcher and lifecycle manager."""
+import configparser
 import json
+import logging
 import requests
 from pathlib import Path
 
-from src.utils import pip_ops, process_manager
+from src.utils import git_ops, pip_ops, process_manager
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_MANAGER_URL = "https://github.com/Comfy-Org/ComfyUI-Manager.git"
+MANAGER_SECURITY_LEVEL = "normal-"
 
 
 class ComfyUILauncher:
     def __init__(self, config: dict):
         self.config = config
         self.environments_dir = Path(config["environments_dir"])
+
+    @staticmethod
+    def _normalize_package_name(name: str) -> str:
+        """Normalize package names so hyphen/underscore variants compare equal."""
+        return name.strip().lower().replace("_", "-")
+
+    def _has_package(self, installed: dict, package_name: str) -> bool:
+        target = self._normalize_package_name(package_name)
+        return any(self._normalize_package_name(pkg) == target for pkg in installed)
 
     def start(self, env_name: str, port: int = 8188, extra_args: list = None,
               auto_open: bool = True) -> dict:
@@ -18,12 +34,28 @@ class ComfyUILauncher:
         if not env_dir.exists():
             raise FileNotFoundError(f"Environment '{env_name}' not found")
 
+        # Prevent duplicate launches in the same environment (sqlite lock/confusing state).
+        status = self.get_status(env_name)
+        if status.get("status") == "running":
+            raise RuntimeError(
+                f"Environment '{env_name}' is already running "
+                f"(pid={status.get('pid')}, port={status.get('port')})."
+            )
+
+        # Ensure comfyui-manager is installed and security level is manager-compatible.
+        self._ensure_manager_ready(env_dir)
+
         # Find available port
         port = process_manager.find_available_port(port)
 
-        # Build command
+        # Build command (always enable manager for custom node support).
+        # Use loopback listen mode by default so Manager can allow normal- actions safely.
         python = pip_ops.get_venv_python(str(env_dir / "venv"))
-        cmd = [python, "main.py", "--listen", "--port", str(port)]
+        listen_args = []
+        if not extra_args or "--listen" not in extra_args:
+            listen_args = ["--listen", "127.0.0.1"]
+
+        cmd = [python, "main.py", *listen_args, "--port", str(port), "--enable-manager"]
         if extra_args:
             cmd.extend(extra_args)
 
@@ -55,6 +87,84 @@ class ComfyUILauncher:
 
         return {"pid": proc.pid, "port": port, "env_name": env_name}
 
+    def _ensure_manager_ready(self, env_dir: Path) -> None:
+        """Ensure manager repo exists and security_level is permissive for local launcher use."""
+        comfyui_dir = env_dir / "ComfyUI"
+        manager_repo_dir = comfyui_dir / "custom_nodes" / "ComfyUI-Manager"
+
+        # Manager is a ComfyUI custom-node repo, not a pip package.
+        if not manager_repo_dir.exists():
+            logger.info("ComfyUI-Manager repo missing; cloning into custom_nodes...")
+            manager_repo_dir.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                git_ops.clone_repo(DEFAULT_MANAGER_URL, str(manager_repo_dir), branch="main")
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Failed to install ComfyUI-Manager repository: {exc}"
+                ) from exc
+
+        self._ensure_manager_python_package(env_dir)
+
+        manager_config = comfyui_dir / "user" / "__manager" / "config.ini"
+        self._write_manager_security_config(manager_config)
+
+        # Keep backward compatibility for existing legacy config files.
+        legacy_config = comfyui_dir / "user" / "default" / "ComfyUI-Manager" / "config.ini"
+        if legacy_config.exists():
+            self._write_manager_security_config(legacy_config)
+
+    def _write_manager_security_config(self, config_path: Path) -> None:
+        """Write manager security policy without creating legacy folders unnecessarily."""
+        config = configparser.ConfigParser()
+        if config_path.exists():
+            config.read(str(config_path), encoding="utf-8")
+
+        if "default" not in config:
+            config["default"] = {}
+
+        config["default"]["security_level"] = MANAGER_SECURITY_LEVEL
+
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(str(config_path), "w", encoding="utf-8") as f:
+            config.write(f)
+
+    def _ensure_manager_python_package(self, env_dir: Path) -> None:
+        """Install comfyui-manager package required by --enable-manager."""
+        venv_path = str(env_dir / "venv")
+        comfyui_dir = env_dir / "ComfyUI"
+        installed = pip_ops.freeze(venv_path)
+
+        if self._has_package(installed, "comfyui-manager"):
+            return
+
+        manager_requirements = comfyui_dir / "manager_requirements.txt"
+        install_attempts = []
+        if manager_requirements.exists():
+            install_attempts.append(["install", "-r", str(manager_requirements)])
+        install_attempts.append(["install", "-U", "--pre", "comfyui-manager"])
+
+        errors = []
+        for args in install_attempts:
+            result = pip_ops.run_pip(venv_path, args)
+            if result.returncode == 0:
+                installed = pip_ops.freeze(venv_path)
+                if self._has_package(installed, "comfyui-manager"):
+                    return
+                errors.append(
+                    f"pip {' '.join(args)} completed but comfyui-manager is still missing"
+                )
+                continue
+
+            stderr = (result.stderr or "").strip()
+            stdout = (result.stdout or "").strip()
+            detail = stderr or stdout or "unknown pip error"
+            errors.append(f"pip {' '.join(args)} failed: {detail}")
+
+        raise RuntimeError(
+            "Failed to install comfyui-manager package required by --enable-manager. "
+            + " | ".join(errors)
+        )
+
     def stop(self, env_name: str) -> None:
         """Stop a running ComfyUI instance."""
         env_dir = self.environments_dir / env_name
@@ -62,7 +172,16 @@ class ComfyUILauncher:
         if not pid_file.exists():
             raise RuntimeError(f"No running instance found for '{env_name}'")
         data = json.loads(pid_file.read_text())
-        process_manager.stop_process(data["pid"])
+
+        stopped = False
+        # Try stopping by PID first
+        if process_manager.is_process_running(data["pid"]):
+            stopped = process_manager.stop_process(data["pid"])
+
+        # Fallback: kill process occupying the port
+        if not stopped and "port" in data:
+            stopped = process_manager.stop_process_on_port(data["port"])
+
         pid_file.unlink()
 
     def health_check(self, port: int, timeout: int = 5) -> bool:
@@ -81,6 +200,8 @@ class ComfyUILauncher:
             return {"status": "stopped", "env_name": env_name}
         data = json.loads(pid_file.read_text())
         running = process_manager.is_process_running(data["pid"])
+        if not running and "port" in data:
+            running = process_manager.is_port_in_use(data["port"])
 
         # If process died, clean up pid file
         if not running:
@@ -108,7 +229,11 @@ class ComfyUILauncher:
             pid_file = entry / ".comfyui.pid"
             if pid_file.exists():
                 data = json.loads(pid_file.read_text())
-                if process_manager.is_process_running(data["pid"]):
+                # Check by PID first, fallback to port check
+                is_running = process_manager.is_process_running(data["pid"])
+                if not is_running and "port" in data:
+                    is_running = process_manager.is_port_in_use(data["port"])
+                if is_running:
                     info = {"env_name": entry.name, **data}
                     # Read version info from env_meta.json
                     meta_file = entry / "env_meta.json"

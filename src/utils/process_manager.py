@@ -55,6 +55,14 @@ def is_process_running(pid: int) -> bool:
     return psutil.pid_exists(pid)
 
 
+def stop_process_on_port(port: int, graceful_timeout: int = 5) -> bool:
+    """Find and stop the process listening on the given port."""
+    for conn in psutil.net_connections(kind='inet'):
+        if conn.laddr.port == port and conn.status == 'LISTEN' and conn.pid:
+            return stop_process(conn.pid, graceful_timeout)
+    return False
+
+
 def is_port_in_use(port: int) -> bool:
     """Check if a port is in use."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:

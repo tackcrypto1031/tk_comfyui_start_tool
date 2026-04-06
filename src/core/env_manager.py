@@ -1,4 +1,5 @@
 """Environment manager - create, list, delete, clone environments."""
+import configparser
 import logging
 import os
 import re
@@ -111,6 +112,7 @@ class EnvManager:
             try:
                 manager_path.parent.mkdir(parents=True, exist_ok=True)
                 git_ops.clone_repo(DEFAULT_MANAGER_URL, str(manager_path), branch="main")
+                self._write_manager_security_config(comfyui_path)
                 manager_installed = True
             except Exception as e:
                 logging.getLogger("env_manager").warning(
@@ -455,3 +457,18 @@ class EnvManager:
             yaml.dump(yaml_data, default_flow_style=False, allow_unicode=True),
             encoding="utf-8",
         )
+
+    def _write_manager_security_config(self, comfyui_path: Path) -> None:
+        """Initialize manager config with launcher-compatible security defaults."""
+        config_path = comfyui_path / "user" / "__manager" / "config.ini"
+        config = configparser.ConfigParser()
+        if config_path.exists():
+            config.read(str(config_path), encoding="utf-8")
+
+        if "default" not in config:
+            config["default"] = {}
+        config["default"]["security_level"] = "normal-"
+
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(str(config_path), "w", encoding="utf-8") as f:
+            config.write(f)
