@@ -3,13 +3,14 @@
  */
 (function() {
 
-    let selectedCommitHash = null;
+    let selectedRef = null;      // unified: tag name or commit hash
+    let selectedRefLabel = null;  // display label for confirmation
 
     function render(container) {
         container.innerHTML = `
             <div class="fade-in space-y-8">
-                <!-- Environment selector -->
-                <div class="flex items-center gap-4">
+                <!-- Environment selector + unified action buttons -->
+                <div class="flex items-center gap-4 flex-wrap">
                     <label class="input-label">${t('version_environment')}</label>
                     <select id="ver-env" class="select w-64"></select>
                     <label class="input-label ml-4">${t('version_target')}</label>
@@ -20,6 +21,9 @@
                         <span class="material-symbols-outlined">refresh</span>
                     </button>
                 </div>
+
+                <!-- Selected version indicator -->
+                <div id="ver-selected" class="text-xs text-on-surface-variant"></div>
 
                 <!-- Remote Tags Section -->
                 <div class="card">
@@ -42,35 +46,16 @@
                             <tbody id="ver-tags-body"></tbody>
                         </table>
                     </div>
-                    <div class="mt-3">
-                        <button id="ver-btn-install-tag" class="btn btn-secondary">
-                            <span class="material-symbols-outlined text-[16px]">install_desktop</span>
-                            ${t('version_install_tag')}
-                        </button>
-                    </div>
                 </div>
 
-                <!-- Git History Section -->
-                <div>
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-headline text-sm font-bold uppercase tracking-wider text-on-surface">${t('version_load')}</h3>
-                        <div class="flex gap-2">
-                            <button id="ver-btn-load" class="btn btn-secondary">
-                                <span class="material-symbols-outlined text-[16px]">history</span>
-                                ${t('version_load')}
-                            </button>
-                            <button id="ver-btn-switch" class="btn btn-primary">
-                                ${t('version_switch')}
-                            </button>
-                            <button id="ver-btn-update" class="btn btn-secondary">
-                                ${t('version_update')}
-                            </button>
-                        </div>
-                    </div>
-                    <div id="ver-timeline" class="space-y-0">
-                        <!-- Timeline items populated by JS -->
-                        <div class="text-on-surface-variant text-sm py-4">${t('version_loading')}</div>
-                    </div>
+                <!-- Action buttons -->
+                <div class="flex gap-2">
+                    <button id="ver-btn-switch" class="btn btn-primary">
+                        ${t('version_switch')}
+                    </button>
+                    <button id="ver-btn-update" class="btn btn-secondary">
+                        ${t('version_update')}
+                    </button>
                 </div>
 
                 <!-- Status -->
@@ -81,8 +66,6 @@
         // Bind events
         document.getElementById('ver-btn-refresh').addEventListener('click', loadEnvs);
         document.getElementById('ver-btn-fetch').addEventListener('click', fetchTags);
-        document.getElementById('ver-btn-install-tag').addEventListener('click', installSelectedTag);
-        document.getElementById('ver-btn-load').addEventListener('click', loadCommits);
         document.getElementById('ver-btn-switch').addEventListener('click', switchToSelected);
         document.getElementById('ver-btn-update').addEventListener('click', updateToLatest);
 
@@ -107,7 +90,18 @@
         });
     }
 
-    let selectedTagName = null;
+    function updateSelectedIndicator() {
+        const el = document.getElementById('ver-selected');
+        if (el) {
+            el.textContent = selectedRef
+                ? (t('version_selected') || 'Selected') + ': ' + selectedRefLabel
+                : '';
+        }
+    }
+
+    function clearAllSelections() {
+        document.querySelectorAll('#ver-tags-body tr.selected').forEach(r => r.classList.remove('selected'));
+    }
 
     function fetchTags() {
         const statusEl = document.getElementById('ver-tags-status');
@@ -122,9 +116,11 @@
                 tr.className = 'cursor-pointer';
                 tr.innerHTML = `<td class="text-primary font-mono">${tag.name}</td><td class="text-on-surface-variant text-xs">${tag.date || tag.hash || '—'}</td>`;
                 tr.addEventListener('click', () => {
-                    document.querySelectorAll('#ver-tags-body tr.selected').forEach(r => r.classList.remove('selected'));
+                    clearAllSelections();
                     tr.classList.add('selected');
-                    selectedTagName = tag.name;
+                    selectedRef = tag.name;
+                    selectedRefLabel = tag.name;
+                    updateSelectedIndicator();
                 });
                 tbody.appendChild(tr);
             });
@@ -136,102 +132,20 @@
         });
     }
 
-    function installSelectedTag() {
+    function switchToSelected() {
         const envName = document.getElementById('ver-env').value;
         if (!envName) { App.showToast(t('launch_select_env'), 'info'); return; }
-        if (!selectedTagName) { App.showToast(t('version_select_commit'), 'info'); return; }
+        if (!selectedRef) { App.showToast(t('version_select_commit'), 'info'); return; }
 
-        App.confirm(t('version_confirm_switch', selectedTagName)).then(ok => {
+        App.confirm(t('version_confirm_switch', selectedRef)).then(ok => {
             if (!ok) return;
             const target = document.getElementById('ver-target').value;
             document.getElementById('ver-status').textContent = t('version_switching');
-            BridgeAPI.switchVersion(envName, selectedTagName, target).then(() => {
+            BridgeAPI.switchVersion(envName, selectedRef, target).then(() => {
                 document.getElementById('ver-status').textContent = t('version_switched');
                 App.showToast(t('version_switched'), 'success');
             }).catch(e => {
                 document.getElementById('ver-status').textContent = t('error') + ': ' + e;
-                App.showToast(e.toString(), 'error');
-            });
-        });
-    }
-
-    function loadCommits() {
-        const envName = document.getElementById('ver-env').value;
-        const target = document.getElementById('ver-target').value;
-        if (!envName) { App.showToast(t('launch_select_env'), 'info'); return; }
-
-        document.getElementById('ver-status').textContent = t('version_loading');
-
-        BridgeAPI.listCommits(envName, target).then(function(commits) {
-            renderTimeline(commits);
-            document.getElementById('ver-status').textContent = commits.length + ' commit(s)';
-        }).catch(function(e) {
-            document.getElementById('ver-status').textContent = t('error') + ': ' + e;
-            App.showToast(e.toString(), 'error');
-        });
-    }
-
-    function renderTimeline(commits) {
-        const container = document.getElementById('ver-timeline');
-        container.innerHTML = '';
-
-        commits.forEach((commit, i) => {
-            const isFirst = i === 0;
-            const hashShort = commit.hash.substring(0, 7);
-            const date = commit.date ? new Date(commit.date).toLocaleString() : '';
-            const msgShort = commit.message.length > 80 ? commit.message.substring(0, 80) + '...' : commit.message;
-
-            const item = document.createElement('div');
-            item.className = 'flex gap-4 group cursor-pointer py-3 px-4 hover:bg-surface-container-low transition-colors';
-            if (isFirst) item.className += ' bg-surface-container-low';
-            item.dataset.hash = hashShort;
-
-            item.innerHTML = `
-                <div class="flex flex-col items-center">
-                    <div class="timeline-node ${isFirst ? 'active' : ''}"></div>
-                    ${i < commits.length - 1 ? '<div class="timeline-line flex-1 mt-1"></div>' : '<div class="flex-1"></div>'}
-                </div>
-                <div class="flex-1 min-w-0 pb-2">
-                    <div class="flex items-center gap-2">
-                        <span class="font-mono text-xs ${isFirst ? 'text-primary text-glow' : 'text-on-surface-variant'}">${hashShort}</span>
-                        ${isFirst ? '<span class="badge badge-primary">HEAD</span>' : ''}
-                    </div>
-                    <div class="text-sm text-on-surface mt-1">${escapeHtml(msgShort)}</div>
-                    <div class="text-xs text-on-surface-variant mt-1">
-                        <span>${escapeHtml(commit.author)}</span>
-                        <span class="mx-2">·</span>
-                        <span>${date}</span>
-                    </div>
-                </div>
-            `;
-
-            item.addEventListener('click', () => {
-                document.querySelectorAll('#ver-timeline > div').forEach(el => {
-                    el.classList.remove('bg-surface-container');
-                    el.querySelector('.timeline-node')?.classList.remove('active');
-                });
-                item.classList.add('bg-surface-container');
-                item.querySelector('.timeline-node')?.classList.add('active');
-                selectedCommitHash = hashShort;
-            });
-
-            container.appendChild(item);
-        });
-    }
-
-    function switchToSelected() {
-        const envName = document.getElementById('ver-env').value;
-        if (!envName) { App.showToast(t('launch_select_env'), 'info'); return; }
-        if (!selectedCommitHash) { App.showToast(t('version_select_commit'), 'info'); return; }
-
-        App.confirm(t('version_confirm_switch', selectedCommitHash)).then(ok => {
-            if (!ok) return;
-            const target = document.getElementById('ver-target').value;
-            document.getElementById('ver-status').textContent = t('version_switching');
-            BridgeAPI.switchVersion(envName, selectedCommitHash, target).then(() => {
-                document.getElementById('ver-status').textContent = t('version_switched');
-                App.showToast(t('version_switched'), 'success');
-            }).catch(e => {
                 App.showToast(e.toString(), 'error');
             });
         });

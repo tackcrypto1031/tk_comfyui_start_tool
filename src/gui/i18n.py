@@ -127,7 +127,6 @@ TRANSLATIONS = {
         "version_refresh_versions": "Refresh Versions",
         "version_tag": "Tag:",
         "version_no_tags": "No tags found",
-        "version_install_tag": "Install Selected Tag",
         "version_tag_count": "{} tag(s) available",
         "version_branch_count": "{} branch(es) available",
 
@@ -278,7 +277,6 @@ TRANSLATIONS = {
         "version_refresh_versions": "重新整理版本",
         "version_tag": "標籤：",
         "version_no_tags": "未找到標籤",
-        "version_install_tag": "安裝選取標籤",
         "version_tag_count": "{} 個標籤可用",
         "version_branch_count": "{} 個分支可用",
 
