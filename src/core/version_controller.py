@@ -1,10 +1,15 @@
 """Version controller - manage ComfyUI and custom node versions."""
+import time
+import threading
 from pathlib import Path
 from typing import List
 
 from src.models.environment import Environment
 from src.core.snapshot_manager import SnapshotManager
 from src.utils import git_ops, pip_ops
+
+# Cache TTL in seconds
+_CACHE_TTL = 300  # 5 minutes
 
 
 class VersionController:
@@ -14,6 +19,9 @@ class VersionController:
         self.config = config
         self.environments_dir = Path(config["environments_dir"])
         self.snapshot_manager = SnapshotManager(config)
+        self._versions_cache = None   # cached {tags, branches}
+        self._cache_time = 0          # timestamp of last cache
+        self._cache_lock = threading.Lock()
 
     def list_commits(self, env_name: str, target: str = "comfyui", count: int = 20) -> List[dict]:
         """List recent commits for ComfyUI or a custom node."""
@@ -44,7 +52,21 @@ class VersionController:
 
     def list_remote_versions(self, repo_url: str = None) -> dict:
         """Fetch available tags and branches.
-        Uses local clone for tag dates when available, falls back to ls-remote."""
+        Returns cached data if available and fresh; refreshes in background if stale."""
+        with self._cache_lock:
+            now = time.time()
+            if self._versions_cache and (now - self._cache_time) < _CACHE_TTL:
+                return self._versions_cache
+
+        # No cache or expired — fetch synchronously (first call only blocks)
+        result = self._fetch_remote_versions(repo_url)
+        with self._cache_lock:
+            self._versions_cache = result
+            self._cache_time = time.time()
+        return result
+
+    def _fetch_remote_versions(self, repo_url: str = None) -> dict:
+        """Actually fetch tags and branches from remote."""
         url = repo_url or self.config.get("comfyui_repo_url", "https://github.com/comfyanonymous/ComfyUI.git")
 
         # Try to use a local clone for tag dates
@@ -56,6 +78,18 @@ class VersionController:
 
         branches = git_ops.list_remote_branches(url)
         return {"tags": tags, "branches": branches}
+
+    def refresh_versions_cache(self, repo_url: str = None) -> None:
+        """Refresh the versions cache in background thread."""
+        def _refresh():
+            try:
+                result = self._fetch_remote_versions(repo_url)
+                with self._cache_lock:
+                    self._versions_cache = result
+                    self._cache_time = time.time()
+            except Exception:
+                pass  # silent fail — stale cache is better than no cache
+        threading.Thread(target=_refresh, daemon=True).start()
 
     def _get_tags_with_dates(self) -> list:
         """Try to get tags with dates from any local ComfyUI clone."""

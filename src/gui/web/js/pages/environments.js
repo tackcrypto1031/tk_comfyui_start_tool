@@ -62,6 +62,8 @@
 
         // Load data
         loadEnvironments();
+        // Preload remote versions cache so Edit/Create dialogs open instantly
+        BridgeAPI.listRemoteVersions().catch(function() {});
     }
 
     let selectedEnvName = null;

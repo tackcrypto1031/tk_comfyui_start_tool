@@ -179,10 +179,10 @@ class Bridge(QObject):
 
     # ── Versions ──
 
-    @Slot(result=str)
-    def list_remote_versions(self):
-        """Fetch remote tags and branches. Returns JSON {tags, branches}."""
-        return self._safe_call(self.version_controller.list_remote_versions)
+    @Slot(str)
+    def list_remote_versions(self, request_id):
+        """Fetch remote tags and branches (async). Returns via poll_result."""
+        self._run_async(request_id, self.version_controller.list_remote_versions)
 
     @Slot(str, str, result=str)
     def list_commits(self, env_name, target):

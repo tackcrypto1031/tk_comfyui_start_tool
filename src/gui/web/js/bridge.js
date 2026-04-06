@@ -141,7 +141,7 @@ var BridgeAPI = (function() {
         renameEnvironment: function(oldName, newName) { return callAsync('rename_environment', oldName, newName); },
 
         // Versions
-        listRemoteVersions: function() { return callSlot('list_remote_versions'); },
+        listRemoteVersions: function() { return callAsync('list_remote_versions'); },
         listCommits: function(envName, target) { return callSlot('list_commits', envName, target || 'comfyui'); },
         switchVersion: function(envName, ref, target) { return callAsync('switch_version', envName, ref, target || 'comfyui'); },
         updateComfyUI: function(envName) { return callAsync('update_comfyui', envName); },
