@@ -171,5 +171,17 @@ var BridgeAPI = (function() {
         // Utility
         openFolder: function(envName, subfolder) { return callSlot('open_folder', envName, subfolder); },
         openUrl: function(url) { return callSlot('open_url', url); },
+
+        // Version Manager (Python/CUDA)
+        detectGpu: function() { return callSlot('detect_gpu'); },
+        getVersionLists: function() { return callSlot('get_version_lists'); },
+        refreshVersionLists: function() { return callAsync('refresh_version_lists'); },
+        createEnvironmentV2: function(name, branch, commit, pythonVersion, cudaTag, onProgress) {
+            return callAsync('create_environment_v2', name, branch, commit || '',
+                             pythonVersion || '', cudaTag || '', {onProgress: onProgress});
+        },
+        reinstallPytorch: function(envName, cudaTag, onProgress) {
+            return callAsync('reinstall_pytorch', envName, cudaTag, {onProgress: onProgress});
+        },
     };
 })();
