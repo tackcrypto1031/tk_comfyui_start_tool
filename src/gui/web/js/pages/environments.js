@@ -136,6 +136,32 @@
                     <label class="input-label">${t('env_commit')}</label>
                     <input type="text" id="create-commit" class="input" placeholder="${t('env_commit_placeholder')}">
                 </div>
+                <div class="border-t border-outline/20 pt-3 mt-3">
+                    <div id="create-advanced-toggle" class="flex items-center gap-2 cursor-pointer select-none" style="color: #ababab;">
+                        <span class="material-symbols-outlined text-[16px]" id="create-advanced-arrow">chevron_right</span>
+                        <span class="text-sm font-label uppercase tracking-wider">${t('env_advanced_options')}</span>
+                    </div>
+                    <div id="create-advanced-body" class="hidden mt-3 space-y-4">
+                        <div>
+                            <label class="input-label">${t('env_python_version')}</label>
+                            <select id="create-python" class="select">
+                                <option value="">${t('loading')}</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="input-label">${t('env_cuda_version')}</label>
+                            <select id="create-cuda" class="select">
+                                <option value="">${t('loading')}</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button id="create-refresh-versions" class="btn btn-secondary text-xs" style="padding: 4px 12px;">
+                                <span class="material-symbols-outlined text-[14px]">refresh</span> ${t('env_refresh_versions')}
+                            </button>
+                            <span id="create-version-hint" class="text-xs text-on-surface-variant"></span>
+                        </div>
+                    </div>
+                </div>
                 <div id="create-status" class="text-xs text-on-surface-variant"></div>
             </div>`;
 
@@ -187,6 +213,113 @@
                 const statusDiv = document.getElementById('create-status');
                 if (statusDiv) statusDiv.textContent = t('version_fetch_failed', e.toString());
             });
+
+            // Advanced options toggle
+            var advToggle = document.getElementById('create-advanced-toggle');
+            var advBody = document.getElementById('create-advanced-body');
+            var advArrow = document.getElementById('create-advanced-arrow');
+            if (advToggle) {
+                advToggle.addEventListener('click', function() {
+                    var hidden = advBody.classList.toggle('hidden');
+                    advArrow.textContent = hidden ? 'chevron_right' : 'expand_more';
+                });
+            }
+
+            // Load version lists and GPU info for advanced options
+            Promise.all([
+                BridgeAPI.getVersionLists(),
+                BridgeAPI.detectGpu(),
+            ]).then(function(results) {
+                var lists = results[0];
+                var gpu = results[1];
+
+                // Populate Python dropdown
+                var pySelect = document.getElementById('create-python');
+                if (pySelect) {
+                    pySelect.innerHTML = '<option value="">Default (' + t('env_recommended') + ')</option>';
+                    lists.python.forEach(function(py) {
+                        var opt = document.createElement('option');
+                        opt.value = py.version;
+                        opt.textContent = py.display || ('Python ' + py.version);
+                        pySelect.appendChild(opt);
+                    });
+                }
+
+                // Populate CUDA dropdown
+                var cudaSelect = document.getElementById('create-cuda');
+                if (cudaSelect) {
+                    cudaSelect.innerHTML = '';
+                    lists.cuda_tags.forEach(function(tag) {
+                        var opt = document.createElement('option');
+                        opt.value = tag;
+                        opt.textContent = tag === 'cpu' ? 'CPU Only' : tag.toUpperCase();
+                        if (tag === gpu.recommended_cuda_tag) {
+                            opt.textContent += ' (' + t('env_recommended') + ')';
+                            opt.selected = true;
+                        }
+                        cudaSelect.appendChild(opt);
+                    });
+                }
+
+                // Version hint
+                var hint = document.getElementById('create-version-hint');
+                if (hint) {
+                    if (lists.cache_info) {
+                        hint.textContent = t('env_version_hint_cached', lists.cache_info.substring(0, 10));
+                    } else {
+                        hint.textContent = t('env_version_hint_offline');
+                    }
+                }
+            }).catch(function() {
+                // Silently keep defaults
+            });
+
+            // Refresh button
+            var refreshBtn = document.getElementById('create-refresh-versions');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', function() {
+                    refreshBtn.disabled = true;
+                    refreshBtn.textContent = t('loading');
+                    BridgeAPI.refreshVersionLists().then(function(data) {
+                        App.showToast(t('env_refresh_success'), 'success');
+                        refreshBtn.textContent = t('env_refresh_versions');
+                        refreshBtn.disabled = false;
+                        var hint = document.getElementById('create-version-hint');
+                        if (hint) hint.textContent = t('env_version_hint_cached', data.last_updated.substring(0, 10));
+
+                        // Update Python dropdown
+                        var pySelect = document.getElementById('create-python');
+                        if (pySelect && data.python) {
+                            var currentVal = pySelect.value;
+                            pySelect.innerHTML = '<option value="">Default (' + t('env_recommended') + ')</option>';
+                            data.python.forEach(function(py) {
+                                var opt = document.createElement('option');
+                                opt.value = py.version;
+                                opt.textContent = py.display || ('Python ' + py.version);
+                                pySelect.appendChild(opt);
+                            });
+                            pySelect.value = currentVal;
+                        }
+                        // Update CUDA dropdown
+                        var cudaSelect = document.getElementById('create-cuda');
+                        if (cudaSelect && data.cuda_tags) {
+                            var currentCuda = cudaSelect.value;
+                            cudaSelect.innerHTML = '';
+                            data.cuda_tags.forEach(function(tag) {
+                                var opt = document.createElement('option');
+                                opt.value = tag;
+                                opt.textContent = tag === 'cpu' ? 'CPU Only' : tag.toUpperCase();
+                                cudaSelect.appendChild(opt);
+                            });
+                            cudaSelect.value = currentCuda;
+                        }
+                    }).catch(function() {
+                        App.showToast(t('env_refresh_failed'), 'error');
+                        refreshBtn.textContent = t('env_refresh_versions');
+                        refreshBtn.disabled = false;
+                    });
+                });
+            }
         }, 100);
     }
 
@@ -204,10 +337,17 @@
             commit = document.getElementById('create-commit').value.trim() || '';
         }
 
+        // Read advanced options
+        var pySelect = document.getElementById('create-python');
+        var cudaSelect = document.getElementById('create-cuda');
+        var pythonVersion = pySelect ? pySelect.value : '';
+        var cudaTag = cudaSelect ? cudaSelect.value : '';
+
         App.hideModal();
 
         var progressId = 'create-' + Date.now();
         var stepLabels = {
+            python_download: t('env_downloading_python', pythonVersion) || 'Downloading Python',
             venv: t('step_venv') || 'Creating virtual environment',
             clone: t('step_clone') || 'Cloning ComfyUI',
             pytorch: t('step_pytorch') || 'Installing PyTorch',
@@ -219,7 +359,7 @@
 
         App.showProgress(progressId, t('env_creating', name));
 
-        BridgeAPI.createEnvironment(name, branch, commit, function(msg) {
+        BridgeAPI.createEnvironmentV2(name, branch, commit, pythonVersion, cudaTag, function(msg) {
             App.updateProgress(
                 progressId,
                 stepLabels[msg.step] || msg.step,
