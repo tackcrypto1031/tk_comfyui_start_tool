@@ -7,8 +7,10 @@ const I18N = (function() {
     const TRANSLATIONS = {
         "en": {
             // Main window
-            "app_title": "tack_comfyui_start_tool",
+            "app_title": "Tack ComfyUI Launcher",
             "ready": "Ready",
+            "sidebar_brand": "TACK COMFYUI LAUNCHER",
+            "sidebar_status": "All-in-One Manager",
 
             // Sidebar
             "sidebar_environments": "Environments",
@@ -19,8 +21,8 @@ const I18N = (function() {
 
             // Home page
             "sidebar_home": "Home",
-            "home_hero_title": "SYSTEM CONSOLE",
-            "home_hero_subtitle": "ComfyUI Environment Manager",
+            "home_hero_title": "TACK COMFYUI LAUNCHER",
+            "home_hero_subtitle": "All-in-One Manager",
             "home_select_env": "Select Environment",
             "home_section_title": "Quick Access",
             "home_btn_output": "Image Output",
@@ -179,8 +181,10 @@ const I18N = (function() {
         },
         "zh-TW": {
             // Main window
-            "app_title": "tack_comfyui_start_tool",
+            "app_title": "塔克ComfyUI啟動器",
             "ready": "就緒",
+            "sidebar_brand": "塔克COMFYUI啟動器",
+            "sidebar_status": "多功能環境管理工具",
 
             // Sidebar
             "sidebar_environments": "環境管理",
@@ -191,8 +195,8 @@ const I18N = (function() {
 
             // Home page
             "sidebar_home": "首頁",
-            "home_hero_title": "SYSTEM CONSOLE",
-            "home_hero_subtitle": "ComfyUI 環境管理器",
+            "home_hero_title": "塔克COMFYUI啟動器",
+            "home_hero_subtitle": "多功能環境管理工具",
             "home_select_env": "選擇環境",
             "home_section_title": "快速存取",
             "home_btn_output": "圖片輸出",

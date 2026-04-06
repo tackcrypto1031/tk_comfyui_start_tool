@@ -31,7 +31,7 @@ def main():
 
         # Main window
         window = QMainWindow()
-        window.setWindowTitle("tack_comfyui_start_tool")
+        window.setWindowTitle("塔克ComfyUI啟動器")
         window.setWindowIcon(app_icon)
         window.setMinimumSize(1200, 800)
 

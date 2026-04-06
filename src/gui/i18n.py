@@ -3,7 +3,7 @@
 TRANSLATIONS = {
     "en": {
         # Main window
-        "app_title": "tack_comfyui_start_tool",
+        "app_title": "Tack ComfyUI Launcher",
         "ready": "Ready",
 
         # Sidebar
@@ -137,7 +137,7 @@ TRANSLATIONS = {
     },
     "zh-TW": {
         # Main window
-        "app_title": "tack_comfyui_start_tool",
+        "app_title": "塔克ComfyUI啟動器",
         "ready": "就緒",
 
         # Sidebar
