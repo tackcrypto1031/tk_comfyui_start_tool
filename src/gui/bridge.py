@@ -310,6 +310,93 @@ class Bridge(QObject):
             }
         self._run_async(request_id, _analyze)
 
+    # ── Version Manager (Python/CUDA) ──
+
+    @Slot(result=str)
+    def detect_gpu(self):
+        """Detect GPU and return recommended CUDA tag."""
+        from src.core.version_manager import VersionManager
+        vm = VersionManager(self.config)
+        return self._safe_call(vm.detect_gpu)
+
+    @Slot(result=str)
+    def get_version_lists(self):
+        """Return Python versions and CUDA tags."""
+        from src.core.version_manager import VersionManager
+        vm = VersionManager(self.config)
+        def _get():
+            return {
+                "python": vm.get_python_versions(),
+                "cuda_tags": vm.get_cuda_tags(),
+                "cache_info": vm.get_cache_info(),
+            }
+        return self._safe_call(_get)
+
+    @Slot(str)
+    def refresh_version_lists(self, request_id):
+        """Refresh version lists from official sources (async)."""
+        from src.core.version_manager import VersionManager
+        vm = VersionManager(self.config)
+        def _refresh():
+            cache = vm.refresh_all()
+            return {
+                "python": cache["python"],
+                "cuda_tags": cache["cuda_tags"],
+                "last_updated": cache["last_updated"],
+            }
+        self._run_async(request_id, _refresh)
+
+    @Slot(str, str, str, str, str, str)
+    def create_environment_v2(self, request_id, name, branch, commit,
+                              python_version, cuda_tag):
+        """Create environment with optional Python/CUDA version (async)."""
+        commit_val = commit if commit else None
+        python_ver = python_version if python_version else ""
+        cuda = cuda_tag if cuda_tag else ""
+        logger.info(
+            f"create_environment_v2: name={name}, branch={branch}, "
+            f"python={python_ver}, cuda={cuda}"
+        )
+        def _create():
+            # Download custom Python if needed
+            if python_ver:
+                from src.core.version_manager import VersionManager
+                vm = VersionManager(self.config)
+                bundled = self.env_manager._get_bundled_python_version()
+                if python_ver != bundled:
+                    versions = vm.get_python_versions()
+                    match = next(
+                        (v for v in versions if v["version"] == python_ver),
+                        None,
+                    )
+                    if match and match.get("url"):
+                        vm.download_python(
+                            python_ver, match["url"], match.get("sha256", ""),
+                            progress_callback=lambda msg:
+                                self.push_progress(request_id, "python_download", 2, msg),
+                        )
+            env = self.env_manager.create_environment(
+                name, branch=branch, commit=commit_val,
+                python_version=python_ver, cuda_tag=cuda,
+                progress_callback=lambda step, pct, detail="":
+                    self.push_progress(request_id, step, pct, detail),
+            )
+            return env.to_dict()
+        self._run_async(request_id, _create)
+
+    @Slot(str, str, str)
+    def reinstall_pytorch(self, request_id, env_name, cuda_tag):
+        """Reinstall PyTorch with different CUDA version (async)."""
+        from src.core.version_manager import VersionManager
+        vm = VersionManager(self.config)
+        def _reinstall():
+            return vm.reinstall_pytorch(
+                env_name, cuda_tag,
+                progress_callback=lambda step, pct, detail="":
+                    self.push_progress(request_id, step, pct, detail),
+            )
+        self._run_async(request_id, _reinstall)
+
     # ── Log Export ──
 
     @Slot(str, result=str)
