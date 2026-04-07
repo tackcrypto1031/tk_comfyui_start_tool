@@ -82,8 +82,8 @@
                             <thead>
                                 <tr>
                                     <th>${t('plugin_col_name')}</th>
-                                    <th>${t('plugin_col_status')}</th>
-                                    <th class="text-right">${t('plugin_col_actions')}</th>
+                                    <th style="text-align:center">${t('plugin_col_status')}</th>
+                                    <th style="text-align:center">${t('plugin_col_actions')}</th>
                                 </tr>
                             </thead>
                             <tbody id="plug-installed-body">
@@ -173,9 +173,9 @@
             var tr = document.createElement('tr');
             tr.innerHTML = `
                 <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(nodeName)}">${escapeHtml(nodeName)}</td>
-                <td>${badgeHtml}</td>
-                <td class="text-right whitespace-nowrap">
-                    <div class="flex items-center justify-end gap-2">
+                <td style="text-align:center">${badgeHtml}</td>
+                <td class="whitespace-nowrap">
+                    <div class="flex items-center justify-center gap-2">
                         <button class="btn btn-secondary btn-sm plug-toggle-btn inline-flex items-center gap-1" data-name="${escapeHtml(nodeName)}" data-status="${escapeHtml(status)}">
                             <span class="material-symbols-outlined text-[16px]">${toggleIcon}</span>
                             ${toggleLabel}
