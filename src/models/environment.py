@@ -17,6 +17,8 @@ class Environment:
     cuda_tag: str = ""
     pytorch_version: str = ""
     pip_freeze: dict = field(default_factory=dict)
+    # Each entry: {name, repo_url, commit, enabled (default True)}
+    # The 'enabled' field is optional for backward compatibility.
     custom_nodes: list = field(default_factory=list)
     snapshots: list = field(default_factory=list)
     is_sandbox: bool = False

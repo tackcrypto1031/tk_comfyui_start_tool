@@ -1,12 +1,15 @@
 /**
- * plugins.js — Plugin conflict analysis page
+ * plugins.js — Plugin management page (installed list + analyze + install)
  */
 (function() {
+
+    var lastRiskLevel = null;
 
     function render(container) {
         container.innerHTML = `
             <div class="fade-in space-y-6">
-                <!-- Controls -->
+
+                <!-- Analyze + Install -->
                 <div class="card">
                     <div class="card-header">${t('plugin_conflict_report')}</div>
                     <div class="flex items-end gap-4 mt-4">
@@ -18,9 +21,13 @@
                             <label class="input-label">Plugin Path</label>
                             <input type="text" id="plug-path" class="input" placeholder="${t('plugin_url_placeholder')}">
                         </div>
-                        <button id="plug-btn-analyze" class="btn btn-primary">
+                        <button id="plug-btn-analyze" class="btn btn-secondary">
                             <span class="material-symbols-outlined text-[16px]">search</span>
                             ${t('plugin_analyze')}
+                        </button>
+                        <button id="plug-btn-install" class="btn btn-primary" disabled>
+                            <span class="material-symbols-outlined text-[16px]">download</span>
+                            ${t('plugin_install')}
                         </button>
                     </div>
                 </div>
@@ -55,47 +62,257 @@
 
                 <!-- Status -->
                 <div id="plug-status" class="text-xs font-label uppercase tracking-wider text-on-surface-variant"></div>
+
+                <!-- Installed Plugins -->
+                <div class="card">
+                    <div class="card-header flex items-center justify-between">
+                        <span>${t('plugin_installed_title')}</span>
+                        <button id="plug-btn-refresh" class="btn btn-secondary btn-sm">
+                            <span class="material-symbols-outlined text-[16px]">refresh</span>
+                            ${t('env_refresh')}
+                        </button>
+                    </div>
+                    <div class="mt-4 border border-surface-container">
+                        <table class="data-table" style="table-layout:fixed;width:100%">
+                            <colgroup>
+                                <col>
+                                <col style="width:100px">
+                                <col style="width:260px">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th>${t('plugin_col_name')}</th>
+                                    <th>${t('plugin_col_status')}</th>
+                                    <th class="text-right">${t('plugin_col_actions')}</th>
+                                </tr>
+                            </thead>
+                            <tbody id="plug-installed-body">
+                                <tr><td colspan="3" class="text-center text-on-surface-variant py-4">${t('loading')}</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="plug-restart-hint" class="hidden mt-2 text-xs text-yellow-400"></div>
+                </div>
             </div>
         `;
 
         document.getElementById('plug-btn-analyze').addEventListener('click', doAnalyze);
+        document.getElementById('plug-btn-install').addEventListener('click', doInstall);
+        document.getElementById('plug-btn-refresh').addEventListener('click', function() {
+            loadPlugins();
+        });
+        document.getElementById('plug-path').addEventListener('input', function() {
+            document.getElementById('plug-btn-install').disabled = true;
+            lastRiskLevel = null;
+        });
+        document.getElementById('plug-env').addEventListener('change', function() {
+            loadPlugins();
+        });
+
         loadEnvs();
     }
 
     function loadEnvs() {
         BridgeAPI.listEnvironments().then(function(envs) {
-            const select = document.getElementById('plug-env');
+            var select = document.getElementById('plug-env');
             select.innerHTML = '';
-            envs.forEach(env => {
-                const opt = document.createElement('option');
+            envs.forEach(function(env) {
+                var opt = document.createElement('option');
                 opt.value = env.name;
                 opt.textContent = env.name;
                 select.appendChild(opt);
             });
+            loadPlugins();
         }).catch(function(e) { App.showToast(e.toString(), 'error'); });
     }
 
+    function loadPlugins() {
+        var envName = document.getElementById('plug-env').value;
+        if (!envName) return;
+        var tbody = document.getElementById('plug-installed-body');
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-on-surface-variant py-4">' + t('loading') + '</td></tr>';
+
+        BridgeAPI.listPlugins(envName).then(function(plugins) {
+            renderInstalledPlugins(plugins, envName);
+        }).catch(function(e) {
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center text-on-surface-variant py-4">' + escapeHtml(e.toString()) + '</td></tr>';
+        });
+    }
+
+    function renderInstalledPlugins(plugins, envName) {
+        var tbody = document.getElementById('plug-installed-body');
+        tbody.innerHTML = '';
+
+        if (!plugins || plugins.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center text-on-surface-variant py-4">' + t('plugin_no_plugins') + '</td></tr>';
+            return;
+        }
+
+        plugins.forEach(function(plugin) {
+            var nodeName = plugin.name || plugin.node_name || '';
+            var status = plugin.status || 'untracked';
+
+            var badgeHtml;
+            if (status === 'enabled') {
+                badgeHtml = '<span class="badge badge-success">' + t('plugin_status_enabled') + '</span>';
+            } else if (status === 'disabled') {
+                badgeHtml = '<span class="badge badge-warning">' + t('plugin_status_disabled') + '</span>';
+            } else {
+                badgeHtml = '<span class="badge badge-primary">' + t('plugin_status_untracked') + '</span>';
+            }
+
+            var toggleLabel, toggleIcon;
+            if (status === 'disabled') {
+                toggleLabel = t('plugin_enable');
+                toggleIcon = 'check_circle';
+            } else {
+                toggleLabel = t('plugin_disable');
+                toggleIcon = 'block';
+            }
+
+            var tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(nodeName)}">${escapeHtml(nodeName)}</td>
+                <td>${badgeHtml}</td>
+                <td class="text-right whitespace-nowrap">
+                    <div class="flex items-center justify-end gap-2">
+                        <button class="btn btn-secondary btn-sm plug-toggle-btn inline-flex items-center gap-1" data-name="${escapeHtml(nodeName)}" data-status="${escapeHtml(status)}">
+                            <span class="material-symbols-outlined text-[16px]">${toggleIcon}</span>
+                            ${toggleLabel}
+                        </button>
+                        <button class="btn btn-danger btn-sm plug-delete-btn inline-flex items-center gap-1" data-name="${escapeHtml(nodeName)}">
+                            <span class="material-symbols-outlined text-[16px]">delete</span>
+                            ${t('plugin_delete')}
+                        </button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        tbody.querySelectorAll('.plug-toggle-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var name = btn.getAttribute('data-name');
+                var status = btn.getAttribute('data-status');
+                doTogglePlugin(envName, name, status);
+            });
+        });
+
+        tbody.querySelectorAll('.plug-delete-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var name = btn.getAttribute('data-name');
+                doDeletePlugin(envName, name);
+            });
+        });
+    }
+
+    function doTogglePlugin(envName, nodeName, currentStatus) {
+        var isManager = nodeName === 'ComfyUI-Manager';
+        var isDisabling = currentStatus !== 'disabled';
+
+        if (isManager) {
+            var confirmMsg = isDisabling
+                ? t('plugin_confirm_manager_disable')
+                : t('plugin_confirm_manager_disable');
+            if (!confirm(confirmMsg)) return;
+        }
+
+        var action = isDisabling
+            ? BridgeAPI.disablePlugin(envName, nodeName)
+            : BridgeAPI.enablePlugin(envName, nodeName);
+
+        action.then(function() {
+            var msg = isDisabling
+                ? t('plugin_disabled_success', nodeName)
+                : t('plugin_enabled_success', nodeName);
+            App.showToast(msg, 'info');
+            showRestartHint();
+            loadPlugins();
+        }).catch(function(e) {
+            App.showToast(e.toString(), 'error');
+        });
+    }
+
+    function doDeletePlugin(envName, nodeName) {
+        var isManager = nodeName === 'ComfyUI-Manager';
+        var confirmMsg = t('plugin_confirm_delete', nodeName);
+        if (isManager) {
+            confirmMsg += '\n\n' + t('plugin_confirm_manager_delete');
+        }
+        if (!confirm(confirmMsg)) return;
+
+        BridgeAPI.deletePlugin(envName, nodeName).then(function() {
+            App.showToast(t('plugin_deleted_success', nodeName), 'info');
+            showRestartHint();
+            loadPlugins();
+        }).catch(function(e) {
+            App.showToast(e.toString(), 'error');
+        });
+    }
+
+    function showRestartHint() {
+        var hint = document.getElementById('plug-restart-hint');
+        hint.textContent = t('plugin_restart_hint');
+        hint.classList.remove('hidden');
+    }
+
+    function isGitUrl(url) {
+        return url.startsWith('http') || url.startsWith('git@');
+    }
+
     function doAnalyze() {
-        const envName = document.getElementById('plug-env').value;
-        const pluginPath = document.getElementById('plug-path').value.trim();
+        var envName = document.getElementById('plug-env').value;
+        var pluginPath = document.getElementById('plug-path').value.trim();
         if (!envName || !pluginPath) {
             App.showToast(t('plugin_select_env_and_path'), 'info');
             return;
         }
 
-        const statusEl = document.getElementById('plug-status');
+        var statusEl = document.getElementById('plug-status');
         statusEl.textContent = t('plugin_analyzing');
         document.getElementById('plug-btn-analyze').disabled = true;
+        document.getElementById('plug-btn-install').disabled = true;
         document.getElementById('plug-results').classList.add('hidden');
+        lastRiskLevel = null;
 
-        BridgeAPI.analyzePlugin(envName, pluginPath).then(report => {
+        BridgeAPI.analyzePlugin(envName, pluginPath).then(function(report) {
             renderReport(report);
             statusEl.textContent = t('plugin_analysis_complete');
             document.getElementById('plug-btn-analyze').disabled = false;
-        }).catch(e => {
+            lastRiskLevel = report.risk_level;
+            if (isGitUrl(pluginPath)) {
+                document.getElementById('plug-btn-install').disabled = false;
+            }
+        }).catch(function(e) {
             statusEl.textContent = t('error') + ': ' + e;
             document.getElementById('plug-btn-analyze').disabled = false;
             App.showToast(e.toString(), 'error');
+        });
+    }
+
+    function doInstall() {
+        var envName = document.getElementById('plug-env').value;
+        var gitUrl = document.getElementById('plug-path').value.trim();
+        var statusEl = document.getElementById('plug-status');
+        var installBtn = document.getElementById('plug-btn-install');
+
+        if (lastRiskLevel === 'HIGH' || lastRiskLevel === 'CRITICAL') {
+            if (!confirm(t('plugin_confirm_high_risk', lastRiskLevel))) return;
+        }
+
+        installBtn.disabled = true;
+        statusEl.textContent = t('plugin_cloning');
+
+        BridgeAPI.installPlugin(envName, gitUrl, function(msg) {
+            statusEl.textContent = msg;
+        }).then(function() {
+            App.showToast(t('plugin_install_done'), 'success');
+            showRestartHint();
+            loadPlugins();
+            statusEl.textContent = '';
+        }).catch(function(e) {
+            App.showToast(e.toString(), 'error');
+            installBtn.disabled = false;
         });
     }
 
@@ -103,15 +320,15 @@
         document.getElementById('plug-results').classList.remove('hidden');
 
         // Risk banner
-        const banner = document.getElementById('plug-risk-banner');
-        const riskColors = {
+        var banner = document.getElementById('plug-risk-banner');
+        var riskColors = {
             GREEN: { border: 'border-green-500', bg: 'bg-green-500/10', text: 'text-green-400', icon: 'check_circle' },
             YELLOW: { border: 'border-yellow-500', bg: 'bg-yellow-500/10', text: 'text-yellow-400', icon: 'warning' },
             HIGH: { border: 'border-orange-500', bg: 'bg-orange-500/10', text: 'text-orange-400', icon: 'error' },
             CRITICAL: { border: 'border-red-500', bg: 'bg-red-500/10', text: 'text-red-400', icon: 'dangerous' },
         };
-        const rc = riskColors[report.risk_level] || riskColors.GREEN;
-        banner.className = `card ${rc.border} ${rc.bg} border-l-4 p-4 flex items-center gap-3`;
+        var rc = riskColors[report.risk_level] || riskColors.GREEN;
+        banner.className = 'card ' + rc.border + ' ' + rc.bg + ' border-l-4 p-4 flex items-center gap-3';
         banner.innerHTML = `
             <span class="material-symbols-outlined text-2xl ${rc.text}">${rc.icon}</span>
             <div>
@@ -124,30 +341,30 @@
         document.getElementById('plug-summary').textContent = report.summary || '';
 
         // Recommendations
-        const recsContainer = document.getElementById('plug-recommendations');
+        var recsContainer = document.getElementById('plug-recommendations');
         recsContainer.innerHTML = '';
         if (report.recommendations && report.recommendations.length > 0) {
-            report.recommendations.forEach(rec => {
-                const div = document.createElement('div');
+            report.recommendations.forEach(function(rec) {
+                var div = document.createElement('div');
                 div.className = 'flex items-start gap-2 text-sm text-on-surface-variant';
-                div.innerHTML = `<span class="material-symbols-outlined text-[16px] text-primary mt-0.5">arrow_right</span><span>${escapeHtml(rec)}</span>`;
+                div.innerHTML = '<span class="material-symbols-outlined text-[16px] text-primary mt-0.5">arrow_right</span><span>' + escapeHtml(rec) + '</span>';
                 recsContainer.appendChild(div);
             });
         }
 
         // Conflicts table
-        const tbody = document.getElementById('plug-conflicts-body');
+        var tbody = document.getElementById('plug-conflicts-body');
         tbody.innerHTML = '';
         if (report.conflicts && report.conflicts.length > 0) {
-            report.conflicts.forEach(conflict => {
-                const riskBadgeClass = {
+            report.conflicts.forEach(function(conflict) {
+                var riskBadgeClass = {
                     GREEN: 'badge-success',
                     YELLOW: 'badge-warning',
                     HIGH: 'badge-warning',
                     CRITICAL: 'badge-danger',
                 }[conflict.risk_level] || 'badge-primary';
 
-                const tr = document.createElement('tr');
+                var tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td class="${conflict.is_critical ? 'text-primary font-bold' : ''}">${escapeHtml(conflict.package)}</td>
                     <td class="font-mono text-xs text-on-surface-variant">${escapeHtml(conflict.current_version || '—')}</td>
@@ -163,7 +380,7 @@
     }
 
     function escapeHtml(str) {
-        const div = document.createElement('div');
+        var div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
     }

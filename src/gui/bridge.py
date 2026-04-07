@@ -314,6 +314,48 @@ class Bridge(QObject):
             }
         self._run_async(request_id, _analyze)
 
+    @Slot(str, result=str)
+    def list_plugins(self, env_name):
+        """List custom nodes for an environment. Returns JSON array."""
+        return self._safe_call(self.env_manager.list_custom_nodes, env_name)
+
+    @Slot(str, str, str)
+    def install_plugin(self, request_id, env_name, git_url):
+        """Install a custom node from a git URL async."""
+        def _install():
+            return self.env_manager.install_custom_node(
+                env_name, git_url,
+                progress_callback=lambda step, detail="":
+                    self.push_progress(request_id, step, 0, detail),
+            )
+        self._run_async(request_id, _install)
+
+    @Slot(str, str, str)
+    def disable_plugin(self, request_id, env_name, node_name):
+        """Disable a custom node async. Raises if ComfyUI is running for this env."""
+        def _disable():
+            status = self.launcher.get_status(env_name)
+            if isinstance(status, dict) and status.get("status") == "running":
+                raise RuntimeError(
+                    f"ComfyUI is running for environment '{env_name}'. Stop it before disabling plugins."
+                )
+            return self.env_manager.disable_custom_node(env_name, node_name)
+        self._run_async(request_id, _disable)
+
+    @Slot(str, str, str)
+    def enable_plugin(self, request_id, env_name, node_name):
+        """Enable a custom node async."""
+        def _enable():
+            return self.env_manager.enable_custom_node(env_name, node_name)
+        self._run_async(request_id, _enable)
+
+    @Slot(str, str, str)
+    def delete_plugin(self, request_id, env_name, node_name):
+        """Delete a custom node async."""
+        def _delete():
+            return self.env_manager.delete_custom_node(env_name, node_name)
+        self._run_async(request_id, _delete)
+
     # ── Version Manager (Python/CUDA) ──
 
     @Slot(result=str)

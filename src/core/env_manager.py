@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import stat
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
@@ -495,3 +496,207 @@ class EnvManager:
         config_path.parent.mkdir(parents=True, exist_ok=True)
         with open(str(config_path), "w", encoding="utf-8") as f:
             config.write(f)
+
+    @staticmethod
+    def _on_rm_error(func, path, exc_info):
+        """Handle read-only files during deletion (e.g., .git objects on Windows)."""
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+
+    # ------------------------------------------------------------------
+    # Plugin / custom-node management
+    # ------------------------------------------------------------------
+
+    def list_custom_nodes(self, env_name: str) -> list:
+        """Return a list of custom nodes for env_name, reconciling disk vs meta.
+
+        Each item is a dict:
+            {name: str, status: "enabled"|"disabled"|"untracked", repo_url: str, commit: str}
+        """
+        env_dir = Path(self.config["environments_dir"]) / env_name
+        custom_nodes_dir = env_dir / "ComfyUI" / "custom_nodes"
+        env = Environment.load_meta(str(env_dir))
+
+        # Build lookup from existing meta entries
+        meta_by_name: dict = {n["name"]: n for n in env.custom_nodes}
+
+        # Scan directories on disk
+        disk_nodes: dict = {}  # canonical_name -> {"enabled": bool}
+        if custom_nodes_dir.exists():
+            for entry in custom_nodes_dir.iterdir():
+                if not entry.is_dir():
+                    continue
+                name = entry.name
+                # Skip __pycache__ and hidden dirs
+                if name == "__pycache__" or name.startswith("."):
+                    continue
+                if name.endswith(".disabled"):
+                    canonical = name[: -len(".disabled")]
+                    disk_nodes[canonical] = {"enabled": False}
+                else:
+                    disk_nodes[name] = {"enabled": True}
+
+        # Reconcile: add disk-only entries to meta, remove stale meta entries
+        # Track which names had no prior meta entry (newly discovered on disk)
+        newly_discovered: set = set()
+        reconciled: list = []
+        for canonical, disk_info in disk_nodes.items():
+            if canonical in meta_by_name:
+                entry = dict(meta_by_name[canonical])
+                entry["enabled"] = disk_info["enabled"]
+            else:
+                entry = {
+                    "name": canonical,
+                    "repo_url": "",
+                    "commit": "",
+                    "enabled": disk_info["enabled"],
+                }
+                newly_discovered.add(canonical)
+            reconciled.append(entry)
+
+        # Remove stale meta entries (in meta but not on disk) by replacing with reconciled list
+        env.custom_nodes = list(reconciled)
+        env.save_meta()
+
+        # Build return list
+        result = []
+        for entry in reconciled:
+            if entry["name"] in newly_discovered:
+                status = "untracked"
+            elif not entry.get("enabled", True):
+                status = "disabled"
+            else:
+                status = "enabled"
+
+            result.append({
+                "name": entry["name"],
+                "status": status,
+                "repo_url": entry.get("repo_url", ""),
+                "commit": entry.get("commit", ""),
+            })
+
+        return result
+
+    def disable_custom_node(self, env_name: str, node_name: str) -> None:
+        """Rename custom_nodes/{node_name} -> {node_name}.disabled and update meta."""
+        env_dir = Path(self.config["environments_dir"]) / env_name
+        custom_nodes_dir = env_dir / "ComfyUI" / "custom_nodes"
+        node_path = custom_nodes_dir / node_name
+        disabled_path = custom_nodes_dir / f"{node_name}.disabled"
+
+        if disabled_path.exists():
+            raise ValueError(f"Node '{node_name}' is already disabled")
+        if not node_path.exists():
+            raise ValueError(f"Node '{node_name}' not found in '{env_name}'")
+
+        node_path.rename(disabled_path)
+
+        env = Environment.load_meta(str(env_dir))
+        for entry in env.custom_nodes:
+            if entry["name"] == node_name:
+                entry["enabled"] = False
+                break
+        env.save_meta()
+
+    def enable_custom_node(self, env_name: str, node_name: str) -> None:
+        """Rename custom_nodes/{node_name}.disabled -> {node_name} and update meta."""
+        env_dir = Path(self.config["environments_dir"]) / env_name
+        custom_nodes_dir = env_dir / "ComfyUI" / "custom_nodes"
+        disabled_path = custom_nodes_dir / f"{node_name}.disabled"
+        node_path = custom_nodes_dir / node_name
+
+        if not disabled_path.exists():
+            raise ValueError(f"Disabled node '{node_name}' not found in '{env_name}'")
+
+        disabled_path.rename(node_path)
+
+        env = Environment.load_meta(str(env_dir))
+        for entry in env.custom_nodes:
+            if entry["name"] == node_name:
+                entry["enabled"] = True
+                break
+        env.save_meta()
+
+    def delete_custom_node(self, env_name: str, node_name: str) -> None:
+        """Delete a custom node folder (enabled or disabled) and remove from meta."""
+        env_dir = Path(self.config["environments_dir"]) / env_name
+        custom_nodes_dir = env_dir / "ComfyUI" / "custom_nodes"
+        node_path = custom_nodes_dir / node_name
+        disabled_path = custom_nodes_dir / f"{node_name}.disabled"
+
+        if node_path.exists():
+            shutil.rmtree(str(node_path), onerror=self._on_rm_error)
+        elif disabled_path.exists():
+            shutil.rmtree(str(disabled_path), onerror=self._on_rm_error)
+        else:
+            raise ValueError(f"Node '{node_name}' not found in '{env_name}'")
+
+        env = Environment.load_meta(str(env_dir))
+        env.custom_nodes = [n for n in env.custom_nodes if n["name"] != node_name]
+        env.save_meta()
+
+    def install_custom_node(self, env_name: str, git_url: str,
+                            progress_callback=None) -> dict:
+        """Clone a custom node from git_url, install its deps, and update meta.
+
+        Returns {name, repo_url, commit}.
+        """
+        env_dir = Path(self.config["environments_dir"]) / env_name
+        venv_path = env_dir / "venv"
+        custom_nodes_dir = env_dir / "ComfyUI" / "custom_nodes"
+
+        # Sanitize URL to derive node_name
+        url = git_url.strip().rstrip("/")
+        if "?" in url:
+            url = url[: url.index("?")]
+        if url.endswith(".git"):
+            url = url[:-4]
+        node_name = url.split("/")[-1]
+
+        node_path = custom_nodes_dir / node_name
+        clone_started = False
+
+        try:
+            if progress_callback:
+                progress_callback("Cloning repository...")
+
+            custom_nodes_dir.mkdir(parents=True, exist_ok=True)
+            git_ops.clone_repo(git_url, str(node_path))
+            clone_started = True
+
+            if progress_callback:
+                progress_callback("Installing dependencies...")
+
+            req_path = node_path / "requirements.txt"
+            if req_path.exists():
+                pip_ops.run_pip(str(venv_path), ["install", "-r", str(req_path)])
+
+            install_py = node_path / "install.py"
+            if install_py.exists():
+                python_exe = pip_ops.get_venv_python(str(venv_path))
+                subprocess.run(
+                    [python_exe, str(install_py)],
+                    cwd=str(node_path),
+                    check=True,
+                )
+
+            commit = git_ops.get_current_commit(str(node_path))
+
+            env = Environment.load_meta(str(env_dir))
+            env.custom_nodes.append({
+                "name": node_name,
+                "repo_url": git_url,
+                "commit": commit,
+                "enabled": True,
+            })
+            env.save_meta()
+
+            if progress_callback:
+                progress_callback("Done")
+
+            return {"name": node_name, "repo_url": git_url, "commit": commit}
+
+        except Exception:
+            if clone_started and node_path.exists():
+                shutil.rmtree(str(node_path), onerror=self._on_rm_error)
+            raise

@@ -157,17 +157,19 @@ class SnapshotManager:
         _progress("nodes", 20, "Restoring custom nodes...")
         snap_nodes = {n["name"]: n for n in snap.custom_nodes_state}
 
-        # 2a. Identify current custom nodes on disk
-        current_nodes = set()
+        # 2a. Identify current custom nodes on disk (handle .disabled suffix)
+        current_on_disk = {}  # base_name -> actual_folder_name
         if custom_nodes_dir.exists():
             for entry in custom_nodes_dir.iterdir():
                 if entry.is_dir() and entry.name != "__pycache__":
-                    current_nodes.add(entry.name)
+                    base_name = entry.name.removesuffix('.disabled')
+                    current_on_disk[base_name] = entry.name
 
         # 2b. Remove nodes that are not in the snapshot
-        for node_name in current_nodes - set(snap_nodes.keys()):
-            node_path = custom_nodes_dir / node_name
-            shutil.rmtree(node_path, ignore_errors=True)
+        for base_name, folder_name in current_on_disk.items():
+            if base_name not in snap_nodes:
+                node_path = custom_nodes_dir / folder_name
+                shutil.rmtree(node_path, ignore_errors=True)
 
         # 2c. Clone missing nodes and checkout correct commits
         for node_name, node_info in snap_nodes.items():

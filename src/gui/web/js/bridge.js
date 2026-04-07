@@ -161,6 +161,13 @@ var BridgeAPI = (function() {
 
         // Plugins
         analyzePlugin: function(envName, pluginPath) { return callAsync('analyze_plugin', envName, pluginPath); },
+        listPlugins: function(envName) { return callSlot('list_plugins', envName); },
+        installPlugin: function(envName, gitUrl, onProgress) {
+            return callAsync('install_plugin', envName, gitUrl, {onProgress: onProgress});
+        },
+        disablePlugin: function(envName, nodeName) { return callAsync('disable_plugin', envName, nodeName); },
+        enablePlugin: function(envName, nodeName) { return callAsync('enable_plugin', envName, nodeName); },
+        deletePlugin: function(envName, nodeName) { return callAsync('delete_plugin', envName, nodeName); },
 
         // Progress polling
         pollProgress: function(requestId) { return callSlot('poll_progress', requestId); },
