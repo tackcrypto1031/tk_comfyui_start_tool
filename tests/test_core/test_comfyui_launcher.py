@@ -270,6 +270,22 @@ class TestListRunning:
 
     @patch("src.core.comfyui_launcher.process_manager")
     def test_list_running_excludes_dead(self, mock_pm, launcher, env_dir):
+        """Dead process beyond grace period should be excluded."""
+        mock_pm.is_process_running.return_value = False
+        mock_pm.is_port_in_use.return_value = False
+        pid_file = env_dir / ".comfyui.pid"
+        pid_file.write_text(json.dumps({
+            "pid": 9999, "port": 8188,
+            "_fail_count": launcher._MAX_FAIL_COUNT,
+        }))
+
+        result = launcher.list_running()
+
+        assert result == []
+
+    @patch("src.core.comfyui_launcher.process_manager")
+    def test_list_running_grace_period_keeps_restarting(self, mock_pm, launcher, env_dir):
+        """Dead process within grace period should appear with 'restarting' status."""
         mock_pm.is_process_running.return_value = False
         mock_pm.is_port_in_use.return_value = False
         pid_file = env_dir / ".comfyui.pid"
@@ -277,4 +293,6 @@ class TestListRunning:
 
         result = launcher.list_running()
 
-        assert result == []
+        assert len(result) == 1
+        assert result[0]["env_name"] == "main"
+        assert result[0]["status"] == "restarting"

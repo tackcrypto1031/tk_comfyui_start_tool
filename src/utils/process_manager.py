@@ -69,6 +69,14 @@ def is_port_in_use(port: int) -> bool:
         return s.connect_ex(('localhost', port)) == 0
 
 
+def find_pid_on_port(port: int) -> Optional[int]:
+    """Find the PID of the process listening on the given port."""
+    for conn in psutil.net_connections(kind='inet'):
+        if conn.laddr.port == port and conn.status == 'LISTEN' and conn.pid:
+            return conn.pid
+    return None
+
+
 def find_available_port(start_port: int = 8188, max_tries: int = 10) -> int:
     """Find an available port starting from start_port."""
     for i in range(max_tries):

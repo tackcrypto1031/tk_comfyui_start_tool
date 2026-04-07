@@ -192,6 +192,10 @@ class ComfyUILauncher:
         except requests.ConnectionError:
             return False
 
+    # Max consecutive poll failures before cleaning up pid file.
+    # With 5s polling interval, 3 failures = ~15s grace period for restarts.
+    _MAX_FAIL_COUNT = 3
+
     def get_status(self, env_name: str) -> dict:
         """Return status dict for an environment."""
         env_dir = self.environments_dir / env_name
@@ -200,12 +204,31 @@ class ComfyUILauncher:
             return {"status": "stopped", "env_name": env_name}
         data = json.loads(pid_file.read_text())
         running = process_manager.is_process_running(data["pid"])
+
         if not running and "port" in data:
             running = process_manager.is_port_in_use(data["port"])
+            # PID changed after restart (e.g. ComfyUI Manager restarted ComfyUI)
+            if running:
+                new_pid = process_manager.find_pid_on_port(data["port"])
+                if new_pid and new_pid != data["pid"]:
+                    data["pid"] = new_pid
+                    data.pop("_fail_count", None)
+                    pid_file.write_text(json.dumps(data))
 
-        # If process died, clean up pid file
         if not running:
-            pid_file.unlink(missing_ok=True)
+            # Grace period: only delete pid file after consecutive failures
+            # to survive brief restart gaps (e.g. ComfyUI Manager node install)
+            fail_count = data.get("_fail_count", 0) + 1
+            if fail_count >= self._MAX_FAIL_COUNT:
+                pid_file.unlink(missing_ok=True)
+            else:
+                data["_fail_count"] = fail_count
+                pid_file.write_text(json.dumps(data))
+        else:
+            # Reset fail count on success
+            if "_fail_count" in data:
+                del data["_fail_count"]
+                pid_file.write_text(json.dumps(data))
 
         result = {"status": "running" if running else "stopped", "env_name": env_name, **data}
 
@@ -233,8 +256,13 @@ class ComfyUILauncher:
                 is_running = process_manager.is_process_running(data["pid"])
                 if not is_running and "port" in data:
                     is_running = process_manager.is_port_in_use(data["port"])
-                if is_running:
+                # Include environments still within grace period (may be restarting)
+                in_grace = not is_running and data.get("_fail_count", 0) < self._MAX_FAIL_COUNT
+                if is_running or in_grace:
                     info = {"env_name": entry.name, **data}
+                    info.pop("_fail_count", None)  # Don't expose internal field
+                    if in_grace:
+                        info["status"] = "restarting"
                     # Read version info from env_meta.json
                     meta_file = entry / "env_meta.json"
                     if meta_file.exists():
