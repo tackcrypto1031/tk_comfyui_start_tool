@@ -14,6 +14,7 @@ class Snapshot:
     comfyui_commit: str = ""
     python_version: str = ""
     cuda_version: str = ""
+    cuda_tag: str = ""
     custom_nodes_state: list = field(default_factory=list)
     pip_freeze_path: str = ""
     config_backup_path: str = ""

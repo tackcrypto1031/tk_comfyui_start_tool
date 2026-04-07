@@ -156,7 +156,7 @@ var BridgeAPI = (function() {
         // Snapshots
         listSnapshots: function(envName) { return callSlot('list_snapshots', envName); },
         createSnapshot: function(envName, trigger) { return callSlot('create_snapshot', envName, trigger || 'manual'); },
-        restoreSnapshot: function(envName, snapshotId) { return callAsync('restore_snapshot', envName, snapshotId); },
+        restoreSnapshot: function(envName, snapshotId, onProgress) { return callAsync('restore_snapshot', envName, snapshotId, {onProgress: onProgress}); },
         deleteSnapshot: function(envName, snapshotId) { return callSlot('delete_snapshot', envName, snapshotId); },
 
         // Plugins

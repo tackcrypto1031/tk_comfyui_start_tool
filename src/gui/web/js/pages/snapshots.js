@@ -139,11 +139,36 @@
         const envName = document.getElementById('snap-env').value;
         App.confirm(t('snapshot_confirm_restore', snapshotId)).then(ok => {
             if (!ok) return;
-            document.getElementById('snap-status').textContent = t('snapshot_restoring');
-            BridgeAPI.restoreSnapshot(envName, snapshotId).then(() => {
+
+            var progressId = 'restore-' + Date.now();
+            var stepLabels = {
+                comfyui: t('snapshot_restoring') + ' ComfyUI...',
+                nodes: t('snapshot_restoring') + ' Custom Nodes...',
+                pytorch: t('snapshot_restoring') + ' PyTorch...',
+                packages: t('snapshot_restoring') + ' Pip Packages...',
+                configs: t('snapshot_restoring') + ' Configs...',
+                metadata: t('snapshot_restoring') + ' Metadata...',
+                done: t('snapshot_restored', snapshotId),
+            };
+
+            App.showProgress(progressId, t('snapshot_restoring'));
+
+            BridgeAPI.restoreSnapshot(envName, snapshotId, function(msg) {
+                App.updateProgress(
+                    progressId,
+                    stepLabels[msg.step] || msg.step,
+                    msg.percent,
+                    msg.detail
+                );
+            }).then(() => {
+                App.updateProgress(progressId, stepLabels.done, 100, '');
+                App.hideProgress(progressId, 'success');
                 App.showToast(t('snapshot_restored', snapshotId), 'success');
                 document.getElementById('snap-status').textContent = t('snapshot_restored', snapshotId);
-            }).catch(e => App.showToast(e.toString(), 'error'));
+            }).catch(e => {
+                App.hideProgress(progressId, 'error');
+                App.showToast(e.toString(), 'error');
+            });
         });
     }
 

@@ -272,7 +272,11 @@ class Bridge(QObject):
     def restore_snapshot(self, request_id, env_name, snapshot_id):
         """Restore snapshot async (reinstalls packages)."""
         def _restore():
-            self.snapshot_manager.restore_snapshot(env_name, snapshot_id)
+            self.snapshot_manager.restore_snapshot(
+                env_name, snapshot_id,
+                progress_callback=lambda step, pct, detail="":
+                    self.push_progress(request_id, step, pct, detail),
+            )
             return {"restored": snapshot_id}
         self._run_async(request_id, _restore)
 

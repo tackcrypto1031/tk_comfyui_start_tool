@@ -8,26 +8,38 @@ from src.core.snapshot_manager import SnapshotManager
 from src.models.snapshot import Snapshot
 
 
-def _create_mock_env(envs_dir, name, comfyui_commit="abc1234"):
+def _setup_pip_mock(mock_pip, freeze=None):
+    """Configure pip mock with sensible defaults."""
+    mock_pip.freeze.return_value = freeze or {}
+    mock_pip.get_python_version.return_value = "3.11.9"
+    mock_pip.get_venv_python.return_value = "python"
+
+
+def _create_mock_env(envs_dir, name, comfyui_commit="abc1234",
+                     custom_nodes=None, cuda_tag=""):
     """Helper to create a mock environment."""
     env_dir = Path(envs_dir) / name
     env_dir.mkdir(parents=True, exist_ok=True)
     comfyui_dir = env_dir / "ComfyUI"
     comfyui_dir.mkdir(exist_ok=True)
+    (comfyui_dir / "custom_nodes").mkdir(exist_ok=True)
     venv_dir = env_dir / "venv"
     venv_dir.mkdir(exist_ok=True)
     # Write extra_model_paths.yaml
     (comfyui_dir / "extra_model_paths.yaml").write_text("shared: true", encoding="utf-8")
+    if custom_nodes is None:
+        custom_nodes = [
+            {"name": "ComfyUI-Manager", "repo_url": "https://github.com/test", "commit": "node123"}
+        ]
     meta = {
         "name": name,
         "created_at": "2026-04-04T10:00:00+08:00",
         "comfyui_commit": comfyui_commit,
         "comfyui_branch": "master",
         "python_version": "3.11.9",
+        "cuda_tag": cuda_tag,
         "pip_freeze": {"torch": "2.3.1"},
-        "custom_nodes": [
-            {"name": "ComfyUI-Manager", "repo_url": "https://github.com/test", "commit": "node123"}
-        ],
+        "custom_nodes": custom_nodes,
         "snapshots": [],
         "is_sandbox": False,
         "parent_env": None,
@@ -51,7 +63,7 @@ class TestCreateSnapshot:
     def test_create_basic(self, mock_pip, mock_git, sample_config):
         _create_mock_env(sample_config["environments_dir"], "main")
         mock_git.get_current_commit.return_value = "abc1234"
-        mock_pip.freeze.return_value = {"torch": "2.3.1"}
+        _setup_pip_mock(mock_pip, {"torch": "2.3.1"})
 
         mgr = SnapshotManager(sample_config)
         snap = mgr.create_snapshot("main", trigger="manual")
@@ -66,7 +78,7 @@ class TestCreateSnapshot:
     def test_create_saves_freeze_file(self, mock_pip, mock_git, sample_config):
         _create_mock_env(sample_config["environments_dir"], "main")
         mock_git.get_current_commit.return_value = "abc1234"
-        mock_pip.freeze.return_value = {"torch": "2.3.1", "numpy": "1.26.4"}
+        _setup_pip_mock(mock_pip, {"torch": "2.3.1", "numpy": "1.26.4"})
 
         mgr = SnapshotManager(sample_config)
         snap = mgr.create_snapshot("main")
@@ -81,7 +93,7 @@ class TestCreateSnapshot:
     def test_create_saves_meta(self, mock_pip, mock_git, sample_config):
         _create_mock_env(sample_config["environments_dir"], "main")
         mock_git.get_current_commit.return_value = "abc1234"
-        mock_pip.freeze.return_value = {}
+        _setup_pip_mock(mock_pip)
 
         mgr = SnapshotManager(sample_config)
         snap = mgr.create_snapshot("main")
@@ -97,7 +109,7 @@ class TestCreateSnapshot:
     def test_create_backs_up_configs(self, mock_pip, mock_git, sample_config):
         _create_mock_env(sample_config["environments_dir"], "main")
         mock_git.get_current_commit.return_value = "abc1234"
-        mock_pip.freeze.return_value = {}
+        _setup_pip_mock(mock_pip)
 
         mgr = SnapshotManager(sample_config)
         snap = mgr.create_snapshot("main")
@@ -111,7 +123,7 @@ class TestCreateSnapshot:
     def test_create_records_custom_nodes(self, mock_pip, mock_git, sample_config):
         _create_mock_env(sample_config["environments_dir"], "main")
         mock_git.get_current_commit.return_value = "abc1234"
-        mock_pip.freeze.return_value = {}
+        _setup_pip_mock(mock_pip)
 
         mgr = SnapshotManager(sample_config)
         snap = mgr.create_snapshot("main")
@@ -121,10 +133,22 @@ class TestCreateSnapshot:
 
     @patch("src.core.snapshot_manager.git_ops")
     @patch("src.core.snapshot_manager.pip_ops")
+    def test_create_records_cuda_tag(self, mock_pip, mock_git, sample_config):
+        _create_mock_env(sample_config["environments_dir"], "main", cuda_tag="cu130")
+        mock_git.get_current_commit.return_value = "abc1234"
+        _setup_pip_mock(mock_pip)
+
+        mgr = SnapshotManager(sample_config)
+        snap = mgr.create_snapshot("main")
+
+        assert snap.cuda_tag == "cu130"
+
+    @patch("src.core.snapshot_manager.git_ops")
+    @patch("src.core.snapshot_manager.pip_ops")
     def test_create_updates_env_meta(self, mock_pip, mock_git, sample_config):
         _create_mock_env(sample_config["environments_dir"], "main")
         mock_git.get_current_commit.return_value = "abc1234"
-        mock_pip.freeze.return_value = {}
+        _setup_pip_mock(mock_pip)
 
         mgr = SnapshotManager(sample_config)
         snap = mgr.create_snapshot("main")
@@ -155,7 +179,7 @@ class TestListSnapshots:
     def test_list_after_create(self, mock_pip, mock_git, sample_config):
         _create_mock_env(sample_config["environments_dir"], "main")
         mock_git.get_current_commit.return_value = "abc1234"
-        mock_pip.freeze.return_value = {}
+        _setup_pip_mock(mock_pip)
 
         mgr = SnapshotManager(sample_config)
         mgr.create_snapshot("main", trigger="test1")
@@ -168,10 +192,10 @@ class TestListSnapshots:
 class TestRestoreSnapshot:
     @patch("src.core.snapshot_manager.git_ops")
     @patch("src.core.snapshot_manager.pip_ops")
-    def test_restore(self, mock_pip, mock_git, sample_config):
+    def test_restore_basic(self, mock_pip, mock_git, sample_config):
         _create_mock_env(sample_config["environments_dir"], "main")
         mock_git.get_current_commit.return_value = "abc1234"
-        mock_pip.freeze.return_value = {"torch": "2.3.1"}
+        _setup_pip_mock(mock_pip, {"torch": "2.3.1"})
         mock_pip.run_pip.return_value = MagicMock(returncode=0)
 
         mgr = SnapshotManager(sample_config)
@@ -180,11 +204,167 @@ class TestRestoreSnapshot:
         # Restore
         mgr.restore_snapshot("main", snap.id)
 
-        mock_git.checkout.assert_called_once_with(
+        mock_git.checkout.assert_any_call(
             str(Path(sample_config["environments_dir"]) / "main" / "ComfyUI"),
             "abc1234",
         )
-        mock_pip.run_pip.assert_called_once()
+
+    @patch("src.core.snapshot_manager.git_ops")
+    @patch("src.core.snapshot_manager.pip_ops")
+    def test_restore_clones_missing_custom_nodes(self, mock_pip, mock_git, sample_config):
+        """If a custom node was deleted, restore should re-clone it."""
+        _create_mock_env(sample_config["environments_dir"], "main")
+        mock_git.get_current_commit.return_value = "abc1234"
+        _setup_pip_mock(mock_pip, {"torch": "2.3.1"})
+        mock_pip.run_pip.return_value = MagicMock(returncode=0)
+
+        mgr = SnapshotManager(sample_config)
+        snap = mgr.create_snapshot("main")
+
+        # The custom_nodes_dir exists but the node dir does NOT (simulating deletion)
+        custom_nodes_dir = (
+            Path(sample_config["environments_dir"]) / "main" / "ComfyUI" / "custom_nodes"
+        )
+        custom_nodes_dir.mkdir(parents=True, exist_ok=True)
+        # No ComfyUI-Manager dir — it's been deleted
+
+        mgr.restore_snapshot("main", snap.id)
+
+        # Should have called clone_repo for the missing node
+        expected_dest = str(custom_nodes_dir / "ComfyUI-Manager")
+        mock_git.clone_repo.assert_called_with(
+            "https://github.com/test", expected_dest, commit="node123"
+        )
+
+    @patch("src.core.snapshot_manager.git_ops")
+    @patch("src.core.snapshot_manager.pip_ops")
+    def test_restore_removes_extra_nodes(self, mock_pip, mock_git, sample_config):
+        """Nodes not in the snapshot should be removed."""
+        _create_mock_env(
+            sample_config["environments_dir"], "main",
+            custom_nodes=[],  # snapshot has NO custom nodes
+        )
+        mock_git.get_current_commit.return_value = "abc1234"
+        _setup_pip_mock(mock_pip)
+        mock_pip.run_pip.return_value = MagicMock(returncode=0)
+
+        mgr = SnapshotManager(sample_config)
+        snap = mgr.create_snapshot("main")
+
+        # Simulate an extra node on disk
+        custom_nodes_dir = (
+            Path(sample_config["environments_dir"]) / "main" / "ComfyUI" / "custom_nodes"
+        )
+        extra_node = custom_nodes_dir / "SomeExtraNode"
+        extra_node.mkdir(parents=True, exist_ok=True)
+        (extra_node / "some_file.py").write_text("# node code", encoding="utf-8")
+
+        mgr.restore_snapshot("main", snap.id)
+
+        # The extra node should be removed
+        assert not extra_node.exists()
+
+    @patch("src.core.snapshot_manager.git_ops")
+    @patch("src.core.snapshot_manager.pip_ops")
+    def test_restore_reinstalls_pytorch_on_cuda_tag_change(self, mock_pip, mock_git, sample_config):
+        """If cuda_tag differs, restore should reinstall PyTorch."""
+        # Create env with cu130
+        _create_mock_env(
+            sample_config["environments_dir"], "main", cuda_tag="cu130"
+        )
+        mock_git.get_current_commit.return_value = "abc1234"
+        _setup_pip_mock(mock_pip, {"torch": "2.3.1"})
+        mock_pip.run_pip.return_value = MagicMock(returncode=0)
+
+        mgr = SnapshotManager(sample_config)
+        snap = mgr.create_snapshot("main")
+        assert snap.cuda_tag == "cu130"
+
+        # Now change env to cu128
+        env_meta_path = Path(sample_config["environments_dir"]) / "main" / "env_meta.json"
+        meta = json.loads(env_meta_path.read_text(encoding="utf-8"))
+        meta["cuda_tag"] = "cu128"
+        env_meta_path.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+
+        # Restore snapshot (should reinstall PyTorch with cu130)
+        mgr.restore_snapshot("main", snap.id)
+
+        # Check that pip uninstall + install were called for PyTorch
+        calls = [str(c) for c in mock_pip.run_pip.call_args_list]
+        uninstall_found = any("uninstall" in c and "torch" in c for c in calls)
+        install_found = any("cu130" in c for c in calls)
+        assert uninstall_found, f"Expected PyTorch uninstall call, got: {calls}"
+        assert install_found, f"Expected PyTorch install with cu130, got: {calls}"
+
+    @patch("src.core.snapshot_manager.git_ops")
+    @patch("src.core.snapshot_manager.pip_ops")
+    def test_restore_skips_pytorch_when_cuda_tag_unchanged(self, mock_pip, mock_git, sample_config):
+        """If cuda_tag is the same, should NOT reinstall PyTorch separately."""
+        _create_mock_env(
+            sample_config["environments_dir"], "main", cuda_tag="cu128"
+        )
+        mock_git.get_current_commit.return_value = "abc1234"
+        _setup_pip_mock(mock_pip, {"torch": "2.3.1"})
+        mock_pip.run_pip.return_value = MagicMock(returncode=0)
+
+        mgr = SnapshotManager(sample_config)
+        snap = mgr.create_snapshot("main")
+
+        mock_pip.run_pip.reset_mock()
+        mgr.restore_snapshot("main", snap.id)
+
+        # Only the freeze.txt reinstall call, no separate uninstall/install for pytorch
+        calls = [str(c) for c in mock_pip.run_pip.call_args_list]
+        uninstall_found = any("uninstall" in c and "torch" in c for c in calls)
+        assert not uninstall_found, f"Should not uninstall PyTorch when cuda_tag unchanged, got: {calls}"
+
+    @patch("src.core.snapshot_manager.git_ops")
+    @patch("src.core.snapshot_manager.pip_ops")
+    def test_restore_updates_env_meta(self, mock_pip, mock_git, sample_config):
+        """After restore, env_meta.json should reflect snapshot state."""
+        nodes = [
+            {"name": "NodeA", "repo_url": "https://github.com/a", "commit": "aaa"},
+            {"name": "NodeB", "repo_url": "https://github.com/b", "commit": "bbb"},
+        ]
+        _create_mock_env(
+            sample_config["environments_dir"], "main",
+            custom_nodes=nodes, cuda_tag="cu130",
+        )
+        mock_git.get_current_commit.return_value = "abc1234"
+        _setup_pip_mock(mock_pip, {"torch": "2.3.1"})
+        mock_pip.run_pip.return_value = MagicMock(returncode=0)
+
+        mgr = SnapshotManager(sample_config)
+        snap = mgr.create_snapshot("main")
+
+        mgr.restore_snapshot("main", snap.id)
+
+        env_meta = json.loads(
+            (Path(sample_config["environments_dir"]) / "main" / "env_meta.json")
+            .read_text(encoding="utf-8")
+        )
+        assert env_meta["comfyui_commit"] == "abc1234"
+        assert env_meta["cuda_tag"] == "cu130"
+        assert len(env_meta["custom_nodes"]) == 2
+
+    @patch("src.core.snapshot_manager.git_ops")
+    @patch("src.core.snapshot_manager.pip_ops")
+    def test_restore_with_progress_callback(self, mock_pip, mock_git, sample_config):
+        _create_mock_env(sample_config["environments_dir"], "main")
+        mock_git.get_current_commit.return_value = "abc1234"
+        _setup_pip_mock(mock_pip, {"torch": "2.3.1"})
+        mock_pip.run_pip.return_value = MagicMock(returncode=0)
+
+        mgr = SnapshotManager(sample_config)
+        snap = mgr.create_snapshot("main")
+
+        progress_calls = []
+        mgr.restore_snapshot("main", snap.id,
+                             progress_callback=lambda s, p, m: progress_calls.append((s, p, m)))
+
+        steps = [c[0] for c in progress_calls]
+        assert "comfyui" in steps
+        assert "done" in steps
 
     def test_restore_nonexistent_snapshot(self, sample_config):
         _create_mock_env(sample_config["environments_dir"], "main")
@@ -199,7 +379,7 @@ class TestDeleteSnapshot:
     def test_delete(self, mock_pip, mock_git, sample_config):
         _create_mock_env(sample_config["environments_dir"], "main")
         mock_git.get_current_commit.return_value = "abc1234"
-        mock_pip.freeze.return_value = {}
+        _setup_pip_mock(mock_pip)
 
         mgr = SnapshotManager(sample_config)
         snap = mgr.create_snapshot("main")

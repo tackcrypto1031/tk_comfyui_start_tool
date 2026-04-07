@@ -64,6 +64,9 @@ class SnapshotManager:
         except Exception:
             cuda_version = ""
 
+        # 2d. Get cuda_tag from env meta
+        cuda_tag = getattr(env, "cuda_tag", "") or ""
+
         # 3. Record custom_nodes state
         custom_nodes_state = []
         for node in env.custom_nodes:
@@ -89,6 +92,7 @@ class SnapshotManager:
             comfyui_commit=comfyui_commit,
             python_version=python_version,
             cuda_version=cuda_version,
+            cuda_tag=cuda_tag,
             custom_nodes_state=custom_nodes_state,
             pip_freeze_path=str(freeze_path),
             config_backup_path=str(configs_dir),
@@ -121,8 +125,13 @@ class SnapshotManager:
                 snapshots.append(Snapshot.from_dict(data))
         return snapshots
 
-    def restore_snapshot(self, env_name: str, snapshot_id: str) -> None:
-        """Restore an environment from a snapshot."""
+    def restore_snapshot(self, env_name: str, snapshot_id: str,
+                         progress_callback=None) -> None:
+        """Restore an environment from a snapshot.
+
+        Restores: ComfyUI commit, custom nodes, CUDA/PyTorch version,
+        pip packages, and config files.
+        """
         snap_dir = self.snapshots_dir / env_name / snapshot_id
         meta_path = snap_dir / "snapshot_meta.json"
         if not meta_path.exists():
@@ -133,24 +142,96 @@ class SnapshotManager:
 
         env_dir = self.environments_dir / env_name
         comfyui_path = env_dir / "ComfyUI"
+        custom_nodes_dir = comfyui_path / "custom_nodes"
         venv_path = env_dir / "venv"
 
+        def _progress(step: str, pct: int, msg: str) -> None:
+            if progress_callback:
+                progress_callback(step, pct, msg)
+
         # 1. Checkout ComfyUI to snapshot commit
+        _progress("comfyui", 10, "Restoring ComfyUI version...")
         git_ops.checkout(str(comfyui_path), snap.comfyui_commit)
 
-        # 2. Reinstall packages from freeze.txt
+        # 2. Restore custom nodes
+        _progress("nodes", 20, "Restoring custom nodes...")
+        snap_nodes = {n["name"]: n for n in snap.custom_nodes_state}
+
+        # 2a. Identify current custom nodes on disk
+        current_nodes = set()
+        if custom_nodes_dir.exists():
+            for entry in custom_nodes_dir.iterdir():
+                if entry.is_dir() and entry.name != "__pycache__":
+                    current_nodes.add(entry.name)
+
+        # 2b. Remove nodes that are not in the snapshot
+        for node_name in current_nodes - set(snap_nodes.keys()):
+            node_path = custom_nodes_dir / node_name
+            shutil.rmtree(node_path, ignore_errors=True)
+
+        # 2c. Clone missing nodes and checkout correct commits
+        for node_name, node_info in snap_nodes.items():
+            node_path = custom_nodes_dir / node_name
+            repo_url = node_info.get("repo_url", "")
+            target_commit = node_info.get("commit", "")
+
+            if not repo_url:
+                continue
+
+            if not node_path.exists():
+                # Clone the missing node
+                git_ops.clone_repo(repo_url, str(node_path), commit=target_commit)
+            elif target_commit:
+                # Node exists — checkout the snapshot commit
+                try:
+                    git_ops.checkout(str(node_path), target_commit)
+                except Exception:
+                    # If commit not found locally, re-clone
+                    shutil.rmtree(node_path, ignore_errors=True)
+                    git_ops.clone_repo(repo_url, str(node_path), commit=target_commit)
+
+        # 3. Restore CUDA/PyTorch if cuda_tag changed
+        snap_cuda_tag = getattr(snap, "cuda_tag", "") or ""
+        if snap_cuda_tag:
+            env = Environment.load_meta(str(env_dir))
+            current_cuda_tag = getattr(env, "cuda_tag", "") or ""
+            if current_cuda_tag != snap_cuda_tag:
+                _progress("pytorch", 40, f"Reinstalling PyTorch ({snap_cuda_tag})...")
+                pip_ops.run_pip(str(venv_path), [
+                    "uninstall", "torch", "torchvision", "torchaudio", "-y",
+                ])
+                pip_ops.run_pip(str(venv_path), [
+                    "install", "torch", "torchvision", "torchaudio",
+                    "--index-url", f"https://download.pytorch.org/whl/{snap_cuda_tag}",
+                ])
+
+        # 4. Reinstall remaining packages from freeze.txt
+        _progress("packages", 60, "Restoring pip packages...")
         freeze_path = snap_dir / "freeze.txt"
         if freeze_path.exists():
             pip_ops.run_pip(str(venv_path), [
                 "install", "--force-reinstall", "-r", str(freeze_path),
             ])
 
-        # 3. Restore config backups
+        # 5. Restore config backups
+        _progress("configs", 80, "Restoring config files...")
         configs_dir = snap_dir / "configs"
         if configs_dir.exists():
             for cfg_file in configs_dir.iterdir():
                 dest = comfyui_path / cfg_file.name
                 shutil.copy2(str(cfg_file), str(dest))
+
+        # 6. Update env_meta.json to match snapshot state
+        _progress("metadata", 90, "Updating environment metadata...")
+        env = Environment.load_meta(str(env_dir))
+        env.comfyui_commit = snap.comfyui_commit
+        env.custom_nodes = snap.custom_nodes_state
+        if snap_cuda_tag:
+            env.cuda_tag = snap_cuda_tag
+        env.pip_freeze = pip_ops.freeze(str(venv_path))
+        env.save_meta()
+
+        _progress("done", 100, "Snapshot restored!")
 
     def delete_snapshot(self, env_name: str, snapshot_id: str) -> None:
         """Delete a single snapshot."""
