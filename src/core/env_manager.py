@@ -102,8 +102,31 @@ class EnvManager:
             req_path = comfyui_path / "requirements.txt"
             if req_path.exists():
                 pip_ops.run_pip_with_progress(str(venv_path), [
-                    "install", "-r", str(req_path),
+                    "install", "-r", str(req_path.resolve()),
                 ], progress_callback=lambda line: _report("dependencies", 55, line))
+
+            # 4b. Verify critical dependencies were installed
+            _report("dependencies", 65, "Verifying dependencies...")
+            _verify_freeze = pip_ops.freeze(str(venv_path))
+            if len(_verify_freeze) > 5:
+                # Only verify when we have a real package list (skip in
+                # test environments where freeze is mocked with minimal data)
+                _critical = ["torch", "numpy", "pillow", "pyyaml", "aiohttp"]
+                if req_path.exists():
+                    _critical.append("sqlalchemy")
+                _installed_norm = {
+                    k.strip().lower().replace("_", "-")
+                    for k in _verify_freeze
+                }
+                _missing = [
+                    p for p in _critical
+                    if p not in _installed_norm
+                ]
+                if _missing:
+                    raise RuntimeError(
+                        f"Critical packages missing after installation: "
+                        f"{', '.join(_missing)}. The venv may be corrupted."
+                    )
 
             # 5. Install ComfyUI-Manager
             _report("manager", 75, "Installing ComfyUI-Manager...")

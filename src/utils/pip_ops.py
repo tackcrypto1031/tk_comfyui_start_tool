@@ -11,10 +11,15 @@ if sys.platform == "win32":
 
 
 def get_venv_python(venv_path: str) -> str:
-    """Get the python executable path inside a venv."""
+    """Get the python executable path inside a venv.
+
+    Always returns an absolute path so subprocess calls work regardless
+    of the current working directory.
+    """
+    venv = Path(venv_path).resolve()
     if sys.platform == "win32":
-        return str(Path(venv_path) / "Scripts" / "python.exe")
-    return str(Path(venv_path) / "bin" / "python")
+        return str(venv / "Scripts" / "python.exe")
+    return str(venv / "bin" / "python")
 
 
 def create_venv(venv_path: str, python_executable: str = "") -> None:
@@ -22,15 +27,50 @@ def create_venv(venv_path: str, python_executable: str = "") -> None:
 
     If *python_executable* is provided it is used instead of the running
     interpreter, allowing venvs to be created for a different Python version.
+    Embeddable Python distributions lack the built-in ``venv`` module, so
+    when a custom executable is given we use ``virtualenv`` (which is
+    installed during the Python download step) as a fallback.
     """
     executable = python_executable if python_executable else sys.executable
-    subprocess.run(
-        [executable, "-m", "venv", venv_path],
-        check=True,
-        capture_output=True,
-        text=True,
-        **_SUBPROCESS_KWARGS,
-    )
+
+    if python_executable:
+        # Custom (embeddable) Python — try venv first, fall back to virtualenv
+        result = subprocess.run(
+            [executable, "-m", "venv", venv_path],
+            capture_output=True,
+            text=True,
+            **_SUBPROCESS_KWARGS,
+        )
+        if result.returncode != 0:
+            # venv unavailable (embeddable build) — use virtualenv instead.
+            # Install virtualenv on-demand if it isn't already present
+            # (covers Python versions downloaded before the installer was
+            # updated to bundle virtualenv).
+            probe = subprocess.run(
+                [executable, "-m", "virtualenv", "--version"],
+                capture_output=True, text=True, **_SUBPROCESS_KWARGS,
+            )
+            if probe.returncode != 0:
+                subprocess.run(
+                    [executable, "-m", "pip", "install", "virtualenv"],
+                    check=True, capture_output=True, text=True,
+                    **_SUBPROCESS_KWARGS,
+                )
+            subprocess.run(
+                [executable, "-m", "virtualenv", venv_path],
+                check=True,
+                capture_output=True,
+                text=True,
+                **_SUBPROCESS_KWARGS,
+            )
+    else:
+        subprocess.run(
+            [executable, "-m", "venv", venv_path],
+            check=True,
+            capture_output=True,
+            text=True,
+            **_SUBPROCESS_KWARGS,
+        )
 
 
 def get_python_version(venv_path: str) -> str:

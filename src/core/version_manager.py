@@ -172,6 +172,7 @@ class VersionManager:
             path = self.tools_dir / "python" / "python.exe"
         else:
             path = self.tools_dir / f"python_{version}" / "python.exe"
+        path = path.resolve()
         if not path.exists():
             raise FileNotFoundError(f"Python {version} is not installed. Expected at: {path}")
         return path
@@ -239,6 +240,14 @@ class VersionManager:
         if sys.platform == "win32":
             kwargs["creationflags"] = _CREATE_NO_WINDOW
         subprocess.run([str(python_exe), str(get_pip_path)], **kwargs)
+
+        # Install virtualenv — embeddable Python lacks the built-in venv module
+        if progress_callback:
+            progress_callback("Installing virtualenv...")
+        subprocess.run(
+            [str(python_exe), "-m", "pip", "install", "virtualenv"],
+            **kwargs,
+        )
 
         # Cleanup
         zip_path.unlink(missing_ok=True)
