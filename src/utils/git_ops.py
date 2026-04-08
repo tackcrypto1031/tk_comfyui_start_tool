@@ -78,6 +78,7 @@ def list_remote_tags(url: str) -> list:
     g = git.cmd.Git()
     output = g.ls_remote("--tags", url)
     tags = []
+    deref_map = {}  # tag name -> dereferenced commit hash
     for line in output.strip().split("\n"):
         if not line.strip():
             continue
@@ -86,11 +87,17 @@ def list_remote_tags(url: str) -> list:
             continue
         hexsha = parts[0]
         ref = parts[1]
-        # Skip dereferenced tags (^{})
         if ref.endswith("^{}"):
-            continue
-        name = ref.replace("refs/tags/", "")
-        tags.append({"name": name, "hash": hexsha[:7]})
+            # Dereferenced commit hash for annotated tags — prefer this
+            name = ref.replace("refs/tags/", "").rstrip("^{}")
+            deref_map[name] = hexsha
+        else:
+            name = ref.replace("refs/tags/", "")
+            tags.append({"name": name, "hash": hexsha})
+    # Use dereferenced commit hash when available (annotated tags)
+    for tag in tags:
+        if tag["name"] in deref_map:
+            tag["hash"] = deref_map[tag["name"]]
     # Try to sort by semantic version descending
     from packaging.version import Version, InvalidVersion
     def sort_key(tag):
@@ -116,6 +123,7 @@ def list_tags_with_dates(repo_path: str) -> list:
         tags.append({
             "name": tag.name,
             "date": committed_dt.strftime("%Y-%m-%d"),
+            "hash": tag.commit.hexsha,
         })
     from packaging.version import Version, InvalidVersion
     def sort_key(tag):

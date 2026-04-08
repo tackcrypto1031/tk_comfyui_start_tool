@@ -5,6 +5,7 @@
 
     let selectedRef = null;      // unified: tag name or commit hash
     let selectedRefLabel = null;  // display label for confirmation
+    let cachedEnvs = [];          // cached env list with comfyui_commit
 
     function render(container) {
         container.innerHTML = `
@@ -24,6 +25,8 @@
 
                 <!-- Selected version indicator -->
                 <div id="ver-selected" class="text-xs text-on-surface-variant"></div>
+                <!-- Current version not on tag notice -->
+                <div id="ver-current-notice" class="text-xs text-on-surface-variant" style="display:none"></div>
 
                 <!-- Remote Tags Section -->
                 <div class="card">
@@ -68,6 +71,7 @@
         document.getElementById('ver-btn-fetch').addEventListener('click', fetchTags);
         document.getElementById('ver-btn-switch').addEventListener('click', switchToSelected);
         document.getElementById('ver-btn-update').addEventListener('click', updateToLatest);
+        document.getElementById('ver-env').addEventListener('change', reapplyHighlight);
 
         loadEnvs();
     }
@@ -76,6 +80,7 @@
         BridgeAPI.listEnvironments().then(function(envs) {
             const select = document.getElementById('ver-env');
             if (!select) return;
+            cachedEnvs = envs;
             const prev = select.value;
             select.innerHTML = '';
             envs.forEach(env => {
@@ -111,10 +116,25 @@
         BridgeAPI.listRemoteVersions().then(function(versions) {
             const tbody = document.getElementById('ver-tags-body');
             tbody.innerHTML = '';
+
+            // Get current env's commit for highlight comparison
+            const envSelect = document.getElementById('ver-env');
+            const currentEnv = cachedEnvs.find(e => e.name === envSelect.value);
+            const currentCommit = currentEnv ? currentEnv.comfyui_commit : '';
+            let matched = false;
+
             versions.tags.forEach(tag => {
                 const tr = document.createElement('tr');
                 tr.className = 'cursor-pointer';
-                tr.innerHTML = `<td class="text-primary font-mono">${tag.name}</td><td class="text-on-surface-variant text-xs">${tag.date || tag.hash || '—'}</td>`;
+                const isCurrentVersion = currentCommit && tag.hash && tag.hash === currentCommit;
+                if (isCurrentVersion) {
+                    matched = true;
+                    tr.style.background = 'var(--md-sys-color-primary-container)';
+                }
+                const currentLabel = isCurrentVersion
+                    ? ` <span class="text-xs ml-2 text-primary">\u2190 ${t('version_current')}</span>`
+                    : '';
+                tr.innerHTML = `<td class="text-primary font-mono">${tag.name}${currentLabel}</td><td class="text-on-surface-variant text-xs">${tag.date || tag.hash?.substring(0, 7) || '\u2014'}</td>`;
                 tr.addEventListener('click', () => {
                     clearAllSelections();
                     tr.classList.add('selected');
@@ -124,12 +144,33 @@
                 });
                 tbody.appendChild(tr);
             });
+
+            // Show status: tag count + optional no-match notice
+            const noticeEl = document.getElementById('ver-current-notice');
+            if (noticeEl) {
+                if (!matched && currentCommit) {
+                    noticeEl.textContent = t('version_not_on_tag', currentCommit.substring(0, 7));
+                    noticeEl.style.display = '';
+                } else {
+                    noticeEl.textContent = '';
+                    noticeEl.style.display = 'none';
+                }
+            }
+
             statusEl.textContent = t('version_tag_count', versions.tags.length);
             document.getElementById('ver-btn-fetch').disabled = false;
         }).catch(function(e) {
             statusEl.textContent = t('version_fetch_failed', e.toString());
             document.getElementById('ver-btn-fetch').disabled = false;
         });
+    }
+
+    function reapplyHighlight() {
+        // Re-render highlights when env changes (only if tags are already loaded)
+        const tbody = document.getElementById('ver-tags-body');
+        if (!tbody || tbody.children.length === 0) return;
+        // Re-fetch tags to re-render with new env's commit
+        fetchTags();
     }
 
     function switchToSelected() {

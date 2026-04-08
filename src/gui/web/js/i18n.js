@@ -213,6 +213,8 @@ const I18N = (function() {
             "version_no_tags": "No tags found",
             "version_selected": "Selected",
             "version_tag_count": "{} tag(s) available",
+            "version_current": "Current",
+            "version_not_on_tag": "Current environment is not on any known tag (commit: {})",
             "version_branch_count": "{} branch(es) available",
 
             // Snapshot panel
@@ -444,6 +446,8 @@ const I18N = (function() {
             "version_no_tags": "未找到標籤",
             "version_selected": "已選擇",
             "version_tag_count": "{} 個標籤可用",
+            "version_current": "當前",
+            "version_not_on_tag": "當前環境不在任何已知標籤上 (commit: {})",
             "version_branch_count": "{} 個分支可用",
 
             // Snapshot panel
