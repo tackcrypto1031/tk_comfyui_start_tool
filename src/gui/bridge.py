@@ -392,7 +392,7 @@ class Bridge(QObject):
 
     @Slot(result=str)
     def get_version_lists(self):
-        """Return Python versions and CUDA tags."""
+        """Return Python versions, CUDA tags, and recommended preset."""
         from src.core.version_manager import VersionManager
         logger.info("get_version_lists called")
         vm = VersionManager(self.config)
@@ -401,6 +401,7 @@ class Bridge(QObject):
                 "python": vm.get_python_versions(),
                 "cuda_tags": vm.get_cuda_tags(),
                 "cache_info": vm.get_cache_info(),
+                "recommended_preset": vm.get_recommended_preset(),
             }
         result = self._safe_call(_get)
         logger.info(f"get_version_lists result: {result[:200]}")
@@ -417,19 +418,41 @@ class Bridge(QObject):
                 "python": cache["python"],
                 "cuda_tags": cache["cuda_tags"],
                 "last_updated": cache["last_updated"],
+                "recommended_preset": vm.get_recommended_preset(),
             }
         self._run_async(request_id, _refresh)
 
-    @Slot(str, str, str, str, str, str)
+    @Slot(str, str, result=str)
+    def get_pytorch_versions(self, cuda_tag, python_version):
+        """Return available PyTorch versions for a CUDA tag + Python version."""
+        from src.core.version_manager import VersionManager
+        logger.info(f"get_pytorch_versions: cuda={cuda_tag}, python={python_version}")
+        vm = VersionManager(self.config)
+        def _get():
+            return vm.get_pytorch_versions(cuda_tag, python_version or "")
+        result = self._safe_call(_get)
+        logger.info(f"get_pytorch_versions result: {result[:200]}")
+        return result
+
+    @Slot(str, str, str, str, str, str, str)
     def create_environment_v2(self, request_id, name, branch, commit,
-                              python_version, cuda_tag):
-        """Create environment with optional Python/CUDA version (async)."""
+                              python_version, cuda_tag, pytorch_version):
+        """Create environment with optional Python/CUDA/PyTorch version (async)."""
         commit_val = commit if commit else None
         python_ver = python_version if python_version else ""
         cuda = cuda_tag if cuda_tag else ""
+        pytorch_ver = pytorch_version if pytorch_version else ""
+
+        # Expand recommended preset sentinel
+        if python_ver == "__recommended__":
+            from src.core.version_manager import RECOMMENDED_PRESET
+            python_ver = RECOMMENDED_PRESET["python_version"]
+            cuda = RECOMMENDED_PRESET["cuda_tag"]
+            pytorch_ver = RECOMMENDED_PRESET["pytorch_version"]
+
         logger.info(
             f"create_environment_v2: name={name}, branch={branch}, "
-            f"python={python_ver}, cuda={cuda}"
+            f"python={python_ver}, cuda={cuda}, pytorch={pytorch_ver}"
         )
         def _create():
             # Download custom Python if needed
@@ -452,6 +475,7 @@ class Bridge(QObject):
             env = self.env_manager.create_environment(
                 name, branch=branch, commit=commit_val,
                 python_version=python_ver, cuda_tag=cuda,
+                pytorch_version=pytorch_ver,
                 progress_callback=lambda step, pct, detail="":
                     self.push_progress(request_id, step, pct, detail),
             )

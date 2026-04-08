@@ -142,23 +142,44 @@
                         <span class="text-sm font-label uppercase tracking-wider">${t('env_advanced_options')}</span>
                     </div>
                     <div id="create-advanced-body" class="hidden mt-3 space-y-4">
-                        <div>
-                            <label class="input-label">${t('env_python_version')}</label>
-                            <select id="create-python" class="select">
-                                <option value="">${t('loading')}</option>
-                            </select>
+                        <div class="flex gap-4">
+                            <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                <input type="radio" name="env-mode" value="recommended" checked class="accent-primary">
+                                ${t('env_mode_recommended')}
+                            </label>
+                            <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                <input type="radio" name="env-mode" value="custom" class="accent-primary">
+                                ${t('env_mode_custom')}
+                            </label>
                         </div>
-                        <div>
-                            <label class="input-label">${t('env_cuda_version')}</label>
-                            <select id="create-cuda" class="select">
-                                <option value="">${t('loading')}</option>
-                            </select>
+                        <div id="create-recommended-info" class="text-sm text-on-surface-variant p-3 rounded" style="background: rgba(255,255,255,0.05);">
+                            ${t('loading')}
                         </div>
-                        <div class="flex items-center gap-3">
-                            <button id="create-refresh-versions" class="btn btn-secondary text-xs" style="padding: 4px 12px;">
-                                <span class="material-symbols-outlined text-[14px]">refresh</span> ${t('env_refresh_versions')}
-                            </button>
-                            <span id="create-version-hint" class="text-xs text-on-surface-variant"></span>
+                        <div id="create-custom-body" class="hidden space-y-4">
+                            <div>
+                                <label class="input-label">${t('env_python_version')}</label>
+                                <select id="create-python" class="select">
+                                    <option value="">${t('loading')}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="input-label">${t('env_cuda_version')}</label>
+                                <select id="create-cuda" class="select">
+                                    <option value="">${t('loading')}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="input-label">${t('env_pytorch_version')}</label>
+                                <select id="create-pytorch" class="select">
+                                    <option value="">${t('loading')}</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button id="create-refresh-versions" class="btn btn-secondary text-xs" style="padding: 4px 12px;">
+                                    <span class="material-symbols-outlined text-[14px]">refresh</span> ${t('env_refresh_versions')}
+                                </button>
+                                <span id="create-version-hint" class="text-xs text-on-surface-variant"></span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -225,6 +246,50 @@
                 });
             }
 
+            // Mode toggle: recommended vs custom
+            var recommendedInfo = document.getElementById('create-recommended-info');
+            var customBody = document.getElementById('create-custom-body');
+            document.querySelectorAll('input[name="env-mode"]').forEach(function(radio) {
+                radio.addEventListener('change', function() {
+                    var isCustom = radio.value === 'custom';
+                    recommendedInfo.classList.toggle('hidden', isCustom);
+                    customBody.classList.toggle('hidden', !isCustom);
+                    if (isCustom) {
+                        // Trigger PyTorch version load when switching to custom
+                        loadPytorchVersions();
+                    }
+                });
+            });
+
+            // Helper: load PyTorch versions based on current CUDA + Python selection
+            function loadPytorchVersions() {
+                var cudaSelect = document.getElementById('create-cuda');
+                var pySelect = document.getElementById('create-python');
+                var ptSelect = document.getElementById('create-pytorch');
+                if (!cudaSelect || !ptSelect || !pySelect) return;
+                var cudaTag = cudaSelect.value;
+                var pyVer = pySelect.value;
+                if (!cudaTag) return;
+                ptSelect.innerHTML = '<option value="">' + t('loading') + '</option>';
+                BridgeAPI.getPytorchVersions(cudaTag, pyVer).then(function(versions) {
+                    ptSelect.innerHTML = '';
+                    if (versions.length === 0) {
+                        ptSelect.innerHTML = '<option value="">--</option>';
+                        return;
+                    }
+                    versions.forEach(function(ver, idx) {
+                        var opt = document.createElement('option');
+                        opt.value = ver;
+                        opt.textContent = 'PyTorch ' + ver;
+                        if (idx === 0) opt.selected = true;
+                        ptSelect.appendChild(opt);
+                    });
+                }).catch(function(e) {
+                    console.error('Failed to load PyTorch versions:', e);
+                    ptSelect.innerHTML = '<option value="">--</option>';
+                });
+            }
+
             // Load version lists and GPU info for advanced options
             Promise.all([
                 BridgeAPI.getVersionLists(),
@@ -232,16 +297,26 @@
             ]).then(function(results) {
                 var lists = results[0];
                 var gpu = results[1];
+                var preset = lists.recommended_preset;
+
+                // Show recommended preset info
+                if (recommendedInfo && preset) {
+                    recommendedInfo.textContent = t('env_recommended_preset_desc', preset.label_en || (preset.python_version + ' + ' + preset.cuda_tag + ' + PyTorch ' + preset.pytorch_version));
+                }
 
                 // Populate Python dropdown
                 var pySelect = document.getElementById('create-python');
                 if (pySelect) {
-                    pySelect.innerHTML = '<option value="">Default (' + t('env_recommended') + ')</option>';
+                    pySelect.innerHTML = '';
                     lists.python.forEach(function(py) {
                         var opt = document.createElement('option');
                         opt.value = py.version;
                         opt.textContent = py.display || ('Python ' + py.version);
                         pySelect.appendChild(opt);
+                    });
+                    // Listen for Python version change to reload PyTorch versions
+                    pySelect.addEventListener('change', function() {
+                        loadPytorchVersions();
                     });
                 }
 
@@ -260,8 +335,11 @@
                         }
                         cudaSelect.appendChild(opt);
                     });
-                    // Set selected value after all options are added (more reliable than opt.selected)
                     cudaSelect.value = recommendedTag;
+                    // Listen for CUDA tag change to reload PyTorch versions
+                    cudaSelect.addEventListener('change', function() {
+                        loadPytorchVersions();
+                    });
                 }
 
                 // Version hint
@@ -290,11 +368,17 @@
                         var hint = document.getElementById('create-version-hint');
                         if (hint) hint.textContent = t('env_version_hint_cached', data.last_updated.substring(0, 10));
 
+                        // Update recommended preset info
+                        if (recommendedInfo && data.recommended_preset) {
+                            var p = data.recommended_preset;
+                            recommendedInfo.textContent = t('env_recommended_preset_desc', p.label_en || (p.python_version + ' + ' + p.cuda_tag + ' + PyTorch ' + p.pytorch_version));
+                        }
+
                         // Update Python dropdown
                         var pySelect = document.getElementById('create-python');
                         if (pySelect && data.python) {
                             var currentVal = pySelect.value;
-                            pySelect.innerHTML = '<option value="">Default (' + t('env_recommended') + ')</option>';
+                            pySelect.innerHTML = '';
                             data.python.forEach(function(py) {
                                 var opt = document.createElement('option');
                                 opt.value = py.version;
@@ -316,6 +400,8 @@
                             });
                             cudaSelect.value = currentCuda;
                         }
+                        // Reload PyTorch versions
+                        loadPytorchVersions();
                     }).catch(function() {
                         App.showToast(t('env_refresh_failed'), 'error');
                         refreshBtn.textContent = t('env_refresh_versions');
@@ -340,17 +426,31 @@
             commit = document.getElementById('create-commit').value.trim() || '';
         }
 
-        // Read advanced options
-        var pySelect = document.getElementById('create-python');
-        var cudaSelect = document.getElementById('create-cuda');
-        var pythonVersion = pySelect ? pySelect.value : '';
-        var cudaTag = cudaSelect ? cudaSelect.value : '';
+        // Read advanced options based on mode
+        var envMode = document.querySelector('input[name="env-mode"]:checked');
+        var isRecommended = !envMode || envMode.value === 'recommended';
+        var pythonVersion, cudaTag, pytorchVersion;
+
+        if (isRecommended) {
+            // Use recommended preset values — bridge will read them from RECOMMENDED_PRESET
+            pythonVersion = '__recommended__';
+            cudaTag = '';
+            pytorchVersion = '';
+        } else {
+            var pySelect = document.getElementById('create-python');
+            var cudaSelect = document.getElementById('create-cuda');
+            var ptSelect = document.getElementById('create-pytorch');
+            pythonVersion = pySelect ? pySelect.value : '';
+            cudaTag = cudaSelect ? cudaSelect.value : '';
+            pytorchVersion = ptSelect ? ptSelect.value : '';
+        }
 
         App.hideModal();
 
         var progressId = 'create-' + Date.now();
+        var displayPython = (pythonVersion === '__recommended__') ? '' : pythonVersion;
         var stepLabels = {
-            python_download: t('env_downloading_python', pythonVersion) || 'Downloading Python',
+            python_download: t('env_downloading_python', displayPython) || 'Downloading Python',
             venv: t('step_venv') || 'Creating virtual environment',
             clone: t('step_clone') || 'Cloning ComfyUI',
             pytorch: t('step_pytorch') || 'Installing PyTorch',
@@ -362,7 +462,7 @@
 
         App.showProgress(progressId, t('env_creating', name));
 
-        BridgeAPI.createEnvironmentV2(name, branch, commit, pythonVersion, cudaTag, function(msg) {
+        BridgeAPI.createEnvironmentV2(name, branch, commit, pythonVersion, cudaTag, pytorchVersion, function(msg) {
             App.updateProgress(
                 progressId,
                 stepLabels[msg.step] || msg.step,

@@ -82,10 +82,14 @@ const I18N = (function() {
             "env_select_version": "Select a version...",
             "env_fetching_versions": "Fetching available versions...",
 
-            // Python/CUDA version switching
+            // Python/CUDA/PyTorch version switching
             "env_advanced_options": "Advanced Options",
+            "env_mode_recommended": "Recommended",
+            "env_mode_custom": "Custom",
             "env_python_version": "Python Version:",
-            "env_cuda_version": "CUDA / PyTorch:",
+            "env_cuda_version": "CUDA Version:",
+            "env_pytorch_version": "PyTorch Version:",
+            "env_recommended_preset_desc": "Recommended: {}",
             "env_recommended": "Recommended",
             "env_refresh_versions": "Refresh Version List",
             "env_version_hint_cached": "List updated on {}. Click to refresh.",
@@ -321,10 +325,14 @@ const I18N = (function() {
             "env_select_version": "選擇版本...",
             "env_fetching_versions": "正在取得可用版本...",
 
-            // Python/CUDA version switching
+            // Python/CUDA/PyTorch version switching
             "env_advanced_options": "進階選項",
+            "env_mode_recommended": "推薦",
+            "env_mode_custom": "自訂",
             "env_python_version": "Python 版本：",
-            "env_cuda_version": "CUDA / PyTorch：",
+            "env_cuda_version": "CUDA 版本：",
+            "env_pytorch_version": "PyTorch 版本：",
+            "env_recommended_preset_desc": "推薦組合：{}",
             "env_recommended": "推薦",
             "env_refresh_versions": "刷新版本清單",
             "env_version_hint_cached": "清單更新於 {}，點此刷新",

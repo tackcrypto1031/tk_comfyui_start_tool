@@ -82,7 +82,7 @@ var BridgeAPI = (function() {
 
             // Poll for result every 500ms
             var pollCount = 0;
-            var maxPolls = 600;  // 5 minutes at 500ms intervals
+            var maxPolls = 1200;  // 10 minutes at 500ms intervals
             var pollInterval = setInterval(function() {
                 pollCount++;
                 bridge.poll_result(requestId, function(resultJson) {
@@ -194,9 +194,12 @@ var BridgeAPI = (function() {
         detectGpu: function() { return callSlot('detect_gpu'); },
         getVersionLists: function() { return callSlot('get_version_lists'); },
         refreshVersionLists: function() { return callAsync('refresh_version_lists'); },
-        createEnvironmentV2: function(name, branch, commit, pythonVersion, cudaTag, onProgress) {
+        createEnvironmentV2: function(name, branch, commit, pythonVersion, cudaTag, pytorchVersion, onProgress) {
             return callAsync('create_environment_v2', name, branch, commit || '',
-                             pythonVersion || '', cudaTag || '', {onProgress: onProgress});
+                             pythonVersion || '', cudaTag || '', pytorchVersion || '', {onProgress: onProgress});
+        },
+        getPytorchVersions: function(cudaTag, pythonVersion) {
+            return callSlot('get_pytorch_versions', cudaTag, pythonVersion || '');
         },
         reinstallPytorch: function(envName, cudaTag, onProgress) {
             return callAsync('reinstall_pytorch', envName, cudaTag, {onProgress: onProgress});
