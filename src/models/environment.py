@@ -5,6 +5,23 @@ from pathlib import Path
 from typing import Optional
 
 
+LAUNCH_SETTINGS_DEFAULTS = {
+    "cross_attention": "auto",
+    "vram_mode": "normal",
+    "reserve_vram": None,
+    "async_offload": "auto",
+    "smart_memory": True,
+    "listen": "",
+    "port": 8188,
+    "auto_launch": True,
+    "cors_origin": "",
+    "tls_keyfile": "",
+    "tls_certfile": "",
+    "custom_args": "",
+    "auto_diagnostics": False,
+}
+
+
 @dataclass
 class Environment:
     """Represents a ComfyUI runtime environment."""
@@ -25,6 +42,11 @@ class Environment:
     parent_env: Optional[str] = None
     path: str = ""
     merge_history: list = field(default_factory=list)
+    launch_settings: dict = field(default_factory=dict)
+
+    def get_launch_settings(self) -> dict:
+        """Return launch_settings merged with defaults (lazy fallback)."""
+        return {**LAUNCH_SETTINGS_DEFAULTS, **self.launch_settings}
 
     def to_dict(self) -> dict:
         """Serialize to dictionary."""

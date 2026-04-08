@@ -153,6 +153,16 @@ var BridgeAPI = (function() {
         listRunning: function() { return callSlot('list_running'); },
         openBrowser: function(port) { return callSlot('open_browser', port); },
 
+        // Launch Settings
+        getLaunchSettings: function(envName) { return callSlot('get_launch_settings', envName); },
+        saveLaunchSettings: function(envName, settings) { return callSlot('save_launch_settings', envName, JSON.stringify(settings)); },
+
+        // Diagnostics
+        checkDependencies: function(envName) { return callAsync('check_dependencies', envName); },
+        checkConflicts: function(envName) { return callAsync('check_conflicts', envName); },
+        checkDuplicateNodes: function(envName) { return callAsync('check_duplicate_nodes', envName); },
+        fixMissingDeps: function(envName, packages) { return callAsync('fix_missing_dependencies', envName, JSON.stringify(packages)); },
+
         // Snapshots
         listSnapshots: function(envName) { return callSlot('list_snapshots', envName); },
         createSnapshot: function(envName, trigger) { return callSlot('create_snapshot', envName, trigger || 'manual'); },

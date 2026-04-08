@@ -55,11 +55,14 @@ class Bridge(QObject):
         from src.core.comfyui_launcher import ComfyUILauncher
         from src.core.version_controller import VersionController
         from src.core.snapshot_manager import SnapshotManager
+        from src.core.diagnostics import DiagnosticsManager
 
+        self.environments_dir = Path(config["environments_dir"])
         self.env_manager = EnvManager(config)
         self.launcher = ComfyUILauncher(config)
         self.version_controller = VersionController(config)
         self.snapshot_manager = SnapshotManager(config)
+        self.diagnostics = DiagnosticsManager(config)
 
     def _run_async(self, request_id: str, fn, *args, **kwargs):
         """Run function in background thread, store result in queue."""
@@ -209,8 +212,26 @@ class Bridge(QObject):
 
     @Slot(str, int, result=str)
     def start_comfyui(self, env_name, port):
-        """Start ComfyUI. Returns JSON {pid, port, env_name}."""
-        return self._safe_call(self.launcher.start, env_name, int(port))
+        """Start ComfyUI with launch_settings applied as CLI args."""
+        from src.models.environment import Environment, LAUNCH_SETTINGS_DEFAULTS
+        from src.core.launch_config import build_launch_args, extract_launch_params
+
+        try:
+            env = Environment.load_meta(str(self.environments_dir / env_name))
+            settings = {**LAUNCH_SETTINGS_DEFAULTS, **env.launch_settings}
+            extra_args = build_launch_args(settings)
+            params = extract_launch_params(settings)
+
+            # Port: UI input takes precedence; fall back to settings if UI sends 0
+            effective_port = int(port) if int(port) != 0 else params["port"]
+            auto_open = params["auto_open"]
+
+            return self._safe_call(
+                self.launcher.start, env_name, effective_port, extra_args, auto_open
+            )
+        except FileNotFoundError:
+            # Fallback: no env_meta.json — launch with defaults
+            return self._safe_call(self.launcher.start, env_name, int(port))
 
     @Slot(str, result=str)
     def stop_comfyui(self, env_name):
@@ -226,6 +247,56 @@ class Bridge(QObject):
     def list_running(self):
         """List all running ComfyUI instances."""
         return self._safe_call(self.launcher.list_running)
+
+    # ── Launch Settings ──
+
+    @Slot(str, result=str)
+    def get_launch_settings(self, env_name):
+        """Get merged launch_settings for an environment (defaults + stored)."""
+        from src.models.environment import Environment, LAUNCH_SETTINGS_DEFAULTS
+        try:
+            env = Environment.load_meta(str(self.environments_dir / env_name))
+            settings = {**LAUNCH_SETTINGS_DEFAULTS, **env.launch_settings}
+            return json.dumps({"data": settings}, ensure_ascii=False)
+        except FileNotFoundError:
+            return json.dumps({"data": dict(LAUNCH_SETTINGS_DEFAULTS)}, ensure_ascii=False)
+
+    @Slot(str, str, result=str)
+    def save_launch_settings(self, env_name, settings_json):
+        """Save launch_settings to env_meta.json."""
+        from src.models.environment import Environment
+        try:
+            settings = json.loads(settings_json)
+            env = Environment.load_meta(str(self.environments_dir / env_name))
+            env.launch_settings = settings
+            env.save_meta()
+            return json.dumps({"data": {"saved": True}}, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"save_launch_settings error: {e}")
+            return json.dumps({"error": str(e)}, ensure_ascii=False)
+
+    # ── Diagnostics ──
+
+    @Slot(str, str)
+    def check_dependencies(self, request_id, env_name):
+        """Check environment dependency health (async)."""
+        self._run_async(request_id, self.diagnostics.check_dependencies, env_name)
+
+    @Slot(str, str)
+    def check_conflicts(self, request_id, env_name):
+        """Check for package conflicts (async)."""
+        self._run_async(request_id, self.diagnostics.check_conflicts, env_name)
+
+    @Slot(str, str)
+    def check_duplicate_nodes(self, request_id, env_name):
+        """Scan for duplicate NODE_CLASS_MAPPINGS (async)."""
+        self._run_async(request_id, self.diagnostics.check_duplicate_nodes, env_name)
+
+    @Slot(str, str, str)
+    def fix_missing_dependencies(self, request_id, env_name, packages_json):
+        """Install missing packages (async)."""
+        packages = json.loads(packages_json)
+        self._run_async(request_id, self.diagnostics.install_missing_packages, env_name, packages)
 
     @Slot(int, result=str)
     def open_browser(self, port):

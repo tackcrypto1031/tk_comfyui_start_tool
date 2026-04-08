@@ -7,6 +7,9 @@
     let pollTimer = null;
     let selectedEnv = null;  // persist selected environment across tab switches
     let activeTab = 'launcher'; // 'launcher' or 'running'
+    let currentLaunchSettings = null;
+    let diagnosticResults = { deps: null, conflicts: null, duplicates: null };
+    let saveDebounceTimer = null;
 
     function render(container) {
         // Determine default tab based on running instances
@@ -80,6 +83,169 @@
                             </button>
                         </div>
                     </div>
+
+                    <!-- Section A: Advanced Settings -->
+                    <div class="card mt-6">
+                        <div class="card-header cursor-pointer flex items-center justify-between" onclick="window.__launcherToggleCollapsible('advanced-settings')">
+                            <span>${t('launch_advanced_settings')}</span>
+                            <span class="material-symbols-outlined transition-transform" id="chevron-advanced-settings">expand_more</span>
+                        </div>
+                        <div id="section-advanced-settings" style="display:none" class="px-4 pb-4">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 24px;margin-top:12px">
+                                <div>
+                                    <label class="input-label">${t('launch_cross_attention')}</label>
+                                    <select id="ls-cross-attention" class="select ls-control">
+                                        <option value="auto">auto</option>
+                                        <option value="pytorch">pytorch</option>
+                                        <option value="split">split</option>
+                                        <option value="quad">quad</option>
+                                        <option value="sage">sage</option>
+                                        <option value="flash">flash</option>
+                                        <option value="disable_xformers">disable_xformers</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="input-label">${t('launch_vram_mode')}</label>
+                                    <select id="ls-vram-mode" class="select ls-control">
+                                        <option value="gpu_only">gpu_only</option>
+                                        <option value="high">high</option>
+                                        <option value="normal">normal</option>
+                                        <option value="low">low</option>
+                                        <option value="no">no</option>
+                                        <option value="cpu">cpu</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="input-label">${t('launch_reserve_vram')}</label>
+                                    <input type="number" id="ls-reserve-vram" class="input ls-control" min="0" step="0.1" placeholder="e.g. 1.0">
+                                </div>
+                                <div>
+                                    <label class="input-label">${t('launch_async_offload')}</label>
+                                    <select id="ls-async-offload" class="select ls-control">
+                                        <option value="auto">auto</option>
+                                        <option value="enable">enable</option>
+                                        <option value="disable">disable</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="input-label">${t('launch_smart_memory')}</label>
+                                    <label style="display:flex;align-items:center;gap:8px;margin-top:4px;cursor:pointer">
+                                        <input type="checkbox" id="ls-smart-memory" class="ls-control" style="width:18px;height:18px;accent-color:#cc97ff">
+                                        <span style="font-size:13px;color:#ccc">${t('launch_smart_memory')}</span>
+                                    </label>
+                                </div>
+                                <div>
+                                    <label class="input-label">${t('launch_listen_ip')}</label>
+                                    <input type="text" id="ls-listen" class="input ls-control" placeholder="127.0.0.1">
+                                </div>
+                                <div>
+                                    <label class="input-label">${t('launch_auto_open_browser')}</label>
+                                    <label style="display:flex;align-items:center;gap:8px;margin-top:4px;cursor:pointer">
+                                        <input type="checkbox" id="ls-auto-launch" class="ls-control" style="width:18px;height:18px;accent-color:#cc97ff">
+                                        <span style="font-size:13px;color:#ccc">${t('launch_auto_open_browser')}</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <!-- Network Advanced (sub-collapsible) -->
+                            <div style="margin-top:16px;border:1px solid rgba(255,255,255,0.08);border-radius:8px">
+                                <div style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.1em" onclick="window.__launcherToggleCollapsible('network-advanced')">
+                                    <span>${t('launch_network_advanced')}</span>
+                                    <span class="material-symbols-outlined transition-transform" id="chevron-network-advanced" style="font-size:18px">expand_more</span>
+                                </div>
+                                <div id="section-network-advanced" style="display:none;padding:0 14px 14px 14px">
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px">
+                                        <div>
+                                            <label class="input-label">${t('launch_cors')}</label>
+                                            <input type="text" id="ls-cors-origin" class="input ls-control" placeholder="* or https://...">
+                                        </div>
+                                        <div></div>
+                                        <div>
+                                            <label class="input-label">${t('launch_tls_key')}</label>
+                                            <input type="text" id="ls-tls-keyfile" class="input ls-control" placeholder="${t('launch_tls_key_placeholder')}">
+                                        </div>
+                                        <div>
+                                            <label class="input-label">${t('launch_tls_cert')}</label>
+                                            <input type="text" id="ls-tls-certfile" class="input ls-control" placeholder="${t('launch_tls_cert_placeholder')}">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="margin-top:16px">
+                                <label class="input-label">${t('launch_custom_args')}</label>
+                                <textarea id="ls-custom-args" class="input ls-control" rows="2" style="resize:vertical;font-family:monospace;font-size:12px"></textarea>
+                                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px" id="ls-arg-chips">
+                                    <span class="ls-chip" data-arg="--force-fp16">--force-fp16</span>
+                                    <span class="ls-chip" data-arg="--force-fp32">--force-fp32</span>
+                                    <span class="ls-chip" data-arg="--bf16-unet">--bf16-unet</span>
+                                    <span class="ls-chip" data-arg="--fp8_e4m3fn-unet">--fp8_e4m3fn-unet</span>
+                                    <span class="ls-chip" data-arg="--cpu-vae">--cpu-vae</span>
+                                    <span class="ls-chip" data-arg="--fast">--fast</span>
+                                    <span class="ls-chip" data-arg="--deterministic">--deterministic</span>
+                                    <span class="ls-chip" data-arg="--disable-cuda-malloc">--disable-cuda-malloc</span>
+                                </div>
+                            </div>
+                            <div style="margin-top:12px;text-align:right">
+                                <span id="ls-save-status" style="font-size:12px;color:#66bb6a;opacity:0;transition:opacity 0.3s"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section B: Diagnostics -->
+                    <div class="card mt-6">
+                        <div class="card-header cursor-pointer flex items-center justify-between" onclick="window.__launcherToggleCollapsible('diagnostics')">
+                            <span>${t('launch_diagnostics')}</span>
+                            <span class="material-symbols-outlined transition-transform" id="chevron-diagnostics">expand_more</span>
+                        </div>
+                        <div id="section-diagnostics" style="display:none" class="px-4 pb-4">
+                            <div style="margin-top:12px;margin-bottom:16px;display:flex;align-items:center;gap:8px">
+                                <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                                    <input type="checkbox" id="ls-auto-diagnostics" style="width:18px;height:18px;accent-color:#cc97ff">
+                                    <span style="font-size:13px;color:#ccc">${t('launch_diag_auto_toggle')}</span>
+                                </label>
+                            </div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+                                <div class="card" style="background:rgba(255,255,255,0.03)">
+                                    <div style="padding:12px">
+                                        <div style="font-size:13px;font-weight:500;margin-bottom:8px">${t('launch_diag_check_deps')}</div>
+                                        <button class="btn btn-secondary diag-run-btn" data-diag="deps" style="width:100%;padding:6px 12px;font-size:12px">
+                                            <span class="material-symbols-outlined text-[16px]">play_arrow</span>
+                                            Run
+                                        </button>
+                                        <div id="diag-result-deps" style="display:none;margin-top:8px;font-size:12px;max-height:150px;overflow-y:auto"></div>
+                                    </div>
+                                </div>
+                                <div class="card" style="background:rgba(255,255,255,0.03)">
+                                    <div style="padding:12px">
+                                        <div style="font-size:13px;font-weight:500;margin-bottom:8px">${t('launch_diag_check_conflicts')}</div>
+                                        <button class="btn btn-secondary diag-run-btn" data-diag="conflicts" style="width:100%;padding:6px 12px;font-size:12px">
+                                            <span class="material-symbols-outlined text-[16px]">play_arrow</span>
+                                            Run
+                                        </button>
+                                        <div id="diag-result-conflicts" style="display:none;margin-top:8px;font-size:12px;max-height:150px;overflow-y:auto"></div>
+                                    </div>
+                                </div>
+                                <div class="card" style="background:rgba(255,255,255,0.03)">
+                                    <div style="padding:12px">
+                                        <div style="font-size:13px;font-weight:500;margin-bottom:8px">${t('launch_diag_check_duplicates')}</div>
+                                        <button class="btn btn-secondary diag-run-btn" data-diag="duplicates" style="width:100%;padding:6px 12px;font-size:12px">
+                                            <span class="material-symbols-outlined text-[16px]">play_arrow</span>
+                                            Run
+                                        </button>
+                                        <div id="diag-result-duplicates" style="display:none;margin-top:8px;font-size:12px;max-height:150px;overflow-y:auto"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <style>
+                        .ls-chip {
+                            display:inline-block;padding:4px 10px;font-size:11px;font-family:monospace;
+                            background:rgba(204,151,255,0.1);color:#cc97ff;border:1px solid rgba(204,151,255,0.25);
+                            border-radius:12px;cursor:pointer;transition:background 0.2s;user-select:none;
+                        }
+                        .ls-chip:hover { background:rgba(204,151,255,0.25); }
+                    </style>
                 </div>
 
                 <!-- Tab: Running List -->
@@ -113,13 +279,58 @@
         document.getElementById('launch-env').addEventListener('change', function() {
             selectedEnv = this.value;
             pollStatus();
+            loadLaunchSettings(this.value);
+            diagnosticResults = { deps: null, conflicts: null, duplicates: null };
+            ['deps', 'conflicts', 'duplicates'].forEach(function(k) {
+                var el = document.getElementById('diag-result-' + k);
+                if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+            });
         });
 
         // Running list refresh
         document.getElementById('running-btn-refresh').addEventListener('click', loadRunningList);
 
+        // Advanced settings change listeners
+        document.querySelectorAll('.ls-control').forEach(function(el) {
+            var evtType = (el.tagName === 'SELECT' || el.type === 'checkbox') ? 'change' : 'input';
+            el.addEventListener(evtType, onSettingChanged);
+        });
+
+        // Arg chip click handlers
+        document.querySelectorAll('.ls-chip').forEach(function(chip) {
+            chip.addEventListener('click', function() {
+                var textarea = document.getElementById('ls-custom-args');
+                if (!textarea) return;
+                var arg = this.dataset.arg;
+                var current = textarea.value.trim();
+                if (current.indexOf(arg) === -1) {
+                    textarea.value = current ? current + ' ' + arg : arg;
+                    onSettingChanged();
+                }
+            });
+        });
+
+        // Auto-diagnostics toggle
+        var autoDiagEl = document.getElementById('ls-auto-diagnostics');
+        if (autoDiagEl) {
+            autoDiagEl.addEventListener('change', onSettingChanged);
+        }
+
+        // Diagnostic run buttons
+        document.querySelectorAll('.diag-run-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                runDiagnostic(this.dataset.diag);
+            });
+        });
+
+        // Expose toggleCollapsible globally for onclick handlers
+        window.__launcherToggleCollapsible = toggleCollapsible;
+
         // Load data
-        loadEnvs().then(pollStatus);
+        loadEnvs().then(function() {
+            pollStatus();
+            if (selectedEnv) loadLaunchSettings(selectedEnv);
+        });
         loadRunningList();
 
         // Start background polling
@@ -269,6 +480,12 @@
             if (selectedEnv) {
                 select.value = selectedEnv;
             }
+            // Load launch settings for the selected env
+            var envName = select.value;
+            if (envName) {
+                selectedEnv = envName;
+                loadLaunchSettings(envName);
+            }
         }).catch(function(e) {
             appendLog(`${t('error')}: ${e}`);
         });
@@ -282,7 +499,63 @@
         const envName = envSelect.value;
         const port = parseInt(portInput.value) || 8188;
 
-        console.log('Starting ComfyUI:', envName, port, typeof port);
+        // Check auto_diagnostics setting
+        if (currentLaunchSettings && currentLaunchSettings.auto_diagnostics) {
+            document.getElementById('launch-btn-start').disabled = true;
+            appendLog(t('launch_diagnostics') + '...');
+
+            Promise.all([
+                BridgeAPI.checkDependencies(envName).catch(function(e) { return { status: 'error', error: String(e) }; }),
+                BridgeAPI.checkConflicts(envName).catch(function(e) { return { status: 'error', error: String(e) }; }),
+                BridgeAPI.checkDuplicateNodes(envName).catch(function(e) { return { status: 'error', error: String(e) }; })
+            ]).then(function(results) {
+                diagnosticResults.deps = results[0];
+                diagnosticResults.conflicts = results[1];
+                diagnosticResults.duplicates = results[2];
+
+                var issues = [];
+                if (results[0] && results[0].items && results[0].items.length > 0) {
+                    issues.push(t('launch_diag_check_deps') + ': ' + results[0].items.length + ' missing');
+                }
+                if (results[1] && results[1].conflicts && results[1].conflicts.length > 0) {
+                    issues.push(t('launch_diag_check_conflicts') + ': ' + results[1].conflicts.length + ' found');
+                }
+                if (results[2] && results[2].duplicates && results[2].duplicates.length > 0) {
+                    issues.push(t('launch_diag_check_duplicates') + ': ' + results[2].duplicates.length + ' found');
+                }
+
+                if (issues.length > 0) {
+                    var issueHtml = '<div style="margin-bottom:12px">' + issues.map(function(i) {
+                        return '<div style="padding:4px 0;color:#ffb74d">&#9888; ' + i + '</div>';
+                    }).join('') + '</div>';
+
+                    App.showModal(
+                        t('launch_diagnostics'),
+                        issueHtml,
+                        [
+                            {
+                                text: t('launch_diag_launch_anyway'),
+                                class: 'btn btn-primary',
+                                onClick: function() { doStartActual(envName, port); }
+                            },
+                            {
+                                text: t('cancel'),
+                                class: 'btn btn-secondary',
+                                onClick: function() { document.getElementById('launch-btn-start').disabled = false; }
+                            }
+                        ]
+                    );
+                } else {
+                    doStartActual(envName, port);
+                }
+            });
+            return;
+        }
+
+        doStartActual(envName, port);
+    }
+
+    function doStartActual(envName, port) {
         appendLog(`${t('launch_starting')} (${envName}:${port})`);
         document.getElementById('launch-btn-start').disabled = true;
 
@@ -416,6 +689,192 @@
         const timestamp = new Date().toLocaleTimeString();
         log.textContent += `[${timestamp}] ${msg}\n`;
         log.scrollTop = log.scrollHeight;
+    }
+
+    function loadLaunchSettings(envName) {
+        if (!envName) return;
+        BridgeAPI.getLaunchSettings(envName).then(function(settings) {
+            currentLaunchSettings = settings || {};
+            // Populate controls
+            var el;
+            el = document.getElementById('ls-cross-attention');
+            if (el) el.value = settings.cross_attention || 'auto';
+            el = document.getElementById('ls-vram-mode');
+            if (el) el.value = settings.vram_mode || 'normal';
+            el = document.getElementById('ls-reserve-vram');
+            if (el) el.value = (settings.reserve_vram != null && settings.reserve_vram !== '') ? settings.reserve_vram : '';
+            el = document.getElementById('ls-async-offload');
+            if (el) el.value = settings.async_offload || 'auto';
+            el = document.getElementById('ls-smart-memory');
+            if (el) el.checked = !!settings.smart_memory;
+            el = document.getElementById('ls-listen');
+            if (el) el.value = settings.listen || '';
+            // Update the top port input from launch_settings
+            el = document.getElementById('launch-port');
+            if (el && settings.port) el.value = settings.port;
+            el = document.getElementById('ls-auto-launch');
+            if (el) el.checked = !!settings.auto_launch;
+            el = document.getElementById('ls-cors-origin');
+            if (el) el.value = settings.cors_origin || '';
+            el = document.getElementById('ls-tls-keyfile');
+            if (el) el.value = settings.tls_keyfile || '';
+            el = document.getElementById('ls-tls-certfile');
+            if (el) el.value = settings.tls_certfile || '';
+            el = document.getElementById('ls-custom-args');
+            if (el) el.value = settings.custom_args || '';
+            el = document.getElementById('ls-auto-diagnostics');
+            if (el) el.checked = !!settings.auto_diagnostics;
+
+        }).catch(function(e) {
+            currentLaunchSettings = {};
+        });
+    }
+
+    function onSettingChanged() {
+        var settings = {};
+        var el;
+        el = document.getElementById('ls-cross-attention');
+        if (el) settings.cross_attention = el.value;
+        el = document.getElementById('ls-vram-mode');
+        if (el) settings.vram_mode = el.value;
+        el = document.getElementById('ls-reserve-vram');
+        if (el) settings.reserve_vram = el.value !== '' ? parseFloat(el.value) : null;
+        el = document.getElementById('ls-async-offload');
+        if (el) settings.async_offload = el.value;
+        el = document.getElementById('ls-smart-memory');
+        if (el) settings.smart_memory = el.checked;
+        el = document.getElementById('ls-listen');
+        if (el) settings.listen = el.value;
+        // Read port from the top input (single source of truth)
+        el = document.getElementById('launch-port');
+        if (el) settings.port = el.value ? parseInt(el.value) : 8188;
+        el = document.getElementById('ls-auto-launch');
+        if (el) settings.auto_launch = el.checked;
+        el = document.getElementById('ls-cors-origin');
+        if (el) settings.cors_origin = el.value;
+        el = document.getElementById('ls-tls-keyfile');
+        if (el) settings.tls_keyfile = el.value;
+        el = document.getElementById('ls-tls-certfile');
+        if (el) settings.tls_certfile = el.value;
+        el = document.getElementById('ls-custom-args');
+        if (el) settings.custom_args = el.value;
+        el = document.getElementById('ls-auto-diagnostics');
+        if (el) settings.auto_diagnostics = el.checked;
+
+        currentLaunchSettings = settings;
+        debounceSave();
+    }
+
+    function debounceSave() {
+        if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
+        saveDebounceTimer = setTimeout(function() {
+            if (!selectedEnv || !currentLaunchSettings) return;
+            BridgeAPI.saveLaunchSettings(selectedEnv, currentLaunchSettings).then(function() {
+                var statusEl = document.getElementById('ls-save-status');
+                if (statusEl) {
+                    statusEl.textContent = '\u2713 ' + t('launch_settings_saved');
+                    statusEl.style.opacity = '1';
+                    setTimeout(function() { statusEl.style.opacity = '0'; }, 2000);
+                }
+            }).catch(function(e) {
+                App.showToast(String(e), 'error');
+            });
+        }, 500);
+    }
+
+    function toggleCollapsible(sectionId) {
+        var section = document.getElementById('section-' + sectionId);
+        var chevron = document.getElementById('chevron-' + sectionId);
+        if (!section) return;
+        var isHidden = section.style.display === 'none';
+        section.style.display = isHidden ? 'block' : 'none';
+        if (chevron) {
+            chevron.style.transform = isHidden ? 'rotate(180deg)' : '';
+        }
+    }
+
+    function runDiagnostic(type) {
+        if (!selectedEnv) return;
+        var resultEl = document.getElementById('diag-result-' + type);
+        var btn = document.querySelector('.diag-run-btn[data-diag="' + type + '"]');
+        if (btn) { btn.disabled = true; btn.textContent = '...'; }
+
+        var promise;
+        if (type === 'deps') {
+            promise = BridgeAPI.checkDependencies(selectedEnv);
+        } else if (type === 'conflicts') {
+            promise = BridgeAPI.checkConflicts(selectedEnv);
+        } else if (type === 'duplicates') {
+            promise = BridgeAPI.checkDuplicateNodes(selectedEnv);
+        } else {
+            return;
+        }
+
+        promise.then(function(result) {
+            diagnosticResults[type] = result;
+            if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">play_arrow</span> Run'; }
+            if (!resultEl) return;
+            resultEl.style.display = 'block';
+
+            if (type === 'deps') {
+                if (!result.items || result.items.length === 0) {
+                    resultEl.innerHTML = '<div style="color:#66bb6a">\u2713 ' + t('launch_diag_no_issues') + '</div>';
+                } else {
+                    var html = '<div style="color:#ffb74d">' + result.items.length + ' missing</div>';
+                    html += '<div style="margin-top:6px;max-height:80px;overflow-y:auto;font-family:monospace;font-size:11px;color:#ccc">';
+                    result.items.forEach(function(item) { html += '<div>' + item + '</div>'; });
+                    html += '</div>';
+                    html += '<button class="btn btn-secondary" style="margin-top:8px;padding:4px 10px;font-size:11px" id="diag-fix-deps">';
+                    html += t('launch_diag_fix_btn') + '</button>';
+                    resultEl.innerHTML = html;
+                    var fixBtn = document.getElementById('diag-fix-deps');
+                    if (fixBtn) {
+                        fixBtn.addEventListener('click', function() {
+                            this.disabled = true;
+                            this.textContent = '...';
+                            BridgeAPI.fixMissingDeps(selectedEnv, result.items).then(function() {
+                                App.showToast(t('launch_diag_fix_btn') + ' OK', 'success');
+                                runDiagnostic('deps');
+                            }).catch(function(e) { App.showToast(String(e), 'error'); });
+                        });
+                    }
+                }
+            } else if (type === 'conflicts') {
+                if (!result.conflicts || result.conflicts.length === 0) {
+                    resultEl.innerHTML = '<div style="color:#66bb6a">\u2713 ' + t('launch_diag_no_issues') + '</div>';
+                } else {
+                    var html = '<div style="color:#ffb74d">' + result.conflicts.length + ' conflicts</div>';
+                    html += '<div style="margin-top:6px;max-height:80px;overflow-y:auto;font-size:11px;color:#ccc">';
+                    result.conflicts.forEach(function(c) { html += '<div>' + (c.description || c.name || JSON.stringify(c)) + '</div>'; });
+                    html += '</div>';
+                    resultEl.innerHTML = html;
+                }
+            } else if (type === 'duplicates') {
+                var hasDups = result.duplicates && result.duplicates.length > 0;
+                var hasUnscannable = result.unscannable && result.unscannable.length > 0;
+                if (!hasDups && !hasUnscannable) {
+                    resultEl.innerHTML = '<div style="color:#66bb6a">\u2713 ' + t('launch_diag_no_issues') + '</div>';
+                } else {
+                    var html = '';
+                    if (hasDups) {
+                        html += '<div style="color:#ffb74d">' + result.duplicates.length + ' duplicates</div>';
+                        html += '<div style="margin-top:6px;max-height:80px;overflow-y:auto;font-size:11px;color:#ccc">';
+                        result.duplicates.forEach(function(d) { html += '<div>' + (d.name || JSON.stringify(d)) + '</div>'; });
+                        html += '</div>';
+                    }
+                    if (hasUnscannable) {
+                        html += '<div style="color:#ababab;margin-top:6px">' + result.unscannable.length + ' unscannable</div>';
+                    }
+                    resultEl.innerHTML = html;
+                }
+            }
+        }).catch(function(e) {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">play_arrow</span> Run'; }
+            if (resultEl) {
+                resultEl.style.display = 'block';
+                resultEl.innerHTML = '<div style="color:#ff6e84">' + String(e) + '</div>';
+            }
+        });
     }
 
     App.registerPage('launcher', { render });
