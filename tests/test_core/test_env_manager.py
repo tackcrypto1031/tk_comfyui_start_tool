@@ -619,3 +619,31 @@ class TestMergeEnvironment:
 
         assert isinstance(result, dict)
         assert "new_packages" in result
+
+    def test_merge_invalid_strategy(self, sample_config):
+        """Invalid merge strategy should fail fast before any filesystem work."""
+        manager = EnvManager(sample_config)
+        with pytest.raises(ValueError, match="Invalid merge strategy"):
+            manager.merge_env("sandbox-1", "main", strategy="invalid")
+
+    @patch("src.core.env_manager.pip_ops")
+    @patch("src.core.env_manager.git_ops")
+    @patch("src.core.env_manager.SnapshotManager")
+    def test_merge_raises_when_package_install_fails(
+        self, mock_snap_cls, mock_git, mock_pip, sample_config
+    ):
+        """Failed pip install during merge should raise and stop metadata update."""
+        _create_mock_env(sample_config["environments_dir"], "main")
+        _create_mock_env(sample_config["environments_dir"], "sandbox-1", is_sandbox=True, parent_env="main")
+
+        mock_pip.freeze.side_effect = [
+            {"torch": "2.3.1", "newpkg": "1.0"},  # source freeze
+            {"torch": "2.3.1"},                    # target freeze
+        ]
+        failed = MagicMock(returncode=1, stderr="network error", stdout="")
+        mock_pip.run_pip.return_value = failed
+        mock_snap_cls.return_value.create_snapshot.return_value = MagicMock()
+
+        manager = EnvManager(sample_config)
+        with pytest.raises(RuntimeError, match="Failed to install merged packages"):
+            manager.merge_env("sandbox-1", "main")

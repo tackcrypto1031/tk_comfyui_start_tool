@@ -1,7 +1,7 @@
 """Tests for process_manager utility functions."""
 import socket
 import subprocess
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock, call, mock_open
 import pytest
 
 from src.utils.process_manager import (
@@ -58,6 +58,16 @@ class TestStartProcess:
         assert call_kwargs["stdout"] == subprocess.PIPE
         assert call_kwargs["stderr"] == subprocess.PIPE
         assert call_kwargs["text"] is True
+
+    @patch("src.utils.process_manager.subprocess.Popen")
+    @patch("src.utils.process_manager.open", new_callable=mock_open)
+    def test_start_process_closes_parent_log_handle(self, mock_file_open, mock_popen):
+        mock_popen.return_value = MagicMock()
+
+        start_process(["python", "main.py"], log_file="comfyui.log")
+
+        handle = mock_file_open()
+        handle.close.assert_called_once()
 
 
 class TestStopProcess:

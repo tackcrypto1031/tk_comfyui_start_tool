@@ -578,7 +578,7 @@
             // Show "starting" state — polling will update to "running" once healthy
             var statusEl = document.getElementById('launch-status');
             statusEl.className = 'badge badge-warning';
-            statusEl.textContent = 'STARTING... (PID: ' + info.pid + ')';
+            statusEl.textContent = t('launch_status_starting', info.pid);
             document.getElementById('launch-btn-start').disabled = true;
             document.getElementById('launch-btn-stop').disabled = false;
             App.showToast(t('launch_started', info.pid, info.port), 'success');

@@ -150,11 +150,17 @@ def do_update(progress_callback=None) -> dict:
         if proc.returncode != 0:
             raise RuntimeError(f"git fetch failed: {proc.stderr.strip()}")
         proc = subprocess.run(
-            [git, "reset", "--hard", "origin/master"],
+            [git, "checkout", "-B", "master", "origin/master"],
             cwd=str(_ROOT), capture_output=True, text=True, env=env, timeout=30,
         )
         if proc.returncode != 0:
-            raise RuntimeError(f"git reset failed: {proc.stderr.strip()}")
+            stderr = (proc.stderr or "").strip()
+            if "would be overwritten by checkout" in stderr.lower():
+                raise RuntimeError(
+                    "git checkout failed due to local file conflicts. "
+                    "Please back up local files and retry update."
+                )
+            raise RuntimeError(f"git checkout failed: {stderr}")
 
     _progress("pull", 40, "Code updated.")
 

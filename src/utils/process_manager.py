@@ -21,19 +21,28 @@ def start_process(cmd: list, cwd: str = None, env: dict = None,
                        (appropriate for long-running background processes).
         log_file: If provided, redirect stdout and stderr to this file path.
     """
+    out_target = None
+    close_after_spawn = None
+
     if capture_output:
         out_target = subprocess.PIPE
     elif log_file:
-        out_target = open(log_file, 'w', encoding='utf-8')
+        close_after_spawn = open(log_file, 'w', encoding='utf-8')
+        out_target = close_after_spawn
     else:
         out_target = subprocess.DEVNULL
 
-    return subprocess.Popen(
-        cmd, cwd=cwd, env=env,
-        stdout=out_target, stderr=subprocess.STDOUT if log_file else out_target,
-        text=True,
-        **_SUBPROCESS_KWARGS,
-    )
+    try:
+        return subprocess.Popen(
+            cmd, cwd=cwd, env=env,
+            stdout=out_target, stderr=subprocess.STDOUT if log_file else out_target,
+            text=True,
+            **_SUBPROCESS_KWARGS,
+        )
+    finally:
+        # Child process keeps its own handle; parent should release this handle.
+        if close_after_spawn is not None:
+            close_after_spawn.close()
 
 
 def stop_process(pid: int, graceful_timeout: int = 5) -> bool:

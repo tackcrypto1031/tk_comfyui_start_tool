@@ -430,6 +430,11 @@ class EnvManager:
 
         Returns a dict summarizing what was merged.
         """
+        if strategy not in {"add", "replace"}:
+            raise ValueError(
+                f"Invalid merge strategy '{strategy}'. Use 'add' or 'replace'."
+            )
+
         source_dir = self.environments_dir / source
         target_dir = self.environments_dir / target
 
@@ -462,7 +467,10 @@ class EnvManager:
         packages_to_install = {**new_packages, **changed_packages}
         if packages_to_install:
             install_args = [f"{pkg}=={ver}" for pkg, ver in packages_to_install.items()]
-            pip_ops.run_pip(str(target_dir / "venv"), ["install"] + install_args)
+            install_result = pip_ops.run_pip(str(target_dir / "venv"), ["install"] + install_args)
+            if install_result.returncode != 0:
+                detail = (install_result.stderr or install_result.stdout or "unknown error").strip()
+                raise RuntimeError(f"Failed to install merged packages: {detail}")
 
         # Compare custom_nodes
         source_nodes = {n["name"]: n for n in source_env.custom_nodes}
