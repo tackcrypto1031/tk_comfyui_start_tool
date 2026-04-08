@@ -182,6 +182,12 @@ const I18N = (function() {
             "plugin_deleted_success": "Plugin '{}' deleted.",
             "plugin_no_plugins": "No plugins installed.",
             "plugin_comfyui_running": "ComfyUI is running. Please stop it before disabling plugins.",
+            "plugin_update": "Update",
+            "plugin_update_all": "Update All",
+            "plugin_updated_success": "Plugin '{}' updated.",
+            "plugin_already_latest": "Plugin '{}' is already up to date.",
+            "plugin_update_all_result": "Update complete: {} updated, {} already latest, {} failed.",
+            "plugin_update_all_no_targets": "No updatable plugins found (need enabled + git URL).",
 
             // Version panel
             "version_environment": "Environment:",
@@ -415,6 +421,12 @@ const I18N = (function() {
             "plugin_deleted_success": "插件 '{}' 已刪除。",
             "plugin_no_plugins": "尚無已安裝插件。",
             "plugin_comfyui_running": "ComfyUI 正在運行中，請先停止再停用插件。",
+            "plugin_update": "更新",
+            "plugin_update_all": "更新所有插件",
+            "plugin_updated_success": "插件 '{}' 已更新。",
+            "plugin_already_latest": "插件 '{}' 已是最新版本。",
+            "plugin_update_all_result": "更新完成：{} 個已更新、{} 個已是最新、{} 個失敗。",
+            "plugin_update_all_no_targets": "沒有可更新的插件（需為啟用中且有 git URL）。",
 
             // Version panel
             "version_environment": "環境：",

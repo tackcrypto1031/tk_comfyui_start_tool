@@ -356,6 +356,28 @@ class Bridge(QObject):
             return self.env_manager.delete_custom_node(env_name, node_name)
         self._run_async(request_id, _delete)
 
+    @Slot(str, str, str)
+    def update_plugin(self, request_id, env_name, node_name):
+        """Update a single custom node async."""
+        def _update():
+            return self.env_manager.update_custom_node(
+                env_name, node_name,
+                progress_callback=lambda msg:
+                    self.push_progress(request_id, msg, 0, ""),
+            )
+        self._run_async(request_id, _update)
+
+    @Slot(str, str)
+    def update_all_plugins(self, request_id, env_name):
+        """Update all enabled custom nodes with repo_url async."""
+        def _update_all():
+            return self.env_manager.update_all_custom_nodes(
+                env_name,
+                progress_callback=lambda msg:
+                    self.push_progress(request_id, msg, 0, ""),
+            )
+        self._run_async(request_id, _update_all)
+
     # ── Version Manager (Python/CUDA) ──
 
     @Slot(result=str)

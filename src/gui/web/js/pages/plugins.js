@@ -4,6 +4,7 @@
 (function() {
 
     var lastRiskLevel = null;
+    var updatedPlugins = {};
 
     function render(container) {
         container.innerHTML = `
@@ -67,17 +68,23 @@
                 <div class="card">
                     <div class="card-header flex items-center justify-between">
                         <span>${t('plugin_installed_title')}</span>
-                        <button id="plug-btn-refresh" class="btn btn-secondary btn-sm">
-                            <span class="material-symbols-outlined text-[16px]">refresh</span>
-                            ${t('env_refresh')}
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button id="plug-btn-update-all" class="btn btn-primary btn-sm inline-flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[16px]">update</span>
+                                ${t('plugin_update_all')}
+                            </button>
+                            <button id="plug-btn-refresh" class="btn btn-secondary btn-sm">
+                                <span class="material-symbols-outlined text-[16px]">refresh</span>
+                                ${t('env_refresh')}
+                            </button>
+                        </div>
                     </div>
                     <div class="mt-4 border border-surface-container">
                         <table class="data-table" style="table-layout:fixed;width:100%">
                             <colgroup>
                                 <col>
                                 <col style="width:100px">
-                                <col style="width:260px">
+                                <col style="width:320px">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -101,6 +108,7 @@
         document.getElementById('plug-btn-refresh').addEventListener('click', function() {
             loadPlugins();
         });
+        document.getElementById('plug-btn-update-all').addEventListener('click', doUpdateAll);
         document.getElementById('plug-path').addEventListener('input', function() {
             document.getElementById('plug-btn-install').disabled = true;
             lastRiskLevel = null;
@@ -170,12 +178,18 @@
                 toggleIcon = 'block';
             }
 
+            var canUpdate = status === 'enabled' && plugin.repo_url && !updatedPlugins[envName + '/' + nodeName];
+            var updateBtnHtml = canUpdate
+                ? '<button class="btn btn-sm plug-update-btn" data-name="' + escapeHtml(nodeName) + '" title="' + t('plugin_update') + '" style="width:32px;padding:4px 6px;background:transparent;border:1px solid #4ade80;color:#4ade80"><span class="material-symbols-outlined text-[16px]">arrow_upward</span></button>'
+                : '<span style="display:inline-block;width:32px"></span>';
+
             var tr = document.createElement('tr');
             tr.innerHTML = `
                 <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(nodeName)}">${escapeHtml(nodeName)}</td>
                 <td style="text-align:center">${badgeHtml}</td>
                 <td class="whitespace-nowrap">
                     <div class="flex items-center justify-center gap-2">
+                        ${updateBtnHtml}
                         <button class="btn btn-secondary btn-sm plug-toggle-btn inline-flex items-center gap-1" data-name="${escapeHtml(nodeName)}" data-status="${escapeHtml(status)}">
                             <span class="material-symbols-outlined text-[16px]">${toggleIcon}</span>
                             ${toggleLabel}
@@ -202,6 +216,13 @@
             btn.addEventListener('click', function() {
                 var name = btn.getAttribute('data-name');
                 doDeletePlugin(envName, name);
+            });
+        });
+
+        tbody.querySelectorAll('.plug-update-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var name = btn.getAttribute('data-name');
+                doUpdatePlugin(envName, name);
             });
         });
     }
@@ -247,6 +268,63 @@
             loadPlugins();
         }).catch(function(e) {
             App.showToast(e.toString(), 'error');
+        });
+    }
+
+    function doUpdatePlugin(envName, nodeName) {
+        var statusEl = document.getElementById('plug-status');
+        statusEl.textContent = t('plugin_update') + ': ' + nodeName + '...';
+
+        BridgeAPI.updatePlugin(envName, nodeName, function(msg) {
+            statusEl.textContent = msg;
+        }).then(function(result) {
+            if (result && result.updated) {
+                App.showToast(t('plugin_updated_success', nodeName), 'success');
+                showRestartHint();
+                updatedPlugins[envName + '/' + nodeName] = true;
+            } else {
+                App.showToast(t('plugin_already_latest', nodeName), 'info');
+                updatedPlugins[envName + '/' + nodeName] = true;
+            }
+            loadPlugins();
+            statusEl.textContent = '';
+        }).catch(function(e) {
+            App.showToast(e.toString(), 'error');
+            statusEl.textContent = '';
+        });
+    }
+
+    function doUpdateAll() {
+        var envName = document.getElementById('plug-env').value;
+        if (!envName) return;
+
+        var statusEl = document.getElementById('plug-status');
+        var btn = document.getElementById('plug-btn-update-all');
+        btn.disabled = true;
+        statusEl.textContent = t('plugin_update_all') + '...';
+
+        BridgeAPI.updateAllPlugins(envName, function(msg) {
+            statusEl.textContent = msg;
+        }).then(function(result) {
+            if (!result || result.total === 0) {
+                App.showToast(t('plugin_update_all_no_targets'), 'info');
+            } else {
+                updatedPlugins = {};
+                App.showToast(
+                    t('plugin_update_all_result', result.updated, result.skipped, result.failed),
+                    result.failed > 0 ? 'warning' : 'success'
+                );
+                if (result.updated > 0) {
+                    showRestartHint();
+                }
+            }
+            loadPlugins();
+            statusEl.textContent = '';
+            btn.disabled = false;
+        }).catch(function(e) {
+            App.showToast(e.toString(), 'error');
+            statusEl.textContent = '';
+            btn.disabled = false;
         });
     }
 

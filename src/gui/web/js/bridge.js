@@ -168,6 +168,12 @@ var BridgeAPI = (function() {
         disablePlugin: function(envName, nodeName) { return callAsync('disable_plugin', envName, nodeName); },
         enablePlugin: function(envName, nodeName) { return callAsync('enable_plugin', envName, nodeName); },
         deletePlugin: function(envName, nodeName) { return callAsync('delete_plugin', envName, nodeName); },
+        updatePlugin: function(envName, nodeName, onProgress) {
+            return callAsync('update_plugin', envName, nodeName, {onProgress: onProgress});
+        },
+        updateAllPlugins: function(envName, onProgress) {
+            return callAsync('update_all_plugins', envName, {onProgress: onProgress});
+        },
 
         // Progress polling
         pollProgress: function(requestId) { return callSlot('poll_progress', requestId); },

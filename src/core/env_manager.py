@@ -700,3 +700,88 @@ class EnvManager:
             if clone_started and node_path.exists():
                 shutil.rmtree(str(node_path), onerror=self._on_rm_error)
             raise
+
+    def update_custom_node(self, env_name: str, node_name: str,
+                           progress_callback=None) -> dict:
+        """Pull latest changes for a custom node and reinstall deps.
+
+        Returns {name, prev_commit, new_commit, updated: bool}.
+        """
+        env_dir = Path(self.config["environments_dir"]) / env_name
+        venv_path = env_dir / "venv"
+        custom_nodes_dir = env_dir / "ComfyUI" / "custom_nodes"
+        node_path = custom_nodes_dir / node_name
+
+        if not node_path.exists():
+            raise ValueError(f"Node '{node_name}' not found in '{env_name}'")
+
+        prev_commit = git_ops.get_current_commit(str(node_path))
+
+        if progress_callback:
+            progress_callback(f"Pulling latest for {node_name}...")
+
+        git_ops.pull(str(node_path))
+        new_commit = git_ops.get_current_commit(str(node_path))
+
+        if prev_commit == new_commit:
+            return {"name": node_name, "prev_commit": prev_commit,
+                    "new_commit": new_commit, "updated": False}
+
+        if progress_callback:
+            progress_callback(f"Installing dependencies for {node_name}...")
+
+        req_path = node_path / "requirements.txt"
+        if req_path.exists():
+            pip_ops.run_pip(str(venv_path), ["install", "-r", str(req_path)])
+
+        install_py = node_path / "install.py"
+        if install_py.exists():
+            python_exe = pip_ops.get_venv_python(str(venv_path))
+            subprocess.run(
+                [python_exe, str(install_py)],
+                cwd=str(node_path),
+                check=True,
+            )
+
+        env = Environment.load_meta(str(env_dir))
+        for entry in env.custom_nodes:
+            if entry["name"] == node_name:
+                entry["commit"] = new_commit
+                break
+        env.save_meta()
+
+        return {"name": node_name, "prev_commit": prev_commit,
+                "new_commit": new_commit, "updated": True}
+
+    def update_all_custom_nodes(self, env_name: str,
+                                progress_callback=None) -> dict:
+        """Update all enabled custom nodes that have a repo_url.
+
+        Returns {updated, skipped, failed, errors, total}.
+        """
+        plugins = self.list_custom_nodes(env_name)
+        targets = [p for p in plugins
+                   if p["status"] == "enabled" and p.get("repo_url")]
+
+        updated = 0
+        skipped = 0
+        failed = 0
+        errors = []
+
+        for i, plugin in enumerate(targets, 1):
+            name = plugin["name"]
+            if progress_callback:
+                progress_callback(f"Updating {name} ({i}/{len(targets)})...")
+            try:
+                result = self.update_custom_node(env_name, name)
+                if result["updated"]:
+                    updated += 1
+                else:
+                    skipped += 1
+            except Exception as e:
+                failed += 1
+                errors.append({"name": name, "error": str(e)})
+
+        return {"updated": updated, "skipped": skipped,
+                "failed": failed, "errors": errors,
+                "total": len(targets)}
