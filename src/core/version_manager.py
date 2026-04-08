@@ -33,6 +33,14 @@ CUDA_TAG_VERSIONS = {
     "cu130": 13.0,
 }
 
+RECOMMENDED_PRESET = {
+    "python_version": "3.13.11",
+    "cuda_tag": "cu130",
+    "pytorch_version": "2.9.1",
+    "label_en": "Python 3.13.11 + CUDA 13.0 + PyTorch 2.9.1",
+    "label_zh": "Python 3.13.11 + CUDA 13.0 + PyTorch 2.9.1",
+}
+
 _CREATE_NO_WINDOW = 0x08000000
 
 
@@ -107,6 +115,90 @@ class VersionManager:
             return cache.get("last_updated")
         return None
 
+    @staticmethod
+    def _base_version(version: str) -> str:
+        """Strip local version suffixes like +cu130 from package versions."""
+        return (version or "").split("+", 1)[0].strip()
+
+    @staticmethod
+    def get_recommended_preset() -> dict:
+        """Return the developer-maintained recommended preset."""
+        return dict(RECOMMENDED_PRESET)
+
+    def get_pytorch_versions(self, cuda_tag: str, python_version: str = "") -> list:
+        """Return PyTorch versions for given CUDA tag + Python version from cache or fetch.
+
+        Returns a list of version strings sorted descending (e.g. ["2.6.0", "2.5.1", ...]).
+        """
+        cache = self._load_cache()
+        cache_key = f"pytorch_{cuda_tag}"
+        if cache and cache_key in cache:
+            versions = cache[cache_key]
+            if python_version:
+                py_tag = self._python_version_to_cp_tag(python_version)
+                if py_tag:
+                    versions = [v for v in versions if py_tag in v.get("cp_tags", [])]
+            return [v["version"] for v in versions]
+        # Not cached — fetch live
+        return self.fetch_pytorch_versions(cuda_tag, python_version)
+
+    def fetch_pytorch_versions(self, cuda_tag: str, python_version: str = "") -> list:
+        """Fetch available torch versions from PyTorch wheel index for a CUDA tag.
+
+        Parses wheel filenames like: torch-2.6.0+cu130-cp313-cp313-win_amd64.whl
+        Returns list of version strings sorted descending.
+        """
+        url = f"https://download.pytorch.org/whl/{cuda_tag}/torch/"
+        try:
+            response = requests.get(url, timeout=30)
+            html = response.text
+        except Exception as e:
+            logger.warning("Failed to fetch PyTorch versions for %s: %s", cuda_tag, e)
+            return []
+
+        # Parse wheel filenames: torch-{ver}+{tag}-{cpXY}-{cpXY}-{platform}.whl
+        pattern = re.compile(
+            r'torch-(\d+\.\d+\.\d+)\+' + re.escape(cuda_tag)
+            + r'-cp(\d+)-cp\d+-win_amd64\.whl'
+        )
+        # Collect versions with their supported Python cp tags
+        version_cp: dict[str, set[str]] = {}
+        for match in pattern.finditer(html):
+            ver, cp = match.group(1), f"cp{match.group(2)}"
+            version_cp.setdefault(ver, set()).add(cp)
+
+        # Build structured list for caching
+        structured = [
+            {"version": ver, "cp_tags": sorted(cps)}
+            for ver, cps in version_cp.items()
+        ]
+        structured.sort(
+            key=lambda v: [int(x) for x in v["version"].split(".")],
+            reverse=True,
+        )
+
+        # Save to cache under cuda_tag key
+        cache = self._load_cache() or {}
+        cache_key = f"pytorch_{cuda_tag}"
+        cache[cache_key] = structured
+        self._save_cache(cache)
+
+        # Filter by python_version if provided
+        if python_version:
+            py_tag = self._python_version_to_cp_tag(python_version)
+            if py_tag:
+                structured = [v for v in structured if py_tag in v["cp_tags"]]
+
+        return [v["version"] for v in structured]
+
+    @staticmethod
+    def _python_version_to_cp_tag(python_version: str) -> str:
+        """Convert a Python version string like '3.13.11' or '3.13' to cp tag like 'cp313'."""
+        parts = python_version.split(".")
+        if len(parts) >= 2:
+            return f"cp{parts[0]}{parts[1]}"
+        return ""
+
     def refresh_python_versions(self) -> list:
         """Fetch Python embeddable versions from python.org and return sorted list."""
         try:
@@ -150,7 +242,7 @@ class VersionManager:
         return cpu_tags + cu_tags
 
     def refresh_all(self) -> dict:
-        """Refresh both version lists, save to cache, and return cache data."""
+        """Refresh all version lists, save to cache, and return cache data."""
         python_versions = self.refresh_python_versions()
         cuda_tags = self.refresh_cuda_tags()
         data = {
@@ -159,6 +251,11 @@ class VersionManager:
             "cuda_tags": cuda_tags,
         }
         self._save_cache(data)
+
+        # Fetch PyTorch versions for the recommended CUDA tag
+        recommended_tag = RECOMMENDED_PRESET["cuda_tag"]
+        self.fetch_pytorch_versions(recommended_tag)
+
         return data
 
     def get_python_executable(self, version: str, bundled_version: str = "") -> Path:
@@ -300,10 +397,36 @@ class VersionManager:
         _progress("install", 30, f"Installing PyTorch ({cuda_tag})...")
         pip_ops.run_pip_with_progress(
             venv_path,
-            ["install", "torch", "torchvision", "torchaudio",
+            ["install", "torch", "torchvision",
              "--index-url", f"https://download.pytorch.org/whl/{cuda_tag}"],
             progress_callback=progress_callback,
         )
+
+        freeze_data = pip_ops.freeze(venv_path)
+        torch_version_base = self._base_version(freeze_data.get("torch", ""))
+        torchaudio_version_base = self._base_version(freeze_data.get("torchaudio", ""))
+        if torch_version_base and torchaudio_version_base != torch_version_base:
+            if torchaudio_version_base:
+                _progress("install", 55, "Removing incompatible torchaudio...")
+                pip_ops.run_pip(venv_path, ["uninstall", "torchaudio", "-y"])
+            _progress("install", 60, f"Installing torchaudio {torch_version_base}...")
+            try:
+                pip_ops.run_pip_with_progress(
+                    venv_path,
+                    [
+                        "install",
+                        f"torchaudio=={torch_version_base}",
+                        "--index-url",
+                        f"https://download.pytorch.org/whl/{cuda_tag}",
+                    ],
+                    progress_callback=progress_callback,
+                )
+            except Exception as e:
+                logger.warning(
+                    "No compatible torchaudio wheel for torch %s during reinstall (%s); continuing without torchaudio",
+                    torch_version_base,
+                    e,
+                )
 
         freeze_data = pip_ops.freeze(venv_path)
         pytorch_version = freeze_data.get("torch", "")

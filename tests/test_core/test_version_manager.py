@@ -258,7 +258,7 @@ class TestReinstallPytorch:
 
         with patch("src.utils.pip_ops.run_pip") as mock_uninstall:
             with patch("src.utils.pip_ops.run_pip_with_progress") as mock_install:
-                with patch("src.utils.pip_ops.freeze", return_value={"torch": "2.6.0"}):
+                with patch("src.utils.pip_ops.freeze", return_value={"torch": "2.6.0", "torchaudio": "2.6.0"}):
                     result = vm.reinstall_pytorch("test1", "cu126")
 
         assert result["cuda_tag"] == "cu126"
@@ -269,6 +269,45 @@ class TestReinstallPytorch:
         # Verify pip install was called with new index
         mock_install.assert_called_once()
         assert "cu126" in str(mock_install.call_args)
+
+    def test_reinstall_pytorch_repairs_torchaudio_mismatch(self, tmp_path):
+        """Mismatched torchaudio should be removed and reinstalled to match torch."""
+        config = {
+            "base_dir": str(tmp_path),
+            "environments_dir": str(tmp_path / "environments"),
+        }
+        vm = VersionManager(config)
+
+        env_dir = tmp_path / "environments" / "test1"
+        env_dir.mkdir(parents=True)
+        (env_dir / "venv").mkdir()
+        (env_dir / "env_meta.json").write_text(
+            json.dumps({"name": "test1", "created_at": "2026-04-06"}),
+            encoding="utf-8",
+        )
+
+        with patch("src.utils.pip_ops.run_pip") as mock_run_pip:
+            with patch("src.utils.pip_ops.run_pip_with_progress") as mock_install:
+                with patch(
+                    "src.utils.pip_ops.freeze",
+                    side_effect=[
+                        {"torch": "2.9.1+cu130", "torchaudio": "2.11.0+cu130"},
+                        {"torch": "2.9.1+cu130", "torchaudio": "2.9.1+cu130"},
+                    ],
+                ):
+                    result = vm.reinstall_pytorch("test1", "cu130")
+
+        assert result["pytorch_version"] == "2.9.1+cu130"
+        uninstall_torchaudio_calls = [
+            c for c in mock_run_pip.call_args_list
+            if c[0][1] == ["uninstall", "torchaudio", "-y"]
+        ]
+        assert len(uninstall_torchaudio_calls) == 1
+        torchaudio_reinstall_calls = [
+            c for c in mock_install.call_args_list
+            if "torchaudio==2.9.1" in c[0][1]
+        ]
+        assert len(torchaudio_reinstall_calls) == 1
 
     def test_reinstall_pytorch_env_not_found(self, tmp_path):
         config = {

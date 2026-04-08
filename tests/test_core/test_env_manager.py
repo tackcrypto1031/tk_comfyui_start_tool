@@ -144,6 +144,45 @@ class TestCreateEnvironment:
         assert call_order.index("venv") < call_order.index("clone")
         assert call_order.index("clone") < call_order.index("freeze")
 
+    @patch("src.core.env_manager.pip_ops")
+    @patch("src.core.env_manager.git_ops")
+    def test_create_reconciles_torchaudio_mismatch(self, mock_git, mock_pip, sample_config):
+        """When torchaudio mismatches torch, env creation reinstalls matching torchaudio."""
+        mock_git.clone_repo.return_value = MagicMock()
+        mock_git.get_current_commit.return_value = "abc1234"
+        mock_pip.get_python_version.return_value = "3.11.9"
+        mock_pip.run_pip.return_value = MagicMock(returncode=0)
+        # freeze is called for compatibility check, verification, and final metadata
+        mock_pip.freeze.side_effect = [
+            {"torch": "2.9.1+cu130", "torchaudio": "2.11.0+cu130"},
+            {
+                "torch": "2.9.1+cu130",
+                "torchaudio": "2.9.1+cu130",
+                "numpy": "2.0.0",
+                "pillow": "11.0.0",
+                "pyyaml": "6.0.0",
+                "aiohttp": "3.11.0",
+            },
+            {
+                "torch": "2.9.1+cu130",
+                "torchaudio": "2.9.1+cu130",
+            },
+        ]
+
+        manager = EnvManager(sample_config)
+        manager.create_environment("test-env", cuda_tag="cu130", pytorch_version="2.9.1")
+
+        uninstall_calls = [
+            c for c in mock_pip.run_pip.call_args_list
+            if c[0][1][:3] == ["uninstall", "-y", "torchaudio"]
+        ]
+        assert len(uninstall_calls) == 1
+        reinstall_calls = [
+            c for c in mock_pip.run_pip_with_progress.call_args_list
+            if "torchaudio==2.9.1" in c[0][1]
+        ]
+        assert len(reinstall_calls) == 1
+
 
 def _create_mock_env(envs_dir, name, is_sandbox=False, parent_env=None):
     """Helper to create a mock environment directory with env_meta.json."""

@@ -40,9 +40,14 @@ class EnvManager:
                            commit: Optional[str] = None,
                            python_version: str = "",
                            cuda_tag: str = "",
+                           pytorch_version: str = "",
                            progress_callback=None) -> Environment:
         """Create a new ComfyUI environment with venv, cloned repo, and metadata."""
         self._validate_name(name)
+
+        def _base_version(version: str) -> str:
+            """Strip local version suffixes like +cu130 from package versions."""
+            return (version or "").split("+", 1)[0].strip()
 
         env_dir = self.environments_dir / name
         if env_dir.exists():
@@ -92,19 +97,79 @@ class EnvManager:
                 _report("pytorch", 35, f"Detected: {cuda_tag}")
             effective_cuda_tag = cuda_tag
             pytorch_index = f"https://download.pytorch.org/whl/{effective_cuda_tag}"
-            _report("pytorch", 35, f"Installing PyTorch ({effective_cuda_tag})...")
+            torch_pkg = f"torch=={pytorch_version}" if pytorch_version else "torch"
+            _report("pytorch", 35, f"Installing PyTorch ({effective_cuda_tag}{', v' + pytorch_version if pytorch_version else ''})...")
             pip_ops.run_pip_with_progress(str(venv_path), [
-                "install", "torch", "torchvision", "torchaudio",
+                "install", torch_pkg, "torchvision",
                 "--index-url", pytorch_index,
             ], progress_callback=lambda line: _report("pytorch", 35, line))
 
             # 4. Install ComfyUI dependencies
+            #    Use --extra-index-url for PyTorch wheels so torch/torchvision/torchaudio
+            #    in requirements.txt resolve from the correct CUDA index.
+            #    Also constrain torch version to prevent requirements.txt from upgrading it.
             _report("dependencies", 55, "Installing ComfyUI dependencies...")
             req_path = comfyui_path / "requirements.txt"
             if req_path.exists():
-                pip_ops.run_pip_with_progress(str(venv_path), [
+                deps_args = [
                     "install", "-r", str(req_path.resolve()),
-                ], progress_callback=lambda line: _report("dependencies", 55, line))
+                    "--extra-index-url", pytorch_index,
+                ]
+                # Constrain torch version to prevent requirements.txt from upgrading
+                constraint_file = None
+                if pytorch_version:
+                    constraint_file = env_dir / "_constraints.txt"
+                    constraint_file.write_text(
+                        f"torch=={pytorch_version}\n", encoding="utf-8"
+                    )
+                    deps_args += ["-c", str(constraint_file.resolve())]
+                pip_ops.run_pip_with_progress(str(venv_path), deps_args,
+                    progress_callback=lambda line: _report("dependencies", 55, line))
+                if constraint_file:
+                    constraint_file.unlink(missing_ok=True)
+
+            # 4a. Ensure torchaudio is ABI-compatible with installed torch.
+            # If no matching wheel exists, continue without torchaudio instead of
+            # keeping a broken binary that can block ComfyUI startup on Windows.
+            _report("dependencies", 62, "Checking torchaudio compatibility...")
+            _compat_freeze = pip_ops.freeze(str(venv_path))
+            _torch_ver = _base_version(_compat_freeze.get("torch", ""))
+            _torchaudio_ver = _base_version(_compat_freeze.get("torchaudio", ""))
+            if _torch_ver and _torchaudio_ver != _torch_ver:
+                if _torchaudio_ver:
+                    _report(
+                        "dependencies",
+                        62,
+                        f"Removing incompatible torchaudio {_torchaudio_ver} (torch {_torch_ver})...",
+                    )
+                    pip_ops.run_pip(str(venv_path), ["uninstall", "-y", "torchaudio"])
+                _report(
+                    "dependencies",
+                    63,
+                    f"Installing torchaudio=={_torch_ver} for torch {_torch_ver}...",
+                )
+                try:
+                    pip_ops.run_pip_with_progress(
+                        str(venv_path),
+                        [
+                            "install",
+                            f"torchaudio=={_torch_ver}",
+                            "--index-url",
+                            pytorch_index,
+                        ],
+                        progress_callback=lambda line: _report("dependencies", 63, line),
+                    )
+                except Exception as e:
+                    logging.getLogger("env_manager").warning(
+                        "No compatible torchaudio wheel for torch %s (%s); continuing without torchaudio",
+                        _torch_ver,
+                        e,
+                    )
+                    _report(
+                        "dependencies",
+                        63,
+                        "No compatible torchaudio wheel found; continuing without torchaudio.",
+                    )
 
             # 4b. Verify critical dependencies were installed
             _report("dependencies", 65, "Verifying dependencies...")
