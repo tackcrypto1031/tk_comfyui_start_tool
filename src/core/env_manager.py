@@ -482,7 +482,17 @@ class EnvManager:
 
         # Update target env_meta
         target_env = Environment.load_meta(str(target_dir))  # Reload
-        target_env.custom_nodes.extend(new_nodes)
+        combined_nodes = list(target_env.custom_nodes) + list(new_nodes)
+        deduped_nodes = []
+        seen_node_names = set()
+        for node in combined_nodes:
+            node_name = node.get("name", "")
+            if node_name and node_name in seen_node_names:
+                continue
+            if node_name:
+                seen_node_names.add(node_name)
+            deduped_nodes.append(node)
+        target_env.custom_nodes = deduped_nodes
         target_env.pip_freeze = pip_ops.freeze(str(target_dir / "venv"))
         target_env.merge_history.append({
             "source": source,

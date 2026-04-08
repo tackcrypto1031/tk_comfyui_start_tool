@@ -209,7 +209,7 @@
                                         <div style="font-size:13px;font-weight:500;margin-bottom:8px">${t('launch_diag_check_deps')}</div>
                                         <button class="btn btn-secondary diag-run-btn" data-diag="deps" style="width:100%;padding:6px 12px;font-size:12px">
                                             <span class="material-symbols-outlined text-[16px]">play_arrow</span>
-                                            Run
+                                            ${t('launch_diag_run')}
                                         </button>
                                         <div id="diag-result-deps" style="display:none;margin-top:8px;font-size:12px;max-height:150px;overflow-y:auto"></div>
                                     </div>
@@ -219,7 +219,7 @@
                                         <div style="font-size:13px;font-weight:500;margin-bottom:8px">${t('launch_diag_check_conflicts')}</div>
                                         <button class="btn btn-secondary diag-run-btn" data-diag="conflicts" style="width:100%;padding:6px 12px;font-size:12px">
                                             <span class="material-symbols-outlined text-[16px]">play_arrow</span>
-                                            Run
+                                            ${t('launch_diag_run')}
                                         </button>
                                         <div id="diag-result-conflicts" style="display:none;margin-top:8px;font-size:12px;max-height:150px;overflow-y:auto"></div>
                                     </div>
@@ -229,7 +229,7 @@
                                         <div style="font-size:13px;font-weight:500;margin-bottom:8px">${t('launch_diag_check_duplicates')}</div>
                                         <button class="btn btn-secondary diag-run-btn" data-diag="duplicates" style="width:100%;padding:6px 12px;font-size:12px">
                                             <span class="material-symbols-outlined text-[16px]">play_arrow</span>
-                                            Run
+                                            ${t('launch_diag_run')}
                                         </button>
                                         <div id="diag-result-duplicates" style="display:none;margin-top:8px;font-size:12px;max-height:150px;overflow-y:auto"></div>
                                     </div>
@@ -524,13 +524,13 @@
 
                 if (missingDepItems.length > 0 || depCheckIssues.length > 0) {
                     var depIssueCount = missingDepItems.length + depCheckIssues.length;
-                    issues.push(t('launch_diag_check_deps') + ': ' + depIssueCount + ' issue(s)');
+                    issues.push(t('launch_diag_check_deps') + ': ' + t('launch_diag_issue_count', depIssueCount));
                 }
                 if (results[1] && results[1].conflicts && results[1].conflicts.length > 0) {
-                    issues.push(t('launch_diag_check_conflicts') + ': ' + results[1].conflicts.length + ' found');
+                    issues.push(t('launch_diag_check_conflicts') + ': ' + t('launch_diag_found_count', results[1].conflicts.length));
                 }
                 if (results[2] && results[2].duplicates && results[2].duplicates.length > 0) {
-                    issues.push(t('launch_diag_check_duplicates') + ': ' + results[2].duplicates.length + ' found');
+                    issues.push(t('launch_diag_check_duplicates') + ': ' + t('launch_diag_found_count', results[2].duplicates.length));
                 }
 
                 if (issues.length > 0) {
@@ -821,7 +821,7 @@
 
         promise.then(function(result) {
             diagnosticResults[type] = result;
-            if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">play_arrow</span> Run'; }
+            if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">play_arrow</span> ' + t('launch_diag_run'); }
             if (!resultEl) return;
             resultEl.style.display = 'block';
 
@@ -838,16 +838,16 @@
                     resultEl.innerHTML = '<div style="color:#66bb6a">\u2713 ' + t('launch_diag_no_issues') + '</div>';
                 } else {
                     var issueCount = missingItems.length + pipCheckItems.length;
-                    var html = '<div style="color:#ffb74d">' + issueCount + ' issue(s)</div>';
+                    var html = '<div style="color:#ffb74d">' + t('launch_diag_issue_count', issueCount) + '</div>';
                     html += '<div style="margin-top:6px;max-height:80px;overflow-y:auto;font-family:monospace;font-size:11px;color:#ccc">';
                     missingItems.forEach(function(item) {
                         var pkgSpec = (item.required && item.required !== 'any')
                             ? (item.package + item.required)
                             : item.package;
-                        html += '<div>Missing: ' + pkgSpec + '</div>';
+                        html += '<div>' + t('launch_diag_missing_prefix') + ': ' + pkgSpec + '</div>';
                     });
                     pipCheckItems.forEach(function(item) {
-                        html += '<div>Pip check: ' + (item.installed || '') + '</div>';
+                        html += '<div>' + t('launch_diag_pip_check_prefix') + ': ' + (item.installed || '') + '</div>';
                     });
                     html += '</div>';
                     if (missingItems.length > 0) {
@@ -869,7 +869,7 @@
                             this.disabled = true;
                             this.textContent = '...';
                             BridgeAPI.fixMissingDeps(selectedEnv, packagesToInstall).then(function() {
-                                App.showToast(t('launch_diag_fix_btn') + ' OK', 'success');
+                                App.showToast(t('launch_diag_fix_success'), 'success');
                                 runDiagnostic('deps');
                             }).catch(function(e) { App.showToast(String(e), 'error'); });
                         });
@@ -879,7 +879,7 @@
                 if (!result.conflicts || result.conflicts.length === 0) {
                     resultEl.innerHTML = '<div style="color:#66bb6a">\u2713 ' + t('launch_diag_no_issues') + '</div>';
                 } else {
-                    var html = '<div style="color:#ffb74d">' + result.conflicts.length + ' conflicts</div>';
+                    var html = '<div style="color:#ffb74d">' + t('launch_diag_conflict_count', result.conflicts.length) + '</div>';
                     html += '<div style="margin-top:6px;max-height:80px;overflow-y:auto;font-size:11px;color:#ccc">';
                     result.conflicts.forEach(function(c) { html += '<div>' + (c.description || c.name || JSON.stringify(c)) + '</div>'; });
                     html += '</div>';
@@ -893,19 +893,19 @@
                 } else {
                     var html = '';
                     if (hasDups) {
-                        html += '<div style="color:#ffb74d">' + result.duplicates.length + ' duplicates</div>';
+                        html += '<div style="color:#ffb74d">' + t('launch_diag_duplicate_count', result.duplicates.length) + '</div>';
                         html += '<div style="margin-top:6px;max-height:80px;overflow-y:auto;font-size:11px;color:#ccc">';
                         result.duplicates.forEach(function(d) { html += '<div>' + (d.name || JSON.stringify(d)) + '</div>'; });
                         html += '</div>';
                     }
                     if (hasUnscannable) {
-                        html += '<div style="color:#ababab;margin-top:6px">' + result.unscannable.length + ' unscannable</div>';
+                        html += '<div style="color:#ababab;margin-top:6px">' + t('launch_diag_unscannable_count', result.unscannable.length) + '</div>';
                     }
                     resultEl.innerHTML = html;
                 }
             }
         }).catch(function(e) {
-            if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">play_arrow</span> Run'; }
+            if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">play_arrow</span> ' + t('launch_diag_run'); }
             if (resultEl) {
                 resultEl.style.display = 'block';
                 resultEl.innerHTML = '<div style="color:#ff6e84">' + String(e) + '</div>';

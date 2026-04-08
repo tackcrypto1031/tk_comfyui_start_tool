@@ -546,6 +546,49 @@ class TestMergeEnvironment:
         assert len(target_meta["merge_history"]) == 1
         assert target_meta["merge_history"][0]["source"] == "sandbox-1"
 
+    @patch("src.core.env_manager.pip_ops")
+    @patch("src.core.env_manager.git_ops")
+    @patch("src.core.env_manager.SnapshotManager")
+    def test_merge_deduplicates_custom_nodes_by_name(
+        self, mock_snap_cls, mock_git, mock_pip, sample_config
+    ):
+        """Target custom_nodes should be deduplicated by name after merge."""
+        source_dir = _create_mock_env(
+            sample_config["environments_dir"], "sandbox-1", is_sandbox=True, parent_env="main"
+        )
+        target_dir = _create_mock_env(sample_config["environments_dir"], "main")
+
+        source_meta_path = source_dir / "env_meta.json"
+        source_meta = json.loads(source_meta_path.read_text(encoding="utf-8"))
+        source_meta["custom_nodes"] = [
+            {"name": "dup-node", "repo_url": "https://github.com/example/dup-node.git", "commit": "src-dup"},
+            {"name": "new-node", "repo_url": "https://github.com/example/new-node.git", "commit": "src-new"},
+        ]
+        source_meta_path.write_text(json.dumps(source_meta), encoding="utf-8")
+
+        target_meta_path = target_dir / "env_meta.json"
+        target_meta = json.loads(target_meta_path.read_text(encoding="utf-8"))
+        target_meta["custom_nodes"] = [
+            {"name": "dup-node", "repo_url": "https://github.com/example/dup-node.git", "commit": "target-1"},
+            {"name": "dup-node", "repo_url": "https://github.com/example/dup-node.git", "commit": "target-2"},
+        ]
+        target_meta_path.write_text(json.dumps(target_meta), encoding="utf-8")
+
+        mock_pip.freeze.return_value = {}
+        mock_pip.run_pip.return_value = MagicMock(returncode=0)
+        mock_snap_cls.return_value.create_snapshot.return_value = MagicMock()
+        mock_git.clone_repo.return_value = MagicMock()
+
+        manager = EnvManager(sample_config)
+        result = manager.merge_env("sandbox-1", "main")
+
+        assert "new-node" in result["new_nodes"]
+
+        merged_target_meta = json.loads(target_meta_path.read_text(encoding="utf-8"))
+        names = [node["name"] for node in merged_target_meta["custom_nodes"]]
+        assert names.count("dup-node") == 1
+        assert names.count("new-node") == 1
+
     def test_merge_source_not_found(self, sample_config):
         """Raises FileNotFoundError when source environment does not exist."""
         _create_mock_env(sample_config["environments_dir"], "main")
