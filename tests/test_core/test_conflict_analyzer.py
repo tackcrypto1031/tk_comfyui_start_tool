@@ -195,8 +195,16 @@ class TestDryRun:
         mock_result = MagicMock()
         mock_result.stdout = "not json"
         with patch("src.core.conflict_analyzer.pip_ops.run_pip", return_value=mock_result):
-            result = analyzer.dry_run("/fake/venv", ["torch"])
-        assert result == {}
+            with pytest.raises(RuntimeError, match="Failed to parse pip dry-run report JSON"):
+                analyzer.dry_run("/fake/venv", ["torch"])
+
+    def test_nonzero_returncode_raises(self, analyzer):
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        mock_result.stderr = "pip failed"
+        with patch("src.core.conflict_analyzer.pip_ops.run_pip", return_value=mock_result):
+            with pytest.raises(RuntimeError, match="pip dry-run failed"):
+                analyzer.dry_run("/fake/venv", ["torch"])
 
     def test_keys_normalized_to_lowercase(self, analyzer):
         report_json = self._make_report({"Torch": "2.4.0"})

@@ -27,6 +27,32 @@ class ComfyUILauncher:
         target = self._normalize_package_name(package_name)
         return any(self._normalize_package_name(pkg) == target for pkg in installed)
 
+    @staticmethod
+    def _tail_log(log_path: Path, line_count: int = 10, chunk_size: int = 4096) -> str:
+        """Read only the last N lines from a log file to avoid full-file scans."""
+        if line_count <= 0:
+            return ""
+
+        try:
+            with open(log_path, "rb") as fh:
+                fh.seek(0, 2)
+                file_size = fh.tell()
+                if file_size == 0:
+                    return ""
+
+                remaining = file_size
+                buffer = b""
+                while remaining > 0 and buffer.count(b"\n") <= line_count:
+                    read_size = min(chunk_size, remaining)
+                    remaining -= read_size
+                    fh.seek(remaining)
+                    buffer = fh.read(read_size) + buffer
+
+                lines = buffer.decode("utf-8", errors="replace").splitlines()
+                return "\n".join(lines[-line_count:])
+        except Exception:
+            return ""
+
     def start(self, env_name: str, port: int = 8188, extra_args: list = None,
               auto_open: bool = True) -> dict:
         """Start ComfyUI in the specified environment."""
@@ -235,11 +261,9 @@ class ComfyUILauncher:
         # Include last log lines for debugging
         log_path = env_dir / "comfyui.log"
         if log_path.exists():
-            try:
-                lines = log_path.read_text(encoding='utf-8', errors='replace').strip().split('\n')
-                result["last_log"] = '\n'.join(lines[-10:])  # Last 10 lines
-            except Exception:
-                pass
+            last_log = self._tail_log(log_path, line_count=10)
+            if last_log:
+                result["last_log"] = last_log
 
         return result
 

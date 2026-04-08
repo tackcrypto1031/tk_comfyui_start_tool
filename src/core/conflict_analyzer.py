@@ -207,8 +207,17 @@ class ConflictAnalyzer:
             ["install", "--dry-run", "--report", "-"] + requirements,
         )
 
+        return_code = getattr(result, "returncode", 0)
+        if isinstance(return_code, int) and return_code != 0:
+            detail = (getattr(result, "stderr", "") or getattr(result, "stdout", "") or "").strip()
+            raise RuntimeError(f"pip dry-run failed: {detail or 'unknown error'}")
+
+        output = (getattr(result, "stdout", "") or "").strip()
+        if not output:
+            raise RuntimeError("pip dry-run returned empty report output")
+
         try:
-            report = json.loads(result.stdout)
+            report = json.loads(output)
             changes = {}
             for item in report.get("install", []):
                 meta = item.get("metadata", {})
@@ -217,8 +226,8 @@ class ConflictAnalyzer:
                 if name:
                     changes[name.lower()] = version
             return changes
-        except (json.JSONDecodeError, KeyError):
-            return {}
+        except (json.JSONDecodeError, KeyError) as exc:
+            raise RuntimeError(f"Failed to parse pip dry-run report JSON: {exc}") from exc
 
     # --- Step 3: Compare Versions ---
 

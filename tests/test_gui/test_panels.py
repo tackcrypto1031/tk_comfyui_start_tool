@@ -97,14 +97,14 @@ class TestVersionPanel:
             assert panel.env_combo is not None
             panel.close()
 
-    def test_version_panel_has_commits_table(self, mock_config):
+    def test_version_panel_has_tags_table(self, mock_config):
         with patch("src.gui.panels.version_panel.EnvManager") as MockMgr, \
              patch("src.gui.panels.version_panel.VersionController"):
             MockMgr.return_value.list_environments.return_value = []
             from src.gui.panels.version_panel import VersionPanel
             panel = VersionPanel(mock_config)
-            assert panel.commits_table is not None
-            assert panel.commits_table.columnCount() == 4
+            assert panel.tags_table is not None
+            assert panel.tags_table.columnCount() == 2
             panel.close()
 
     def test_version_panel_has_action_buttons(self, mock_config):
@@ -113,7 +113,7 @@ class TestVersionPanel:
             MockMgr.return_value.list_environments.return_value = []
             from src.gui.panels.version_panel import VersionPanel
             panel = VersionPanel(mock_config)
-            assert panel.btn_load_commits is not None
+            assert panel.btn_fetch_tags is not None
             assert panel.btn_switch is not None
             assert panel.btn_update is not None
             panel.close()

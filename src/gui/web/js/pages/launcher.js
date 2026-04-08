@@ -514,8 +514,17 @@
                 diagnosticResults.duplicates = results[2];
 
                 var issues = [];
-                if (results[0] && results[0].items && results[0].items.length > 0) {
-                    issues.push(t('launch_diag_check_deps') + ': ' + results[0].items.length + ' missing');
+                var depItems = (results[0] && Array.isArray(results[0].items)) ? results[0].items : [];
+                var missingDepItems = depItems.filter(function(item) {
+                    return item && item.status === 'missing';
+                });
+                var depCheckIssues = depItems.filter(function(item) {
+                    return item && item.status === 'pip_check_issue';
+                });
+
+                if (missingDepItems.length > 0 || depCheckIssues.length > 0) {
+                    var depIssueCount = missingDepItems.length + depCheckIssues.length;
+                    issues.push(t('launch_diag_check_deps') + ': ' + depIssueCount + ' issue(s)');
                 }
                 if (results[1] && results[1].conflicts && results[1].conflicts.length > 0) {
                     issues.push(t('launch_diag_check_conflicts') + ': ' + results[1].conflicts.length + ' found');
@@ -817,22 +826,49 @@
             resultEl.style.display = 'block';
 
             if (type === 'deps') {
-                if (!result.items || result.items.length === 0) {
+                var depItems = Array.isArray(result.items) ? result.items : [];
+                var missingItems = depItems.filter(function(item) {
+                    return item && item.status === 'missing';
+                });
+                var pipCheckItems = depItems.filter(function(item) {
+                    return item && item.status === 'pip_check_issue';
+                });
+
+                if (missingItems.length === 0 && pipCheckItems.length === 0) {
                     resultEl.innerHTML = '<div style="color:#66bb6a">\u2713 ' + t('launch_diag_no_issues') + '</div>';
                 } else {
-                    var html = '<div style="color:#ffb74d">' + result.items.length + ' missing</div>';
+                    var issueCount = missingItems.length + pipCheckItems.length;
+                    var html = '<div style="color:#ffb74d">' + issueCount + ' issue(s)</div>';
                     html += '<div style="margin-top:6px;max-height:80px;overflow-y:auto;font-family:monospace;font-size:11px;color:#ccc">';
-                    result.items.forEach(function(item) { html += '<div>' + item + '</div>'; });
+                    missingItems.forEach(function(item) {
+                        var pkgSpec = (item.required && item.required !== 'any')
+                            ? (item.package + item.required)
+                            : item.package;
+                        html += '<div>Missing: ' + pkgSpec + '</div>';
+                    });
+                    pipCheckItems.forEach(function(item) {
+                        html += '<div>Pip check: ' + (item.installed || '') + '</div>';
+                    });
                     html += '</div>';
-                    html += '<button class="btn btn-secondary" style="margin-top:8px;padding:4px 10px;font-size:11px" id="diag-fix-deps">';
-                    html += t('launch_diag_fix_btn') + '</button>';
+                    if (missingItems.length > 0) {
+                        html += '<button class="btn btn-secondary" style="margin-top:8px;padding:4px 10px;font-size:11px" id="diag-fix-deps">';
+                        html += t('launch_diag_fix_btn') + '</button>';
+                    }
                     resultEl.innerHTML = html;
                     var fixBtn = document.getElementById('diag-fix-deps');
                     if (fixBtn) {
+                        var packagesToInstall = missingItems
+                            .map(function(item) {
+                                if (!item || !item.package) return '';
+                                return (item.required && item.required !== 'any')
+                                    ? (item.package + item.required)
+                                    : item.package;
+                            })
+                            .filter(function(spec) { return !!spec; });
                         fixBtn.addEventListener('click', function() {
                             this.disabled = true;
                             this.textContent = '...';
-                            BridgeAPI.fixMissingDeps(selectedEnv, result.items).then(function() {
+                            BridgeAPI.fixMissingDeps(selectedEnv, packagesToInstall).then(function() {
                                 App.showToast(t('launch_diag_fix_btn') + ' OK', 'success');
                                 runDiagnostic('deps');
                             }).catch(function(e) { App.showToast(String(e), 'error'); });

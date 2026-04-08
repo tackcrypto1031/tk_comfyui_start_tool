@@ -213,7 +213,7 @@ class TestMainWindow:
             MockLaunchMgr.return_value.list_environments.return_value = []
             from src.gui.main_window import MainWindow
             win = MainWindow(mock_config)
-            assert win.windowTitle() == "tack_comfyui_start_tool"
+            assert win.windowTitle() == "塔克ComfyUI啟動器"
             win.close()
 
     def test_main_window_has_sidebar_and_stack(self, mock_config):

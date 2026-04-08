@@ -20,7 +20,7 @@ class TestLoadConfig:
     def test_load_missing_config_creates_default(self, tmp_path):
         config_path = tmp_path / "config.json"
         result = load_config(str(config_path))
-        assert result["version"] == "0.1.0"
+        assert result["default_env"] == "main"
         assert config_path.exists()
 
     def test_load_config_fills_missing_keys(self, tmp_path):
@@ -94,7 +94,6 @@ class TestGetDefaultConfig:
 
     def test_default_config_has_required_keys(self):
         config = get_default_config()
-        assert "version" in config
         assert "default_env" in config
         assert "comfyui_repo_url" in config
         assert "model_subdirs" in config
