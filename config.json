@@ -1,5 +1,4 @@
 {
-  "version": "0.1.0",
   "default_env": "main",
   "python_path": null,
   "comfyui_repo_url": "https://github.com/comfyanonymous/ComfyUI.git",

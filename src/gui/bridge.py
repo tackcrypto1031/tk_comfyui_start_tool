@@ -483,6 +483,36 @@ class Bridge(QObject):
 
         return self._safe_call(_export)
 
+    # ── Updater ──
+
+    @Slot(result=str)
+    def check_update(self):
+        """Check for available updates. Returns JSON with version info."""
+        from src.core.updater import check_update
+        return self._safe_call(check_update)
+
+    @Slot(str)
+    def do_update(self, request_id):
+        """Execute update (git pull + pip install) async."""
+        from src.core.updater import do_update
+        def _update():
+            return do_update(
+                progress_callback=lambda step, pct, detail="":
+                    self.push_progress(request_id, step, pct, detail),
+            )
+        self._run_async(request_id, _update)
+
+    @Slot(result=str)
+    def restart_app(self):
+        """Restart the application via start.bat."""
+        from src.core.updater import restart_app
+        try:
+            restart_app()
+            return json.dumps({"success": True})
+        except Exception as e:
+            logger.error(f"restart_app error: {e}")
+            return json.dumps({"error": str(e)})
+
     # ── Utility ──
 
     ALLOWED_SUBFOLDERS = {"output", "models", "custom_nodes", ""}

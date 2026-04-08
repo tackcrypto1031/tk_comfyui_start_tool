@@ -6,7 +6,6 @@ from pathlib import Path
 def get_default_config() -> dict:
     """Return default configuration."""
     return {
-        "version": "0.1.0",
         "default_env": "main",
         "python_path": None,
         "comfyui_repo_url": "https://github.com/comfyanonymous/ComfyUI.git",

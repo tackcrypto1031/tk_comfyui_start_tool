@@ -1,0 +1,13 @@
+{
+  "version": "0.1.0",
+  "codename": "The Obsidian Edge",
+  "min_python": "3.10",
+  "release_notes": "初始版本",
+  "changes": [
+    "新增環境管理功能",
+    "新增插件安裝與衝突分析",
+    "新增快照備份與還原",
+    "新增版本控制與切換",
+    "新增啟動器與多環境運行"
+  ]
+}

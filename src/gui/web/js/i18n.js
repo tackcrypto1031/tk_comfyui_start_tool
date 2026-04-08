@@ -35,6 +35,19 @@ const I18N = (function() {
             "home_folder_not_found": "Folder not found. Make sure the environment has been initialized.",
             "home_no_envs": "No environments found. Create one in the Environments page.",
 
+            // Update
+            "update_available": "New version v{} available",
+            "update_codename": "Codename: {}",
+            "update_changes": "Changes:",
+            "update_btn": "Update Now",
+            "update_progress_title": "Updating...",
+            "update_step_pull": "Pulling latest code",
+            "update_step_deps": "Installing dependencies",
+            "update_step_restart": "Restarting",
+            "update_no_git": "Git not found. Please run install.bat first.",
+            "update_latest": "Already up to date.",
+            "update_failed": "Update failed: {}",
+
             // Language
             "language": "Language",
 
@@ -252,6 +265,19 @@ const I18N = (function() {
             "home_no_env_selected": "請先選擇環境",
             "home_folder_not_found": "資料夾不存在，請確認環境已初始化。",
             "home_no_envs": "尚無環境，請至環境管理頁面建立。",
+
+            // Update
+            "update_available": "新版本 v{} 可用",
+            "update_codename": "代號：{}",
+            "update_changes": "更新內容：",
+            "update_btn": "立即更新",
+            "update_progress_title": "正在更新...",
+            "update_step_pull": "拉取最新代碼",
+            "update_step_deps": "安裝依賴中",
+            "update_step_restart": "重啟工具",
+            "update_no_git": "未偵測到 Git，請先執行 install.bat",
+            "update_latest": "已是最新版本",
+            "update_failed": "更新失敗：{}",
 
             // Language
             "language": "語言",

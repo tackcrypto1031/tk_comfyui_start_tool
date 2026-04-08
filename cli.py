@@ -1,8 +1,18 @@
 """CLI entry point for tack_comfyui_start_tool."""
+import json
+from pathlib import Path
+
 import click
 from rich.console import Console
 
 from src.utils.fs_ops import load_config
+
+def _get_version():
+    vf = Path(__file__).parent / "VERSION.json"
+    if vf.exists():
+        with open(vf, "r", encoding="utf-8") as f:
+            return json.load(f).get("version", "0.0.0")
+    return "0.0.0"
 from src.core.env_manager import EnvManager
 from src.core.snapshot_manager import SnapshotManager
 from src.core.version_controller import VersionController
@@ -13,7 +23,7 @@ console = Console()
 
 
 @click.group()
-@click.version_option(version="0.1.0", prog_name="tack_comfyui_start_tool")
+@click.version_option(version=_get_version(), prog_name="tack_comfyui_start_tool")
 @click.option("--config", default="config.json", help="Path to config file.")
 @click.pass_context
 def cli(ctx, config):

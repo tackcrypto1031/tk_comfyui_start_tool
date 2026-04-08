@@ -179,6 +179,11 @@ var BridgeAPI = (function() {
         openFolder: function(envName, subfolder) { return callSlot('open_folder', envName, subfolder); },
         openUrl: function(url) { return callSlot('open_url', url); },
 
+        // Updater
+        checkUpdate: function() { return callSlot('check_update'); },
+        doUpdate: function(onProgress) { return callAsync('do_update', {onProgress: onProgress}); },
+        restartApp: function() { return callSlot('restart_app'); },
+
         // Version Manager (Python/CUDA)
         detectGpu: function() { return callSlot('detect_gpu'); },
         getVersionLists: function() { return callSlot('get_version_lists'); },

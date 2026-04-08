@@ -596,6 +596,46 @@
     color: #f87171;
 }
 
+/* ── Version Block ── */
+.version-block {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid rgba(51, 51, 51, 0.25);
+    border-radius: 6px;
+    padding: 7px 12px;
+    margin-bottom: 10px;
+    cursor: default;
+    transition: all 0.2s;
+}
+.version-block.has-update {
+    cursor: pointer;
+    border-color: rgba(204, 151, 255, 0.3);
+}
+.version-block.has-update:hover {
+    border-color: rgba(204, 151, 255, 0.5);
+    background-color: rgba(204, 151, 255, 0.05);
+}
+.version-block .version-label {
+    font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: rgba(171, 171, 171, 0.5);
+}
+.version-block .version-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #ff6e84;
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    display: none;
+}
+.version-block.has-update .version-dot {
+    display: block;
+}
+
 /* ── CJK / zh-Hant Language Overrides ─────────────────── */
 
 /* Font: use Microsoft JhengHei for Chinese */

@@ -5,6 +5,7 @@ const App = (function() {
 
     var currentPage = null;
     var pageModules = {};  // Registered by page scripts
+    var _updateInfo = null;  // Cached update check result
 
     // ── Page Registration ──
 
@@ -233,6 +234,125 @@ const App = (function() {
         }
     }
 
+    // ── Version Check & Update ──
+
+    function _checkUpdate() {
+        BridgeAPI.checkUpdate().then(function(info) {
+            console.log('Update check:', JSON.stringify(info));
+            var label = document.getElementById('version-label');
+            if (label) label.textContent = 'v' + info.local_version;
+            if (info.has_update) {
+                _updateInfo = info;
+                var block = document.getElementById('version-block');
+                if (block) block.classList.add('has-update');
+            }
+        }).catch(function(e) {
+            console.warn('Update check failed:', e);
+        });
+    }
+
+    function _showUpdateModal() {
+        if (!_updateInfo) {
+            showToast(t('update_latest'), 'info');
+            return;
+        }
+
+        if (!_updateInfo.git_available) {
+            showToast(t('update_no_git'), 'error');
+            return;
+        }
+
+        var changesHtml = '';
+        if (_updateInfo.changes && _updateInfo.changes.length > 0) {
+            changesHtml = '<div class="mt-4"><div class="text-[12px] font-label uppercase tracking-wider text-on-surface-variant mb-2">' + t('update_changes') + '</div>'
+                + '<ul class="space-y-1 text-[13px] text-on-surface-variant">';
+            _updateInfo.changes.forEach(function(c) {
+                changesHtml += '<li class="flex items-start gap-2"><span class="text-primary mt-0.5">•</span><span>' + c + '</span></li>';
+            });
+            changesHtml += '</ul></div>';
+        }
+
+        var body = '<div>'
+            + '<p class="text-on-surface font-medium">' + t('update_available', _updateInfo.remote_version) + '</p>'
+            + '<p class="text-[12px] text-on-surface-variant mt-1">' + t('update_codename', _updateInfo.codename) + '</p>'
+            + changesHtml
+            + '</div>';
+
+        showModal({
+            title: t('update_available', _updateInfo.remote_version),
+            body: body,
+            buttons: [
+                { text: t('cancel'), class: 'btn-secondary' },
+                { text: t('update_btn'), class: 'btn-primary', closeModal: false, onClick: function() { _doUpdate(); } },
+            ],
+        });
+    }
+
+    function _doUpdate() {
+        // Replace modal content with progress
+        var container = document.getElementById('modal-container');
+        var steps = [
+            { key: 'pull', label: t('update_step_pull') },
+            { key: 'deps', label: t('update_step_deps') },
+            { key: 'restart', label: t('update_step_restart') },
+        ];
+        var completed = {};
+
+        function renderProgress() {
+            var html = '<div class="modal-enter"><div class="px-6 py-4 border-b border-outline/20">'
+                + '<h3 class="font-headline text-sm font-bold uppercase tracking-wider">' + t('update_progress_title') + '</h3>'
+                + '</div><div class="px-6 py-5 space-y-3">';
+            steps.forEach(function(s) {
+                var icon, cls;
+                if (completed[s.key] === 'done') {
+                    icon = '✓'; cls = 'text-primary';
+                } else if (completed[s.key] === 'active') {
+                    icon = '●'; cls = 'text-primary animate-pulse';
+                } else {
+                    icon = '○'; cls = 'text-on-surface-variant/40';
+                }
+                html += '<div class="flex items-center gap-3 ' + cls + '">'
+                    + '<span class="text-[14px] w-5 text-center">' + icon + '</span>'
+                    + '<span class="text-[13px]">' + s.label + '</span>'
+                    + '</div>';
+            });
+            html += '</div></div>';
+            container.innerHTML = html;
+        }
+
+        // Disable overlay click to close
+        var overlay = document.getElementById('modal-overlay');
+        overlay.onclick = null;
+
+        completed['pull'] = 'active';
+        renderProgress();
+
+        BridgeAPI.doUpdate(function(progress) {
+            // onProgress callback
+            if (progress.step === 'pull' && progress.percent >= 40) {
+                completed['pull'] = 'done';
+                completed['deps'] = 'active';
+                renderProgress();
+            }
+            if (progress.step === 'deps' && progress.percent >= 90) {
+                completed['deps'] = 'done';
+                completed['restart'] = 'active';
+                renderProgress();
+            }
+        }).then(function() {
+            completed['deps'] = 'done';
+            completed['restart'] = 'active';
+            renderProgress();
+            // Trigger restart after a brief pause
+            setTimeout(function() {
+                BridgeAPI.restartApp();
+            }, 1000);
+        }).catch(function(e) {
+            hideModal();
+            showToast(t('update_failed', e), 'error');
+        });
+    }
+
     // ── Initialization ──
 
     function init() {
@@ -251,6 +371,8 @@ const App = (function() {
             return BridgeAPI.debugInfo();
         }).then(function(info) {
             console.log('Bridge debug:', JSON.stringify(info));
+            // Background version check (non-blocking)
+            _checkUpdate();
         }).catch(function(e) {
             console.warn('Init failed:', e);
             showToast('Backend connection failed: ' + e, 'error');
@@ -266,6 +388,14 @@ const App = (function() {
                 navigate(item.dataset.page);
             });
         });
+
+        // Version block click
+        var versionBlock = document.getElementById('version-block');
+        if (versionBlock) {
+            versionBlock.addEventListener('click', function() {
+                _showUpdateModal();
+            });
+        }
 
         // Language switcher
         var langSwitcher = document.getElementById('lang-switcher');

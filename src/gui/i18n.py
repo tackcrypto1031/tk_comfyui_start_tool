@@ -13,6 +13,19 @@ TRANSLATIONS = {
         "sidebar_versions": "Versions",
         "sidebar_snapshots": "Snapshots",
 
+        # Update
+        "update_available": "New version v{} available",
+        "update_codename": "Codename: {}",
+        "update_changes": "Changes:",
+        "update_btn": "Update Now",
+        "update_progress_title": "Updating...",
+        "update_step_pull": "Pulling latest code",
+        "update_step_deps": "Installing dependencies",
+        "update_step_restart": "Restarting",
+        "update_no_git": "Git not found. Please run install.bat first.",
+        "update_latest": "Already up to date.",
+        "update_failed": "Update failed: {}",
+
         # Language
         "language": "Language",
 
@@ -190,6 +203,19 @@ TRANSLATIONS = {
         "sidebar_plugins": "插件管理",
         "sidebar_versions": "版本控制",
         "sidebar_snapshots": "快照管理",
+
+        # Update
+        "update_available": "新版本 v{} 可用",
+        "update_codename": "代號：{}",
+        "update_changes": "更新內容：",
+        "update_btn": "立即更新",
+        "update_progress_title": "正在更新...",
+        "update_step_pull": "拉取最新代碼",
+        "update_step_deps": "安裝依賴中",
+        "update_step_restart": "重啟工具",
+        "update_no_git": "未偵測到 Git，請先執行 install.bat",
+        "update_latest": "已是最新版本",
+        "update_failed": "更新失敗：{}",
 
         # Language
         "language": "語言",
