@@ -3,7 +3,10 @@ import subprocess
 from unittest.mock import patch, MagicMock
 import pytest
 
-from src.utils.git_ops import clone_repo, get_current_commit, get_branches, get_log, checkout, pull
+from src.utils.git_ops import (
+    clone_repo, get_current_commit, get_branches, get_log, checkout, pull,
+    get_remote_head_for_current_branch, has_remote_updates,
+)
 import src.utils.git_ops as git_ops
 
 
@@ -21,7 +24,9 @@ class TestCloneRepo:
 
         result = clone_repo(COMFYUI_URL, str(dest))
 
-        mock_clone.assert_called_once_with(COMFYUI_URL, str(dest), branch="master")
+        mock_clone.assert_called_once_with(
+            COMFYUI_URL, str(dest), branch="master", progress=None
+        )
         assert result == mock_repo
 
     @patch("src.utils.git_ops.git.Repo.clone_from")
@@ -32,7 +37,9 @@ class TestCloneRepo:
 
         clone_repo(COMFYUI_URL, str(dest), branch="develop")
 
-        mock_clone.assert_called_once_with(COMFYUI_URL, str(dest), branch="develop")
+        mock_clone.assert_called_once_with(
+            COMFYUI_URL, str(dest), branch="develop", progress=None
+        )
 
     @patch("src.utils.git_ops.git.Repo.clone_from")
     def test_clone_with_commit(self, mock_clone, tmp_path):
@@ -168,3 +175,74 @@ def test_list_remote_tags_empty_output():
         mock_git_cls.return_value.ls_remote.return_value = ""
         result = git_ops.list_remote_tags("https://example.com/repo.git")
     assert result == []
+
+
+@patch("src.utils.git_ops.git.Repo")
+def test_get_remote_head_for_current_branch_prefers_active_branch(mock_repo_cls):
+    mock_repo = MagicMock()
+    mock_repo.head.is_detached = False
+    mock_repo.active_branch.name = "main"
+    mock_repo.git.ls_remote.return_value = "abc123\trefs/heads/main\n"
+    mock_repo_cls.return_value = mock_repo
+
+    result = get_remote_head_for_current_branch("/path/to/repo")
+
+    assert result == "abc123"
+    mock_repo.git.ls_remote.assert_called_once_with("--heads", "origin", "refs/heads/main")
+
+
+@patch("src.utils.git_ops.git.Repo")
+def test_get_remote_head_for_current_branch_ignores_partial_branch_matches(mock_repo_cls):
+    mock_repo = MagicMock()
+    mock_repo.head.is_detached = False
+    mock_repo.active_branch.name = "main"
+    mock_repo.git.ls_remote.return_value = (
+        "bad111\trefs/heads/user/main\n"
+        "good222\trefs/heads/main\n"
+    )
+    mock_repo_cls.return_value = mock_repo
+
+    result = get_remote_head_for_current_branch("/path/to/repo")
+
+    assert result == "good222"
+
+
+@patch("src.utils.git_ops.git.Repo")
+def test_get_remote_head_for_current_branch_falls_back_to_origin_head(mock_repo_cls):
+    mock_repo = MagicMock()
+    mock_repo.head.is_detached = False
+    mock_repo.active_branch.name = "main"
+    mock_repo.git.ls_remote.side_effect = [
+        "",
+        "def456\tHEAD\n",
+    ]
+    mock_repo_cls.return_value = mock_repo
+
+    result = get_remote_head_for_current_branch("/path/to/repo")
+
+    assert result == "def456"
+    assert mock_repo.git.ls_remote.call_count == 2
+
+
+@patch("src.utils.git_ops.get_remote_head_for_current_branch")
+@patch("src.utils.git_ops.get_current_commit")
+def test_has_remote_updates_true(mock_get_current_commit, mock_get_remote):
+    mock_get_current_commit.return_value = "abc123"
+    mock_get_remote.return_value = "def456"
+    assert has_remote_updates("/path/to/repo") is True
+
+
+@patch("src.utils.git_ops.get_remote_head_for_current_branch")
+@patch("src.utils.git_ops.get_current_commit")
+def test_has_remote_updates_false(mock_get_current_commit, mock_get_remote):
+    mock_get_current_commit.return_value = "abc123"
+    mock_get_remote.return_value = "abc123"
+    assert has_remote_updates("/path/to/repo") is False
+
+
+@patch("src.utils.git_ops.get_remote_head_for_current_branch")
+@patch("src.utils.git_ops.get_current_commit")
+def test_has_remote_updates_unknown_when_remote_unresolved(mock_get_current_commit, mock_get_remote):
+    mock_get_current_commit.return_value = "abc123"
+    mock_get_remote.return_value = None
+    assert has_remote_updates("/path/to/repo") is None

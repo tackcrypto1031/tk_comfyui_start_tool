@@ -72,6 +72,63 @@ def pull(repo_path: str) -> None:
     repo.remotes.origin.pull()
 
 
+def get_remote_head_for_current_branch(repo_path: str) -> Optional[str]:
+    """Best-effort remote HEAD commit for the current branch.
+
+    Returns full commit hash string, or None when it cannot be resolved.
+    """
+    try:
+        repo = git.Repo(repo_path)
+    except Exception:
+        return None
+
+    def _extract_ref_hash(output: str, expected_ref: str) -> Optional[str]:
+        """Return hash for exact ref match from ls-remote output."""
+        for raw_line in (output or "").splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            parts = line.split()
+            if len(parts) >= 2 and parts[1] == expected_ref:
+                return parts[0]
+        return None
+
+    try:
+        if not repo.head.is_detached:
+            branch = repo.active_branch.name
+            # Query exact ref to avoid partial matches like refs/heads/*/main.
+            expected_ref = f"refs/heads/{branch}"
+            output = repo.git.ls_remote("--heads", "origin", expected_ref)
+            branch_head = _extract_ref_hash(output, expected_ref)
+            if branch_head:
+                return branch_head
+
+        output = repo.git.ls_remote("origin", "HEAD")
+        if output and output.strip():
+            return output.strip().split()[0]
+    except Exception:
+        return None
+
+    return None
+
+
+def has_remote_updates(repo_path: str) -> Optional[bool]:
+    """Return True if remote branch head differs from local HEAD.
+
+    Returns:
+        True/False when check succeeds, or None when status is unknown.
+    """
+    try:
+        local = get_current_commit(repo_path)
+        remote = get_remote_head_for_current_branch(repo_path)
+    except Exception:
+        return None
+
+    if not remote:
+        return None
+    return local != remote
+
+
 def list_remote_tags(url: str) -> list:
     """Fetch tags from remote repo via ls-remote. Returns list of dicts [{name, hash}].
     Sorted by version number descending (newest first). Falls back to alphabetical if not semver."""

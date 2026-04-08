@@ -633,11 +633,18 @@ class EnvManager:
             else:
                 status = "enabled"
 
+            has_update = None
+            if status == "enabled" and entry.get("repo_url"):
+                node_path = custom_nodes_dir / entry["name"]
+                if node_path.exists():
+                    has_update = git_ops.has_remote_updates(str(node_path))
+
             result.append({
                 "name": entry["name"],
                 "status": status,
                 "repo_url": entry.get("repo_url", ""),
                 "commit": entry.get("commit", ""),
+                "has_update": has_update,
             })
 
         return result

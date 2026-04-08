@@ -4,7 +4,6 @@
 (function() {
 
     var lastRiskLevel = null;
-    var updatedPlugins = {};
 
     function render(container) {
         container.innerHTML = `
@@ -178,7 +177,7 @@
                 toggleIcon = 'block';
             }
 
-            var canUpdate = status === 'enabled' && plugin.repo_url && !updatedPlugins[envName + '/' + nodeName];
+            var canUpdate = status === 'enabled' && plugin.repo_url && plugin.has_update === true;
             var updateBtnHtml = canUpdate
                 ? '<button class="btn btn-sm plug-update-btn" data-name="' + escapeHtml(nodeName) + '" title="' + t('plugin_update') + '" style="width:32px;padding:4px 6px;background:transparent;border:1px solid #4ade80;color:#4ade80"><span class="material-symbols-outlined text-[16px]">arrow_upward</span></button>'
                 : '<span style="display:inline-block;width:32px"></span>';
@@ -281,10 +280,8 @@
             if (result && result.updated) {
                 App.showToast(t('plugin_updated_success', nodeName), 'success');
                 showRestartHint();
-                updatedPlugins[envName + '/' + nodeName] = true;
             } else {
                 App.showToast(t('plugin_already_latest', nodeName), 'info');
-                updatedPlugins[envName + '/' + nodeName] = true;
             }
             loadPlugins();
             statusEl.textContent = '';
@@ -309,7 +306,6 @@
             if (!result || result.total === 0) {
                 App.showToast(t('plugin_update_all_no_targets'), 'info');
             } else {
-                updatedPlugins = {};
                 App.showToast(
                     t('plugin_update_all_result', result.updated, result.skipped, result.failed),
                     result.failed > 0 ? 'warning' : 'success'
