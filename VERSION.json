@@ -1,19 +1,16 @@
 {
-  "version": "0.1.6",
+  "version": "0.1.7",
   "min_python": "3.10",
-  "release_notes": "以自訂下拉元件取代原生 select，修復部分電腦下拉框無限長大問題",
+  "release_notes": "修復部分電腦建立環境失敗的 Git 路徑問題",
   "changes": [
-    "以自訂下拉元件取代原生 select 彈出視窗，修復部分電腦下拉框無限長大的問題",
-    "修復啟動器頁面環境標題重複顯示"
+    "修復部分電腦因系統 Git 環境變數干擾導致建立環境失敗的問題"
   ],
   "changes_i18n": {
     "en": [
-      "Replaced native select popups with custom dropdown component to fix infinite growth issue on some computers",
-      "Fixed duplicate environment title on launcher page"
+      "Fixed environment creation failure on some computers caused by system Git environment variable interference"
     ],
     "zh-TW": [
-      "以自訂下拉元件取代原生 select 彈出視窗，修復部分電腦下拉框無限長大的問題",
-      "修復啟動器頁面環境標題重複顯示"
+      "修復部分電腦因系統 Git 環境變數干擾導致建立環境失敗的問題"
     ]
   }
 }

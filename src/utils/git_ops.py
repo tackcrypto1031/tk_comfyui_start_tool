@@ -21,6 +21,12 @@ if sys.platform == "win32":
     # GitPython uses subprocess internally; this prevents console windows
     os.environ["GIT_TERMINAL_PROMPT"] = "0"
 
+# Clear environment variables that can override GitPython's repo detection.
+# On some machines GIT_DIR / GIT_WORK_TREE may be set globally, causing
+# operations to target the wrong directory (e.g. the portable git folder).
+for _var in ("GIT_DIR", "GIT_WORK_TREE", "GIT_CEILING_DIRECTORIES"):
+    os.environ.pop(_var, None)
+
 
 def clone_repo(url: str, dest: str, branch: str = "master",
                commit: Optional[str] = None,
