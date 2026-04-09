@@ -331,7 +331,7 @@ class EnvManager:
 
     def clone_environment(self, source: str, new_name: str, as_sandbox: bool = True,
                           progress_callback=None) -> Environment:
-        """Clone an environment using new venv + pip install freeze.txt strategy."""
+        """Clone an environment by copying the entire directory."""
         self._validate_name(new_name)
 
         source_dir = self.environments_dir / source
@@ -353,64 +353,34 @@ class EnvManager:
         snap_mgr = SnapshotManager(self.config)
         snap_mgr.create_snapshot(source, trigger="clone")
 
-        target_dir.mkdir(parents=True)
         try:
-            # 1. Create new venv
-            _report("venv", 5, "Creating virtual environment...")
+            # 1. Copy entire directory
+            _report("copy", 10, "Copying environment directory...")
+            shutil.copytree(str(source_dir), str(target_dir))
+
+            # 2. Fix venv paths (pyvenv.cfg and Scripts) to point to new location
+            _report("fixup", 70, "Updating virtual environment paths...")
             venv_path = target_dir / "venv"
-            source_python = pip_ops.get_venv_python(str(source_dir / "venv"))
-            if isinstance(source_python, str) and Path(source_python).exists():
-                pip_ops.create_venv(str(venv_path), python_executable=source_python)
-            else:
-                pip_ops.create_venv(str(venv_path))
+            self._fix_venv_paths(venv_path, source_dir, target_dir)
 
-            # 2. Export source freeze and install
-            _report("dependencies", 15, "Installing packages from freeze...")
-            source_freeze = pip_ops.freeze(str(source_dir / "venv"))
-            if source_freeze:
-                freeze_file = target_dir / "freeze.txt"
-                lines = [f"{pkg}=={ver}" for pkg, ver in source_freeze.items()]
-                freeze_file.write_text("\n".join(lines), encoding="utf-8")
-                pip_ops.run_pip_with_progress(
-                    str(venv_path), ["install", "-r", str(freeze_file)],
-                    progress_callback=lambda line: _report("dependencies", 15, line),
-                )
-
-            # 3. Clone ComfyUI to same commit
-            _report("clone", 55, "Cloning ComfyUI repository...")
+            # 3. Regenerate extra_model_paths.yaml (absolute paths change)
+            _report("finalize", 85, "Updating model paths...")
             comfyui_path = target_dir / "ComfyUI"
-            git_ops.clone_repo(
-                self.comfyui_url, str(comfyui_path),
-                branch=source_env.comfyui_branch,
-                commit=source_env.comfyui_commit,
-                progress_callback=lambda pct, msg: _report(
-                    "clone", 55 + int(pct * 0.2), msg or "Cloning ComfyUI repository..."
-                ),
-            )
+            if comfyui_path.exists():
+                self._generate_extra_model_paths(comfyui_path)
 
-            # 4. Clone custom_nodes to same commits
-            _report("manager", 75, "Cloning custom nodes...")
-            for node in source_env.custom_nodes:
-                if node.get("repo_url"):
-                    node_dest = comfyui_path / "custom_nodes" / node["name"]
-                    git_ops.clone_repo(
-                        node["repo_url"], str(node_dest),
-                        commit=node.get("commit"),
-                    )
-
-            # 5. Generate extra_model_paths.yaml
-            _report("finalize", 90, "Saving environment metadata...")
-            self._generate_extra_model_paths(comfyui_path)
-
-            # 6. Write env_meta.json
+            # 4. Write updated env_meta.json
+            _report("finalize", 95, "Saving environment metadata...")
             now = datetime.now(timezone.utc).isoformat()
             new_env = Environment(
                 name=new_name,
                 created_at=now,
                 comfyui_commit=source_env.comfyui_commit,
                 comfyui_branch=source_env.comfyui_branch,
-                python_version=pip_ops.get_python_version(str(venv_path)),
-                pip_freeze=pip_ops.freeze(str(venv_path)),
+                python_version=source_env.python_version,
+                cuda_tag=source_env.cuda_tag,
+                pytorch_version=source_env.pytorch_version,
+                pip_freeze=source_env.pip_freeze,
                 custom_nodes=source_env.custom_nodes,
                 is_sandbox=as_sandbox,
                 parent_env=source,
@@ -424,6 +394,21 @@ class EnvManager:
             if target_dir.exists():
                 shutil.rmtree(target_dir, ignore_errors=True)
             raise
+
+    @staticmethod
+    def _fix_venv_paths(venv_path: Path, old_root: Path, new_root: Path) -> None:
+        """Update venv internal paths after copying to a new location."""
+        # Fix pyvenv.cfg — not all keys contain paths, only rewrite path-like values
+        cfg_path = venv_path / "pyvenv.cfg"
+        if cfg_path.exists():
+            old_str = str(old_root)
+            new_str = str(new_root)
+            text = cfg_path.read_text(encoding="utf-8")
+            text = text.replace(old_str, new_str)
+            # Also handle forward-slash variant
+            text = text.replace(old_str.replace("\\", "/"),
+                                new_str.replace("\\", "/"))
+            cfg_path.write_text(text, encoding="utf-8")
 
     def merge_env(self, source: str, target: str, strategy: str = "add") -> dict:
         """Merge changes from source environment into target environment.
@@ -470,8 +455,14 @@ class EnvManager:
         # Install new/changed packages
         packages_to_install = {**new_packages, **changed_packages}
         if packages_to_install:
-            install_args = [f"{pkg}=={ver}" for pkg, ver in packages_to_install.items()]
-            install_result = pip_ops.run_pip(str(target_dir / "venv"), ["install"] + install_args)
+            install_args = ["install"]
+            # Add PyTorch CUDA wheel index when source env uses CUDA builds
+            cuda_tag = source_env.cuda_tag or target_env.cuda_tag
+            if cuda_tag:
+                pytorch_index = f"https://download.pytorch.org/whl/{cuda_tag}"
+                install_args += ["--extra-index-url", pytorch_index]
+            install_args += [f"{pkg}=={ver}" for pkg, ver in packages_to_install.items()]
+            install_result = pip_ops.run_pip(str(target_dir / "venv"), install_args)
             if install_result.returncode != 0:
                 detail = (install_result.stderr or install_result.stdout or "unknown error").strip()
                 raise RuntimeError(f"Failed to install merged packages: {detail}")

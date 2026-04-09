@@ -318,18 +318,14 @@ class TestEnsureSharedModels:
 class TestCloneEnvironment:
     """Test environment cloning."""
 
-    @patch("src.core.env_manager.pip_ops")
-    @patch("src.core.env_manager.git_ops")
+    @patch("src.core.env_manager.shutil.copytree")
     @patch("src.core.env_manager.SnapshotManager")
-    def test_clone_basic(self, mock_snap_cls, mock_git, mock_pip, sample_config):
+    def test_clone_basic(self, mock_snap_cls, mock_copytree, sample_config):
         """Cloned env has is_sandbox=True and parent_env=source."""
         _create_mock_env(sample_config["environments_dir"], "main")
-        mock_git.clone_repo.return_value = MagicMock()
-        mock_pip.freeze.return_value = {"torch": "2.3.1"}
-        mock_pip.get_python_version.return_value = "3.11.9"
-        mock_pip.run_pip.return_value = MagicMock(returncode=0)
-        mock_pip.create_venv.return_value = None
         mock_snap_cls.return_value.create_snapshot.return_value = MagicMock()
+        # copytree is mocked, so create target dir so save_meta can write
+        mock_copytree.side_effect = lambda src, dst: Path(dst).mkdir(parents=True, exist_ok=True)
 
         manager = EnvManager(sample_config)
         env = manager.clone_environment("main", "main-sandbox")
@@ -338,104 +334,62 @@ class TestCloneEnvironment:
         assert env.is_sandbox is True
         assert env.parent_env == "main"
 
-    @patch("src.core.env_manager.pip_ops")
-    @patch("src.core.env_manager.git_ops")
+    @patch("src.core.env_manager.shutil.copytree")
     @patch("src.core.env_manager.SnapshotManager")
-    def test_clone_creates_new_venv(self, mock_snap_cls, mock_git, mock_pip, sample_config):
-        """Clone creates a fresh venv rather than copying."""
+    def test_clone_copies_directory(self, mock_snap_cls, mock_copytree, sample_config):
+        """Clone copies the entire source directory."""
         _create_mock_env(sample_config["environments_dir"], "main")
-        mock_git.clone_repo.return_value = MagicMock()
-        mock_pip.freeze.return_value = {}
-        mock_pip.get_python_version.return_value = "3.11.9"
-        mock_pip.run_pip.return_value = MagicMock(returncode=0)
         mock_snap_cls.return_value.create_snapshot.return_value = MagicMock()
+        mock_copytree.side_effect = lambda src, dst: Path(dst).mkdir(parents=True, exist_ok=True)
 
         manager = EnvManager(sample_config)
         manager.clone_environment("main", "main-sandbox")
 
-        target_venv = str(Path(sample_config["environments_dir"]) / "main-sandbox" / "venv")
-        mock_pip.create_venv.assert_called_once_with(target_venv)
+        source_dir = str(Path(sample_config["environments_dir"]) / "main")
+        target_dir = str(Path(sample_config["environments_dir"]) / "main-sandbox")
+        mock_copytree.assert_called_once_with(source_dir, target_dir)
 
-    @patch("src.core.env_manager.pip_ops")
-    @patch("src.core.env_manager.git_ops")
+    @patch("src.core.env_manager.shutil.copytree")
     @patch("src.core.env_manager.SnapshotManager")
-    def test_clone_prefers_source_python_for_new_venv(self, mock_snap_cls, mock_git, mock_pip, sample_config):
-        """Clone should create the new venv with the source environment's python.exe when present."""
-        source_dir = _create_mock_env(sample_config["environments_dir"], "main")
-        source_python = source_dir / "venv" / "Scripts" / "python.exe"
-        source_python.parent.mkdir(parents=True, exist_ok=True)
-        source_python.touch()
+    def test_clone_preserves_metadata(self, mock_snap_cls, mock_copytree, sample_config):
+        """Clone preserves cuda_tag and pytorch_version from source."""
+        env_dir = _create_mock_env(sample_config["environments_dir"], "main")
+        meta_path = env_dir / "env_meta.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        meta["cuda_tag"] = "cu130"
+        meta["pytorch_version"] = "2.9.1+cu130"
+        meta_path.write_text(json.dumps(meta), encoding="utf-8")
 
-        mock_git.clone_repo.return_value = MagicMock()
-        mock_pip.freeze.return_value = {}
-        mock_pip.get_python_version.return_value = "3.11.9"
-        mock_pip.get_venv_python.return_value = str(source_python)
-        mock_pip.run_pip.return_value = MagicMock(returncode=0)
         mock_snap_cls.return_value.create_snapshot.return_value = MagicMock()
-
-        manager = EnvManager(sample_config)
-        manager.clone_environment("main", "main-sandbox")
-
-        target_venv = str(Path(sample_config["environments_dir"]) / "main-sandbox" / "venv")
-        mock_pip.create_venv.assert_called_once_with(
-            target_venv, python_executable=str(source_python)
-        )
-
-    @patch("src.core.env_manager.pip_ops")
-    @patch("src.core.env_manager.git_ops")
-    @patch("src.core.env_manager.SnapshotManager")
-    def test_clone_installs_from_freeze(self, mock_snap_cls, mock_git, mock_pip, sample_config):
-        """Clone runs pip install -r freeze.txt from source freeze."""
-        _create_mock_env(sample_config["environments_dir"], "main")
-        mock_git.clone_repo.return_value = MagicMock()
-        mock_pip.freeze.return_value = {"torch": "2.3.1", "numpy": "1.26.4"}
-        mock_pip.get_python_version.return_value = "3.11.9"
-        mock_pip.run_pip.return_value = MagicMock(returncode=0)
-        mock_snap_cls.return_value.create_snapshot.return_value = MagicMock()
-
-        manager = EnvManager(sample_config)
-        manager.clone_environment("main", "main-sandbox")
-
-        # Verify pip install -r was called with a freeze file
-        install_calls = [
-            c for c in mock_pip.run_pip_with_progress.call_args_list
-            if "install" in c[0][1] and "-r" in c[0][1]
-        ]
-        assert len(install_calls) >= 1
-
-    @patch("src.core.env_manager.pip_ops")
-    @patch("src.core.env_manager.git_ops")
-    @patch("src.core.env_manager.SnapshotManager")
-    def test_clone_comfyui_same_commit(self, mock_snap_cls, mock_git, mock_pip, sample_config):
-        """Cloned env has same ComfyUI commit as source."""
-        _create_mock_env(sample_config["environments_dir"], "main")
-        mock_git.clone_repo.return_value = MagicMock()
-        mock_pip.freeze.return_value = {}
-        mock_pip.get_python_version.return_value = "3.11.9"
-        mock_pip.run_pip.return_value = MagicMock(returncode=0)
-        mock_snap_cls.return_value.create_snapshot.return_value = MagicMock()
+        mock_copytree.side_effect = lambda src, dst: Path(dst).mkdir(parents=True, exist_ok=True)
 
         manager = EnvManager(sample_config)
         env = manager.clone_environment("main", "main-sandbox")
 
-        # Source env has comfyui_commit "abc1234" from _create_mock_env
-        assert env.comfyui_commit == "abc1234"
-        # git clone_repo was called with commit="abc1234"
-        clone_call_kwargs = mock_git.clone_repo.call_args
-        assert clone_call_kwargs[1].get("commit") == "abc1234"
+        assert env.cuda_tag == "cu130"
+        assert env.pytorch_version == "2.9.1+cu130"
 
-    @patch("src.core.env_manager.pip_ops")
-    @patch("src.core.env_manager.git_ops")
+    @patch("src.core.env_manager.shutil.copytree")
     @patch("src.core.env_manager.SnapshotManager")
-    def test_clone_auto_snapshot_source(self, mock_snap_cls, mock_git, mock_pip, sample_config):
+    def test_clone_comfyui_same_commit(self, mock_snap_cls, mock_copytree, sample_config):
+        """Cloned env has same ComfyUI commit as source."""
+        _create_mock_env(sample_config["environments_dir"], "main")
+        mock_snap_cls.return_value.create_snapshot.return_value = MagicMock()
+        mock_copytree.side_effect = lambda src, dst: Path(dst).mkdir(parents=True, exist_ok=True)
+
+        manager = EnvManager(sample_config)
+        env = manager.clone_environment("main", "main-sandbox")
+
+        assert env.comfyui_commit == "abc1234"
+
+    @patch("src.core.env_manager.shutil.copytree")
+    @patch("src.core.env_manager.SnapshotManager")
+    def test_clone_auto_snapshot_source(self, mock_snap_cls, mock_copytree, sample_config):
         """A snapshot is created on the source environment before cloning."""
         _create_mock_env(sample_config["environments_dir"], "main")
-        mock_git.clone_repo.return_value = MagicMock()
-        mock_pip.freeze.return_value = {}
-        mock_pip.get_python_version.return_value = "3.11.9"
-        mock_pip.run_pip.return_value = MagicMock(returncode=0)
         mock_snap_instance = mock_snap_cls.return_value
         mock_snap_instance.create_snapshot.return_value = MagicMock()
+        mock_copytree.side_effect = lambda src, dst: Path(dst).mkdir(parents=True, exist_ok=True)
 
         manager = EnvManager(sample_config)
         manager.clone_environment("main", "main-sandbox")
