@@ -431,10 +431,15 @@ const App = (function() {
         }
 
         var changesHtml = '';
-        if (_updateInfo.changes && _updateInfo.changes.length > 0) {
+        var changes = _updateInfo.changes;
+        if (changes && typeof changes === 'object' && !Array.isArray(changes)) {
+            var lang = I18N.getLanguage() || 'en';
+            changes = changes[lang] || changes['zh-TW'] || changes['en'] || [];
+        }
+        if (changes && changes.length > 0) {
             changesHtml = '<div class="mt-4"><div class="text-[12px] font-label uppercase tracking-wider text-on-surface-variant mb-2">' + t('update_changes') + '</div>'
                 + '<ul class="space-y-1 text-[13px] text-on-surface-variant">';
-            _updateInfo.changes.forEach(function(c) {
+            changes.forEach(function(c) {
                 changesHtml += '<li class="flex items-start gap-2"><span class="text-primary mt-0.5">•</span><span>' + c + '</span></li>';
             });
             changesHtml += '</ul></div>';

@@ -3,8 +3,14 @@
   "codename": "The Obsidian Edge",
   "min_python": "3.10",
   "release_notes": "進階設定介面優化",
-  "changes": [
-    "進階設定下拉選單支援中文顯示（Cross Attention、顯存模式、非同步卸載）",
-    "新增參數說明提示圖示，滑鼠懸停可查看各選項用途"
-  ]
+  "changes": {
+    "en": [
+      "Advanced settings dropdowns now display in the selected language (Cross Attention, VRAM Mode, Async Offload)",
+      "Added help tooltip icons for advanced settings — hover to see parameter descriptions"
+    ],
+    "zh-TW": [
+      "進階設定下拉選單支援中文顯示（Cross Attention、顯存模式、非同步卸載）",
+      "新增參數說明提示圖示，滑鼠懸停可查看各選項用途"
+    ]
+  }
 }
