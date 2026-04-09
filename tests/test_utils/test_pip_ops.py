@@ -133,6 +133,37 @@ class TestRunPipWithProgress:
         with pytest.raises(RuntimeError, match="ERROR: No matching distribution found"):
             run_pip_with_progress("dummy-venv", ["install", "-r", "freeze.txt"])
 
+    @patch("src.utils.pip_ops.subprocess.Popen")
+    @patch("src.utils.pip_ops.get_venv_python", return_value="python")
+    def test_error_message_prefers_error_line_over_progress(self, _mock_python, mock_popen):
+        mock_popen.return_value = _FakePopenProc(
+            [
+                b"Collecting markdown-it-py\n",
+                b"ERROR: Could not find a version that satisfies the requirement foo\n",
+                b"Using cached mdurl-0.1.2-py3-none-any.whl\n",
+                b"[notice] To update, run ...\n",
+            ],
+            1,
+        )
+
+        with pytest.raises(RuntimeError, match="Could not find a version"):
+            run_pip_with_progress("dummy-venv", ["install", "-r", "freeze.txt"])
+
+    @patch("src.utils.pip_ops.subprocess.Popen")
+    @patch("src.utils.pip_ops.get_venv_python", return_value="python")
+    def test_error_message_reports_missing_explicit_error_line(self, _mock_python, mock_popen):
+        mock_popen.return_value = _FakePopenProc(
+            [
+                b"Collecting markdown-it-py\n",
+                b"Using cached mdurl-0.1.2-py3-none-any.whl\n",
+                b"[notice] To update, run ...\n",
+            ],
+            1,
+        )
+
+        with pytest.raises(RuntimeError, match="no explicit error line from pip"):
+            run_pip_with_progress("dummy-venv", ["install", "-r", "freeze.txt"])
+
 
 class TestFreeze:
     """Test pip freeze output parsing."""

@@ -284,9 +284,10 @@ const App = (function() {
         if (pctEl) pctEl.textContent = percent + '%';
         if (miniPctEl) miniPctEl.textContent = percent + '%';
         if (detailEl) {
-        var text = detail || '';
-        detailEl.textContent = text.length > 30 ? text.substring(0, 30) + '...' : text;
-    }
+            var text = detail || '';
+            detailEl.textContent = text;
+            detailEl.title = text;
+        }
     }
 
     function hideProgress(id, status) {

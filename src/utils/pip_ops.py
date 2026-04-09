@@ -1,4 +1,5 @@
 """pip operations wrapper."""
+from collections import deque
 import subprocess
 import sys
 from pathlib import Path
@@ -112,8 +113,39 @@ def run_pip_with_progress(venv_path: str, args: list,
         stderr=subprocess.STDOUT,  # merge stderr into stdout to avoid deadlock
         **_SUBPROCESS_KWARGS,
     )
+
+    def _is_notice_line(line: str) -> bool:
+        return line.lower().startswith("[notice]")
+
+    def _looks_like_error_line(line: str) -> bool:
+        low = line.lower()
+        error_markers = (
+            "error:",
+            "fatal:",
+            "traceback",
+            "exception",
+            "failed",
+            "could not",
+            "no matching distribution found",
+            "no versions found",
+            "subprocess-exited-with-error",
+            "readtimeout",
+            "timed out",
+            "proxyerror",
+            "ssl",
+            "connection error",
+            "http error",
+        )
+        return any(marker in low for marker in error_markers)
+
+    def _compact(line: str, limit: int = 160) -> str:
+        if len(line) <= limit:
+            return line
+        return line[:limit - 3] + "..."
+
     last_line = ""
     last_non_notice_line = ""
+    recent_lines = deque(maxlen=40)
     buf = ""
     while True:
         chunk = proc.stdout.read(512)
@@ -133,7 +165,8 @@ def run_pip_with_progress(venv_path: str, args: list,
                     buf = buf[idx + 1:]
                     if line:
                         last_line = line
-                        if not line.lower().startswith("[notice]"):
+                        recent_lines.append(line)
+                        if not _is_notice_line(line):
                             last_non_notice_line = line
                         if progress_callback:
                             progress_callback(line)
@@ -142,13 +175,24 @@ def run_pip_with_progress(venv_path: str, args: list,
     remaining = buf.strip()
     if remaining:
         last_line = remaining
-        if not remaining.lower().startswith("[notice]"):
+        recent_lines.append(remaining)
+        if not _is_notice_line(remaining):
             last_non_notice_line = remaining
         if progress_callback:
             progress_callback(remaining)
     proc.wait()
     if proc.returncode != 0:
-        detail = last_non_notice_line or last_line or "unknown error"
+        non_notice_lines = [line for line in recent_lines if not _is_notice_line(line)]
+        detail = next(
+            (line for line in reversed(non_notice_lines) if _looks_like_error_line(line)),
+            "",
+        )
+        if not detail:
+            if non_notice_lines:
+                tail = " | ".join(_compact(line) for line in non_notice_lines[-4:])
+                detail = f"no explicit error line from pip; output tail: {tail}"
+            else:
+                detail = _compact(last_line) if last_line else "unknown error"
         raise RuntimeError(f"pip failed (exit {proc.returncode}): {detail}")
     return proc
 
