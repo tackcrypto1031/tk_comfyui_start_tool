@@ -46,8 +46,7 @@ AGENTS.md
 CLAUDE.md
 
 # Design & planning docs
-docs/plans/
-docs/launcher-features-reference.md
+docs/
 
 # Embedded tools (installed by install.bat)
 tools/
