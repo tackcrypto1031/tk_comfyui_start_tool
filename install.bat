@@ -101,17 +101,20 @@ echo.
 echo [3/4] 安裝 Python 套件...
 set "PIP_UPGRADE_LOG=%TEMP_DIR%\pip-upgrade.log"
 set "PIP_INSTALL_LOG=%TEMP_DIR%\pip-install.log"
+if exist "%PIP_UPGRADE_LOG%" del /q "%PIP_UPGRADE_LOG%" >nul 2>&1
+if exist "%PIP_INSTALL_LOG%" del /q "%PIP_INSTALL_LOG%" >nul 2>&1
+echo       首次安裝可能需數分鐘，下載進度將顯示在下方。
 
-"%PYTHON_DIR%\python.exe" -m pip install --upgrade pip >"%PIP_UPGRADE_LOG%" 2>&1
+"%PYTHON_DIR%\python.exe" -m pip install --upgrade pip --progress-bar on --log "%PIP_UPGRADE_LOG%"
 if errorlevel 1 (
     echo       [WARN] pip upgrade failed, continue with current pip.
     echo       Log: %PIP_UPGRADE_LOG%
 )
 
-"%PYTHON_DIR%\python.exe" -m pip install -r "%ROOT%requirements.txt" >"%PIP_INSTALL_LOG%" 2>&1
+"%PYTHON_DIR%\python.exe" -m pip install -r "%ROOT%requirements.txt" --progress-bar on --log "%PIP_INSTALL_LOG%"
 if errorlevel 1 (
     echo       Standard install failed, retrying with trusted-host...
-    "%PYTHON_DIR%\python.exe" -m pip install -r "%ROOT%requirements.txt" --trusted-host pypi.org --trusted-host files.pythonhosted.org --trusted-host pypi.python.org >>"%PIP_INSTALL_LOG%" 2>&1
+    "%PYTHON_DIR%\python.exe" -m pip install -r "%ROOT%requirements.txt" --trusted-host pypi.org --trusted-host files.pythonhosted.org --trusted-host pypi.python.org --progress-bar on --log "%PIP_INSTALL_LOG%"
     if errorlevel 1 (
         goto :pip_requirements_failed
     )
