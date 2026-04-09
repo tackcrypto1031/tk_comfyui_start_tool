@@ -359,6 +359,31 @@ class TestCloneEnvironment:
     @patch("src.core.env_manager.pip_ops")
     @patch("src.core.env_manager.git_ops")
     @patch("src.core.env_manager.SnapshotManager")
+    def test_clone_prefers_source_python_for_new_venv(self, mock_snap_cls, mock_git, mock_pip, sample_config):
+        """Clone should create the new venv with the source environment's python.exe when present."""
+        source_dir = _create_mock_env(sample_config["environments_dir"], "main")
+        source_python = source_dir / "venv" / "Scripts" / "python.exe"
+        source_python.parent.mkdir(parents=True, exist_ok=True)
+        source_python.touch()
+
+        mock_git.clone_repo.return_value = MagicMock()
+        mock_pip.freeze.return_value = {}
+        mock_pip.get_python_version.return_value = "3.11.9"
+        mock_pip.get_venv_python.return_value = str(source_python)
+        mock_pip.run_pip.return_value = MagicMock(returncode=0)
+        mock_snap_cls.return_value.create_snapshot.return_value = MagicMock()
+
+        manager = EnvManager(sample_config)
+        manager.clone_environment("main", "main-sandbox")
+
+        target_venv = str(Path(sample_config["environments_dir"]) / "main-sandbox" / "venv")
+        mock_pip.create_venv.assert_called_once_with(
+            target_venv, python_executable=str(source_python)
+        )
+
+    @patch("src.core.env_manager.pip_ops")
+    @patch("src.core.env_manager.git_ops")
+    @patch("src.core.env_manager.SnapshotManager")
     def test_clone_installs_from_freeze(self, mock_snap_cls, mock_git, mock_pip, sample_config):
         """Clone runs pip install -r freeze.txt from source freeze."""
         _create_mock_env(sample_config["environments_dir"], "main")

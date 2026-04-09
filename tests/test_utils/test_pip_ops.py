@@ -5,7 +5,14 @@ from unittest.mock import patch, MagicMock
 from pathlib import Path
 import pytest
 
-from src.utils.pip_ops import create_venv, get_python_version, run_pip, freeze, get_venv_python
+from src.utils.pip_ops import (
+    create_venv,
+    get_python_version,
+    run_pip,
+    run_pip_with_progress,
+    freeze,
+    get_venv_python,
+)
 
 
 class TestGetVenvPython:
@@ -93,6 +100,38 @@ class TestRunPip:
         call_args = mock_run.call_args[0][0]
         assert "-m" in call_args
         assert "pip" in call_args
+
+
+class _FakeStdout:
+    def __init__(self, chunks):
+        self._chunks = list(chunks)
+
+    def read(self, _size):
+        if self._chunks:
+            return self._chunks.pop(0)
+        return b""
+
+
+class _FakePopenProc:
+    def __init__(self, chunks, returncode):
+        self.stdout = _FakeStdout(chunks)
+        self.returncode = returncode
+
+    def wait(self):
+        return self.returncode
+
+
+class TestRunPipWithProgress:
+    @patch("src.utils.pip_ops.subprocess.Popen")
+    @patch("src.utils.pip_ops.get_venv_python", return_value="python")
+    def test_error_message_prefers_non_notice_line(self, _mock_python, mock_popen):
+        mock_popen.return_value = _FakePopenProc(
+            [b"ERROR: No matching distribution found\n", b"[notice] To update, run ...\n"],
+            1,
+        )
+
+        with pytest.raises(RuntimeError, match="ERROR: No matching distribution found"):
+            run_pip_with_progress("dummy-venv", ["install", "-r", "freeze.txt"])
 
 
 class TestFreeze:

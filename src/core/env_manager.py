@@ -358,7 +358,11 @@ class EnvManager:
             # 1. Create new venv
             _report("venv", 5, "Creating virtual environment...")
             venv_path = target_dir / "venv"
-            pip_ops.create_venv(str(venv_path))
+            source_python = pip_ops.get_venv_python(str(source_dir / "venv"))
+            if isinstance(source_python, str) and Path(source_python).exists():
+                pip_ops.create_venv(str(venv_path), python_executable=source_python)
+            else:
+                pip_ops.create_venv(str(venv_path))
 
             # 2. Export source freeze and install
             _report("dependencies", 15, "Installing packages from freeze...")

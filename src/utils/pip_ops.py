@@ -113,6 +113,7 @@ def run_pip_with_progress(venv_path: str, args: list,
         **_SUBPROCESS_KWARGS,
     )
     last_line = ""
+    last_non_notice_line = ""
     buf = ""
     while True:
         chunk = proc.stdout.read(512)
@@ -132,6 +133,8 @@ def run_pip_with_progress(venv_path: str, args: list,
                     buf = buf[idx + 1:]
                     if line:
                         last_line = line
+                        if not line.lower().startswith("[notice]"):
+                            last_non_notice_line = line
                         if progress_callback:
                             progress_callback(line)
                     break
@@ -139,11 +142,14 @@ def run_pip_with_progress(venv_path: str, args: list,
     remaining = buf.strip()
     if remaining:
         last_line = remaining
+        if not remaining.lower().startswith("[notice]"):
+            last_non_notice_line = remaining
         if progress_callback:
             progress_callback(remaining)
     proc.wait()
     if proc.returncode != 0:
-        raise RuntimeError(f"pip failed (exit {proc.returncode}): {last_line}")
+        detail = last_non_notice_line or last_line or "unknown error"
+        raise RuntimeError(f"pip failed (exit {proc.returncode}): {detail}")
     return proc
 
 
