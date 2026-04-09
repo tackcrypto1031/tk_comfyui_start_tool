@@ -38,6 +38,16 @@ state/
 
 # OMC orchestration state
 .omc/
+.omx/
+
+# AI agent / planning files
+.planning/
+AGENTS.md
+CLAUDE.md
+
+# Design & planning docs
+docs/plans/
+docs/launcher-features-reference.md
 
 # Embedded tools (installed by install.bat)
 tools/
