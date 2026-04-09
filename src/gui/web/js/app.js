@@ -432,12 +432,15 @@ const App = (function() {
 
         var changesHtml = '';
         var changesI18n = _updateInfo.changes_i18n;
+        var rawChanges = _updateInfo.changes;
         var changes;
+        var lang = I18N.getLanguage() || 'en';
         if (changesI18n && typeof changesI18n === 'object') {
-            var lang = I18N.getLanguage() || 'en';
             changes = changesI18n[lang] || changesI18n['zh-TW'] || changesI18n['en'] || [];
+        } else if (rawChanges && typeof rawChanges === 'object' && !Array.isArray(rawChanges)) {
+            changes = rawChanges[lang] || rawChanges['zh-TW'] || rawChanges['en'] || [];
         } else {
-            changes = _updateInfo.changes || [];
+            changes = rawChanges || [];
         }
         if (changes && changes.length > 0) {
             changesHtml = '<div class="mt-4"><div class="text-[12px] font-label uppercase tracking-wider text-on-surface-variant mb-2">' + t('update_changes') + '</div>'
