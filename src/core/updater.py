@@ -19,6 +19,8 @@ REMOTE_VERSION_URL = (
     "https://raw.githubusercontent.com/"
     "tackcrypto1031/tk_comfyui_start_tool/master/VERSION.json"
 )
+REMOTE_REPO_URL = "https://github.com/tackcrypto1031/tk_comfyui_start_tool.git"
+REMOTE_REF = "master"
 
 
 def _load_local_version() -> dict:
@@ -60,30 +62,80 @@ def _build_git_env() -> dict:
 
 def _load_remote_version_via_git(git: str) -> dict | None:
     """Fallback loader: fetch origin/master and read VERSION.json from remote ref."""
-    if not (_ROOT / ".git").exists():
-        return None
-
     env = _build_git_env()
-    fetch_proc = subprocess.run(
-        [git, "fetch", "origin", "master", "--quiet"],
-        cwd=str(_ROOT),
-        capture_output=True,
-        text=True,
-        env=env,
-        timeout=30,
-    )
-    if fetch_proc.returncode != 0:
-        logger.warning("git fetch for update check failed: %s", (fetch_proc.stderr or "").strip())
-        return None
+    has_git_dir = (_ROOT / ".git").exists()
+    if has_git_dir:
+        fetch_proc = subprocess.run(
+            [git, "fetch", "origin", REMOTE_REF, "--quiet"],
+            cwd=str(_ROOT),
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=30,
+        )
+        if fetch_proc.returncode != 0:
+            logger.warning("git fetch for update check failed: %s", (fetch_proc.stderr or "").strip())
+            return None
 
-    show_proc = subprocess.run(
-        [git, "show", "origin/master:VERSION.json"],
-        cwd=str(_ROOT),
-        capture_output=True,
-        text=True,
-        env=env,
-        timeout=10,
-    )
+        show_proc = subprocess.run(
+            [git, "show", f"origin/{REMOTE_REF}:VERSION.json"],
+            cwd=str(_ROOT),
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=10,
+        )
+    else:
+        temp_repo = _ROOT / "tools" / "_temp" / "update_check_repo"
+        if temp_repo.exists():
+            shutil.rmtree(temp_repo, ignore_errors=True)
+        temp_repo.mkdir(parents=True, exist_ok=True)
+
+        init_proc = subprocess.run(
+            [git, "init"],
+            cwd=str(temp_repo),
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=10,
+        )
+        if init_proc.returncode != 0:
+            logger.warning("git init for update check failed: %s", (init_proc.stderr or "").strip())
+            return None
+
+        remote_proc = subprocess.run(
+            [git, "remote", "add", "origin", REMOTE_REPO_URL],
+            cwd=str(temp_repo),
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=10,
+        )
+        if remote_proc.returncode != 0:
+            logger.warning("git remote add for update check failed: %s", (remote_proc.stderr or "").strip())
+            return None
+
+        fetch_proc = subprocess.run(
+            [git, "fetch", "--depth", "1", "origin", REMOTE_REF, "--quiet"],
+            cwd=str(temp_repo),
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=45,
+        )
+        if fetch_proc.returncode != 0:
+            logger.warning("git fetch for temp update check failed: %s", (fetch_proc.stderr or "").strip())
+            return None
+
+        show_proc = subprocess.run(
+            [git, "show", "FETCH_HEAD:VERSION.json"],
+            cwd=str(temp_repo),
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=10,
+        )
+
     if show_proc.returncode != 0:
         logger.warning("git show remote VERSION.json failed: %s", (show_proc.stderr or "").strip())
         return None
@@ -176,7 +228,7 @@ def do_update(progress_callback=None) -> dict:
     if has_git_dir:
         # Normal git pull
         proc = subprocess.run(
-            [git, "pull", "origin", "master"],
+            [git, "pull", "origin", REMOTE_REF],
             cwd=str(_ROOT),
             capture_output=True,
             text=True,
@@ -193,17 +245,17 @@ def do_update(progress_callback=None) -> dict:
         )
         subprocess.run(
             [git, "remote", "add", "origin",
-             "https://github.com/tackcrypto1031/tk_comfyui_start_tool.git"],
+             REMOTE_REPO_URL],
             cwd=str(_ROOT), capture_output=True, text=True, env=env, timeout=10,
         )
         proc = subprocess.run(
-            [git, "fetch", "origin", "master"],
+            [git, "fetch", "origin", REMOTE_REF],
             cwd=str(_ROOT), capture_output=True, text=True, env=env, timeout=120,
         )
         if proc.returncode != 0:
             raise RuntimeError(f"git fetch failed: {proc.stderr.strip()}")
         proc = subprocess.run(
-            [git, "checkout", "-B", "master", "origin/master"],
+            [git, "checkout", "-B", REMOTE_REF, f"origin/{REMOTE_REF}"],
             cwd=str(_ROOT), capture_output=True, text=True, env=env, timeout=30,
         )
         if proc.returncode != 0:

@@ -87,3 +87,28 @@ class TestCheckUpdateFallback:
         assert info["remote_version"] == "0.1.1"
         assert info["release_notes"] == "patch"
         assert info["changes"] == ["x"]
+
+    @patch("src.core.updater._find_git", return_value="git")
+    @patch("src.core.updater.requests.get", side_effect=Exception("404"))
+    @patch("src.core.updater.subprocess.run")
+    @patch("src.core.updater._load_local_version", return_value={"version": "0.1.0"})
+    def test_check_update_uses_temp_repo_when_no_git_dir(
+        self, _mock_local, _mock_run, _mock_requests, _mock_find_git, tmp_path
+    ):
+        remote_json = {
+            "version": "0.1.1",
+            "codename": "The Obsidian Edge",
+            "release_notes": "patch",
+            "changes": ["x"],
+        }
+        init_ok = MagicMock(returncode=0, stdout="", stderr="")
+        remote_ok = MagicMock(returncode=0, stdout="", stderr="")
+        fetch_ok = MagicMock(returncode=0, stdout="", stderr="")
+        show_ok = MagicMock(returncode=0, stdout=json.dumps(remote_json), stderr="")
+        _mock_run.side_effect = [init_ok, remote_ok, fetch_ok, show_ok]
+
+        with patch.object(updater, "_ROOT", Path(tmp_path)):
+            info = updater.check_update()
+
+        assert info["has_update"] is True
+        assert info["remote_version"] == "0.1.1"
