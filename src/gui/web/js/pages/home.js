@@ -31,7 +31,8 @@
                 // ── Banner ──
                 '<div id="home-banner" style="' +
                     'position: relative; height: 280px; overflow: hidden; border-radius: 8px; ' +
-                    'background: linear-gradient(135deg, #1a0533 0%, #0e0e0e 60%, #0e1a2e 100%); ' +
+                    'background: url(../../../assets/banner.jpg) center/cover no-repeat, ' +
+                    'linear-gradient(135deg, #1a0533 0%, #0e0e0e 60%, #0e1a2e 100%); ' +
                     'margin: 16px 24px 0 24px;' +
                 '">' +
                     // Bottom gradient overlay
