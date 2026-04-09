@@ -1,16 +1,16 @@
 {
-  "version": "0.1.4",
+  "version": "0.1.5",
   "min_python": "3.10",
-  "release_notes": "測試 i18n 更新內容顯示",
+  "release_notes": "測試更新標題顯示",
   "changes": [
-    "測試 i18n 多語言更新內容顯示"
+    "測試更新標題有沒有重複"
   ],
   "changes_i18n": {
     "en": [
-      "Test i18n multilingual update content display"
+      "Test whether update title is duplicated"
     ],
     "zh-TW": [
-      "測試 i18n 多語言更新內容顯示"
+      "測試更新標題有沒有重複"
     ]
   }
 }
