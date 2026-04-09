@@ -516,10 +516,11 @@ class Bridge(QObject):
 
         # Expand recommended preset sentinel
         if python_ver == "__recommended__":
-            from src.core.version_manager import RECOMMENDED_PRESET
-            python_ver = RECOMMENDED_PRESET["python_version"]
-            cuda = RECOMMENDED_PRESET["cuda_tag"]
-            pytorch_ver = RECOMMENDED_PRESET["pytorch_version"]
+            from src.core.version_manager import VersionManager
+            preset = VersionManager(self.config).get_recommended_preset()
+            python_ver = preset["python_version"]
+            cuda = preset["cuda_tag"]
+            pytorch_ver = preset["pytorch_version"]
 
         logger.info(
             f"create_environment_v2: name={name}, branch={branch}, "

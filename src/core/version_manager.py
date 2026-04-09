@@ -120,10 +120,38 @@ class VersionManager:
         """Strip local version suffixes like +cu130 from package versions."""
         return (version or "").split("+", 1)[0].strip()
 
-    @staticmethod
-    def get_recommended_preset() -> dict:
-        """Return the developer-maintained recommended preset."""
-        return dict(RECOMMENDED_PRESET)
+    def get_recommended_preset(self) -> dict:
+        """Return the recommended preset, preferring bundled Python when available."""
+        preset = dict(RECOMMENDED_PRESET)
+        bundled_version = self._get_bundled_python_version()
+        if bundled_version:
+            preset["python_version"] = bundled_version
+            preset["label_en"] = (
+                f"Python {bundled_version} + CUDA 13.0 + PyTorch {preset['pytorch_version']}"
+            )
+            preset["label_zh"] = (
+                f"Python {bundled_version} + CUDA 13.0 + PyTorch {preset['pytorch_version']}"
+            )
+        return preset
+
+    def _get_bundled_python_version(self) -> str:
+        """Return bundled tools/python/python.exe version, or empty string if unavailable."""
+        tools_python = self.tools_dir / "python" / "python.exe"
+        if not tools_python.exists():
+            return ""
+
+        kwargs = {"capture_output": True, "text": True, "check": True}
+        if sys.platform == "win32":
+            kwargs["creationflags"] = _CREATE_NO_WINDOW
+
+        try:
+            result = subprocess.run([str(tools_python), "--version"], **kwargs)
+            output = (result.stdout or result.stderr or "").strip()
+            if output.startswith("Python "):
+                return output.replace("Python ", "", 1).strip()
+        except Exception:
+            logger.debug("Failed to detect bundled python version", exc_info=True)
+        return ""
 
     def get_pytorch_versions(self, cuda_tag: str, python_version: str = "") -> list:
         """Return PyTorch versions for given CUDA tag + Python version from cache or fetch.

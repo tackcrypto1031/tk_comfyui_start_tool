@@ -9,6 +9,7 @@ from src.core.version_manager import (
     VersionManager,
     DEFAULT_PYTHON_VERSIONS,
     DEFAULT_CUDA_TAGS,
+    RECOMMENDED_PRESET,
 )
 
 
@@ -71,6 +72,30 @@ class TestGetVersionLists:
         tags = manager.get_cuda_tags()
         assert "cpu" in tags
         assert "cu124" in tags
+
+
+class TestRecommendedPreset:
+    """Test recommended preset python selection behavior."""
+
+    def test_recommended_preset_uses_bundled_python(self, sample_config):
+        manager = VersionManager(sample_config)
+        bundled_path = manager.tools_dir / "python" / "python.exe"
+        bundled_path.parent.mkdir(parents=True, exist_ok=True)
+        bundled_path.touch()
+
+        mock_result = MagicMock()
+        mock_result.stdout = "Python 3.12.8\n"
+        mock_result.stderr = ""
+        with patch("subprocess.run", return_value=mock_result):
+            preset = manager.get_recommended_preset()
+
+        assert preset["python_version"] == "3.12.8"
+        assert "Python 3.12.8" in preset["label_en"]
+
+    def test_recommended_preset_falls_back_when_bundled_missing(self, sample_config):
+        manager = VersionManager(sample_config)
+        preset = manager.get_recommended_preset()
+        assert preset["python_version"] == RECOMMENDED_PRESET["python_version"]
 
 
 class TestCache:
