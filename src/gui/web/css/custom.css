@@ -237,8 +237,23 @@ html.material-icons-missing .material-symbols-outlined::before {
     display: block;
 }
 
-/* Select styles */
+/* Select styles — hidden native select (data kept for JS compat) */
 .select {
+    position: absolute !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+}
+
+/* ── Custom Select (cs-*) ──────────────────────────────────────── */
+.cs-wrap {
+    position: relative;
+    width: 100%;
+}
+
+.cs-display {
     background-color: #000000;
     color: #ffffff;
     border: 1px solid #484848;
@@ -247,23 +262,81 @@ html.material-icons-missing .material-symbols-outlined::before {
     font-family: 'Inter', sans-serif;
     width: 100%;
     transition: border-color 0.15s;
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ababab' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    padding-right: 36px;
     border-radius: 0;
     outline: none;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    user-select: none;
+    box-sizing: border-box;
 }
-.select:focus {
-    outline: none;
-    border-color: #cc97ff;
+.cs-display:hover {
+    border-color: #666;
 }
-.select option {
+.cs-focus {
+    border-color: #cc97ff !important;
+}
+
+.cs-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.cs-arrow {
+    flex-shrink: 0;
+    margin-left: 8px;
+    display: flex;
+    align-items: center;
+    transition: transform 0.15s;
+}
+.cs-focus .cs-arrow {
+    transform: rotate(180deg);
+}
+
+.cs-list {
+    display: none;
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 9999;
     background-color: #191919;
+    border: 1px solid #484848;
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: 260px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+.cs-list.cs-open {
+    display: block;
+}
+
+.cs-item {
+    padding: 9px 14px;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
     color: #ffffff;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background-color 0.1s;
+}
+.cs-item:hover {
+    background-color: #2a2a2a;
+}
+.cs-item.cs-active {
+    background-color: #1e1040;
+    color: #cc97ff;
+}
+.cs-item.cs-disabled {
+    color: #555;
+    cursor: default;
+}
+.cs-item.cs-disabled:hover {
+    background-color: transparent;
 }
 
 /* Card styles */

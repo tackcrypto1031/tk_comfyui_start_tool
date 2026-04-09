@@ -125,6 +125,7 @@ const App = (function() {
         if (module && module.render) {
             module.render(container);
             _applyFallbackIcons();
+            if (window.CustomSelect) CustomSelect.upgradeAll(container);
         } else {
             container.innerHTML = '<div class="text-on-surface-variant text-center py-20">Page "' + pageName + '" not found</div>';
         }
@@ -175,6 +176,9 @@ const App = (function() {
         };
 
         overlay.classList.remove('hidden');
+
+        // Upgrade any <select class="select"> inside modal
+        if (window.CustomSelect) CustomSelect.upgradeAll(container);
     }
 
     function hideModal() {
@@ -556,6 +560,8 @@ const App = (function() {
             console.warn('Init failed:', e);
             showToast('Backend connection failed: ' + e, 'error');
         }).finally(function() {
+            // Upgrade sidebar selects (lang-switcher)
+            if (window.CustomSelect) CustomSelect.upgradeAll(document.getElementById('sidebar'));
             // Navigate to first page AFTER bridge is ready (or failed)
             navigate('home');
         });
@@ -588,6 +594,7 @@ const App = (function() {
                         var container = document.getElementById('main-content');
                         container.innerHTML = '';
                         module.render(container);
+                        if (window.CustomSelect) CustomSelect.upgradeAll(container);
                     }
                 }
             });
