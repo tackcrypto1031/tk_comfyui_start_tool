@@ -329,7 +329,7 @@ class EnvManager:
         for subdir in model_subdirs:
             (self.models_dir / subdir).mkdir(parents=True, exist_ok=True)
 
-    def clone_environment(self, source: str, new_name: str, as_sandbox: bool = True,
+    def clone_environment(self, source: str, new_name: str, as_sandbox: bool = False,
                           progress_callback=None) -> Environment:
         """Clone an environment by copying the entire directory."""
         self._validate_name(new_name)
