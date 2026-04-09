@@ -98,7 +98,7 @@ class TestCloneEnvDialog:
     def test_clone_env_dialog_prepopulates_name(self):
         from src.gui.panels.env_panel import CloneEnvDialog
         dlg = CloneEnvDialog("myenv")
-        assert dlg.name_input.text() == "myenv-sandbox"
+        assert dlg.name_input.text() == "myenv-copy"
         dlg.close()
 
     def test_clone_env_dialog_shows_source(self):

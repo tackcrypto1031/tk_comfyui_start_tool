@@ -64,7 +64,6 @@ def sample_env_meta():
         "pip_freeze": {"torch": "2.3.1", "numpy": "1.26.4"},
         "custom_nodes": [],
         "snapshots": [],
-        "is_sandbox": False,
         "parent_env": None,
         "merge_history": []
     }

@@ -329,7 +329,7 @@ class EnvManager:
         for subdir in model_subdirs:
             (self.models_dir / subdir).mkdir(parents=True, exist_ok=True)
 
-    def clone_environment(self, source: str, new_name: str, as_sandbox: bool = False,
+    def clone_environment(self, source: str, new_name: str,
                           progress_callback=None) -> Environment:
         """Clone an environment by copying the entire directory."""
         self._validate_name(new_name)
@@ -382,7 +382,6 @@ class EnvManager:
                 pytorch_version=source_env.pytorch_version,
                 pip_freeze=source_env.pip_freeze,
                 custom_nodes=source_env.custom_nodes,
-                is_sandbox=as_sandbox,
                 parent_env=source,
                 path=str(target_dir),
             )

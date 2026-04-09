@@ -22,19 +22,16 @@ class TestEnvironmentConstruction:
         assert env.pip_freeze == {}
         assert env.custom_nodes == []
         assert env.snapshots == []
-        assert env.is_sandbox is False
         assert env.parent_env is None
         assert env.path == ""
         assert env.merge_history == []
 
-    def test_create_sandbox(self):
+    def test_create_with_parent_env(self):
         env = Environment(
-            name="sandbox-20260404",
+            name="clone-20260404",
             created_at="2026-04-04T10:00:00+08:00",
-            is_sandbox=True,
             parent_env="main",
         )
-        assert env.is_sandbox is True
         assert env.parent_env == "main"
 
     def test_create_with_all_fields(self, sample_env_meta):
@@ -99,7 +96,6 @@ class TestEnvironmentPersistence:
             "pip_freeze": {},
             "custom_nodes": [],
             "snapshots": [],
-            "is_sandbox": False,
             "parent_env": None,
             "merge_history": [],
         }

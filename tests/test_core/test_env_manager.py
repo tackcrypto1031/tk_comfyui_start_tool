@@ -33,7 +33,7 @@ class TestCreateEnvironment:
         assert env.name == "test-env"
         assert env.comfyui_commit == "abc1234"
         assert env.python_version == "3.11.9"
-        assert env.is_sandbox is False
+        assert env.parent_env is None
 
     @patch("src.core.env_manager.pip_ops")
     @patch("src.core.env_manager.git_ops")
@@ -184,7 +184,7 @@ class TestCreateEnvironment:
         assert len(reinstall_calls) == 1
 
 
-def _create_mock_env(envs_dir, name, is_sandbox=False, parent_env=None):
+def _create_mock_env(envs_dir, name, parent_env=None):
     """Helper to create a mock environment directory with env_meta.json."""
     env_dir = Path(envs_dir) / name
     env_dir.mkdir(parents=True, exist_ok=True)
@@ -197,7 +197,6 @@ def _create_mock_env(envs_dir, name, is_sandbox=False, parent_env=None):
         "pip_freeze": {},
         "custom_nodes": [],
         "snapshots": [],
-        "is_sandbox": is_sandbox,
         "parent_env": parent_env,
         "merge_history": [],
     }
@@ -225,7 +224,7 @@ class TestListEnvironments:
     def test_list_multiple(self, sample_config):
         _create_mock_env(sample_config["environments_dir"], "main")
         _create_mock_env(sample_config["environments_dir"], "dev")
-        _create_mock_env(sample_config["environments_dir"], "sandbox-1", is_sandbox=True, parent_env="main")
+        _create_mock_env(sample_config["environments_dir"], "sandbox-1", parent_env="main")
         manager = EnvManager(sample_config)
         result = manager.list_environments()
         assert len(result) == 3
@@ -321,17 +320,16 @@ class TestCloneEnvironment:
     @patch("src.core.env_manager.shutil.copytree")
     @patch("src.core.env_manager.SnapshotManager")
     def test_clone_basic(self, mock_snap_cls, mock_copytree, sample_config):
-        """Cloned env has is_sandbox=True and parent_env=source."""
+        """Cloned env has parent_env=source."""
         _create_mock_env(sample_config["environments_dir"], "main")
         mock_snap_cls.return_value.create_snapshot.return_value = MagicMock()
         # copytree is mocked, so create target dir so save_meta can write
         mock_copytree.side_effect = lambda src, dst: Path(dst).mkdir(parents=True, exist_ok=True)
 
         manager = EnvManager(sample_config)
-        env = manager.clone_environment("main", "main-sandbox")
+        env = manager.clone_environment("main", "main-copy")
 
-        assert env.name == "main-sandbox"
-        assert env.is_sandbox is True
+        assert env.name == "main-copy"
         assert env.parent_env == "main"
 
     @patch("src.core.env_manager.shutil.copytree")
@@ -424,7 +422,7 @@ class TestMergeEnvironment:
     def test_merge_basic(self, mock_snap_cls, mock_git, mock_pip, sample_config):
         """Merges sandbox changes back to parent, returns summary dict."""
         _create_mock_env(sample_config["environments_dir"], "main")
-        _create_mock_env(sample_config["environments_dir"], "sandbox-1", is_sandbox=True, parent_env="main")
+        _create_mock_env(sample_config["environments_dir"], "sandbox-1", parent_env="main")
         mock_pip.freeze.return_value = {"torch": "2.3.1"}
         mock_pip.run_pip.return_value = MagicMock(returncode=0)
         mock_snap_cls.return_value.create_snapshot.return_value = MagicMock()
@@ -443,7 +441,7 @@ class TestMergeEnvironment:
     def test_merge_creates_snapshot_on_target(self, mock_snap_cls, mock_git, mock_pip, sample_config):
         """Auto-snapshot is created on target before merge."""
         _create_mock_env(sample_config["environments_dir"], "main")
-        _create_mock_env(sample_config["environments_dir"], "sandbox-1", is_sandbox=True, parent_env="main")
+        _create_mock_env(sample_config["environments_dir"], "sandbox-1", parent_env="main")
         mock_pip.freeze.return_value = {}
         mock_pip.run_pip.return_value = MagicMock(returncode=0)
         mock_snap_instance = mock_snap_cls.return_value
@@ -460,7 +458,7 @@ class TestMergeEnvironment:
     def test_merge_installs_new_packages(self, mock_snap_cls, mock_git, mock_pip, sample_config):
         """New packages in source are installed into target."""
         _create_mock_env(sample_config["environments_dir"], "main")
-        _create_mock_env(sample_config["environments_dir"], "sandbox-1", is_sandbox=True, parent_env="main")
+        _create_mock_env(sample_config["environments_dir"], "sandbox-1", parent_env="main")
         # source has extra package "newpkg==1.0"
         mock_pip.freeze.side_effect = [
             {"torch": "2.3.1", "newpkg": "1.0"},  # source freeze
@@ -486,7 +484,7 @@ class TestMergeEnvironment:
     @patch("src.core.env_manager.SnapshotManager")
     def test_merge_copies_new_custom_nodes(self, mock_snap_cls, mock_git, mock_pip, sample_config):
         """New custom nodes in source are cloned into target."""
-        source_dir = _create_mock_env(sample_config["environments_dir"], "sandbox-1", is_sandbox=True, parent_env="main")
+        source_dir = _create_mock_env(sample_config["environments_dir"], "sandbox-1", parent_env="main")
         _create_mock_env(sample_config["environments_dir"], "main")
         # Add custom node to sandbox meta
         meta_path = source_dir / "env_meta.json"
@@ -511,7 +509,7 @@ class TestMergeEnvironment:
     def test_merge_records_history(self, mock_snap_cls, mock_git, mock_pip, sample_config):
         """merge_history is updated on target after merge."""
         _create_mock_env(sample_config["environments_dir"], "main")
-        _create_mock_env(sample_config["environments_dir"], "sandbox-1", is_sandbox=True, parent_env="main")
+        _create_mock_env(sample_config["environments_dir"], "sandbox-1", parent_env="main")
         mock_pip.freeze.return_value = {}
         mock_pip.run_pip.return_value = MagicMock(returncode=0)
         mock_snap_cls.return_value.create_snapshot.return_value = MagicMock()
@@ -533,7 +531,7 @@ class TestMergeEnvironment:
     ):
         """Target custom_nodes should be deduplicated by name after merge."""
         source_dir = _create_mock_env(
-            sample_config["environments_dir"], "sandbox-1", is_sandbox=True, parent_env="main"
+            sample_config["environments_dir"], "sandbox-1", parent_env="main"
         )
         target_dir = _create_mock_env(sample_config["environments_dir"], "main")
 
@@ -577,7 +575,7 @@ class TestMergeEnvironment:
 
     def test_merge_target_not_found(self, sample_config):
         """Raises FileNotFoundError when target environment does not exist."""
-        _create_mock_env(sample_config["environments_dir"], "sandbox-1", is_sandbox=True, parent_env="main")
+        _create_mock_env(sample_config["environments_dir"], "sandbox-1", parent_env="main")
         manager = EnvManager(sample_config)
         with pytest.raises(FileNotFoundError, match="Target environment"):
             manager.merge_env("sandbox-1", "nonexistent")
@@ -613,7 +611,7 @@ class TestMergeEnvironment:
     ):
         """Failed pip install during merge should raise and stop metadata update."""
         _create_mock_env(sample_config["environments_dir"], "main")
-        _create_mock_env(sample_config["environments_dir"], "sandbox-1", is_sandbox=True, parent_env="main")
+        _create_mock_env(sample_config["environments_dir"], "sandbox-1", parent_env="main")
 
         mock_pip.freeze.side_effect = [
             {"torch": "2.3.1", "newpkg": "1.0"},  # source freeze

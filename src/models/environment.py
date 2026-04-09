@@ -38,7 +38,6 @@ class Environment:
     # The 'enabled' field is optional for backward compatibility.
     custom_nodes: list = field(default_factory=list)
     snapshots: list = field(default_factory=list)
-    is_sandbox: bool = False
     parent_env: Optional[str] = None
     path: str = ""
     merge_history: list = field(default_factory=list)

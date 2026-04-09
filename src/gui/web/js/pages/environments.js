@@ -38,7 +38,6 @@
                                 <th>${t('env_col_name')}</th>
                                 <th>${t('env_col_branch')}</th>
                                 <th>${t('env_col_commit')}</th>
-                                <th>${t('env_col_sandbox')}</th>
                                 <th>${t('env_col_created')}</th>
                             </tr>
                         </thead>
@@ -84,7 +83,6 @@
                     `<td>${escapeHtml(env.name)}</td>` +
                     `<td class="text-on-surface-variant">${escapeHtml(env.comfyui_branch || '')}</td>` +
                     `<td class="font-mono text-xs text-on-surface-variant">${commitShort}</td>` +
-                    `<td>${env.is_sandbox ? '<span class="badge badge-warning">SANDBOX</span>' : ''}</td>` +
                     `<td class="text-on-surface-variant text-xs">${createdShort}</td>`;
                 tr.addEventListener('click', () => {
                     document.querySelectorAll('#env-table-body tr.selected').forEach(r => r.classList.remove('selected'));
@@ -493,7 +491,7 @@
                 </div>
                 <div>
                     <label class="input-label">${t('env_new_name')}</label>
-                    <input type="text" id="clone-name" class="input" value="${source}-sandbox">
+                    <input type="text" id="clone-name" class="input" value="${source}-copy">
                 </div>
             </div>`,
             buttons: [

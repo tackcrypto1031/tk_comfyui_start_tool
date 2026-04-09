@@ -182,7 +182,7 @@ class CloneEnvDialog(QDialog):
         layout = QFormLayout(self)
 
         self.source_label = QLabel(source_name)
-        self.name_input = QLineEdit(f"{source_name}-sandbox")
+        self.name_input = QLineEdit(f"{source_name}-copy")
 
         layout.addRow(t("env_source"), self.source_label)
         layout.addRow(t("env_new_name"), self.name_input)
@@ -252,7 +252,6 @@ class EnvPanel(QWidget):
             t("env_col_name"),
             t("env_col_branch"),
             t("env_col_commit"),
-            t("env_col_sandbox"),
             t("env_col_created"),
         ])
 
@@ -272,8 +271,7 @@ class EnvPanel(QWidget):
             self.table.setItem(i, 0, QTableWidgetItem(env.name))
             self.table.setItem(i, 1, QTableWidgetItem(env.comfyui_branch))
             self.table.setItem(i, 2, QTableWidgetItem(commit_short))
-            self.table.setItem(i, 3, QTableWidgetItem(t("yes") if env.is_sandbox else ""))
-            self.table.setItem(i, 4, QTableWidgetItem(created_short))
+            self.table.setItem(i, 3, QTableWidgetItem(created_short))
         self.status_label.setText(t("env_count").format(len(envs)))
 
     def _on_create(self):

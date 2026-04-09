@@ -24,7 +24,6 @@ def _create_mock_env(envs_dir, name, comfyui_commit="abc1234"):
         "pip_freeze": {"torch": "2.3.1"},
         "custom_nodes": [],
         "snapshots": [],
-        "is_sandbox": False,
         "parent_env": None,
         "merge_history": [],
     }
