@@ -93,26 +93,26 @@
                         <div id="section-advanced-settings" style="display:none" class="px-4 pb-4">
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 24px;margin-top:12px">
                                 <div>
-                                    <label class="input-label">${t('launch_cross_attention')}</label>
+                                    <label class="input-label">${t('launch_cross_attention')} <span class="help-tip" data-tooltip="${t('launch_help_cross_attention')}">?</span></label>
                                     <select id="ls-cross-attention" class="select ls-control">
-                                        <option value="auto">auto</option>
-                                        <option value="pytorch">pytorch</option>
-                                        <option value="split">split</option>
-                                        <option value="quad">quad</option>
-                                        <option value="sage">sage</option>
-                                        <option value="flash">flash</option>
-                                        <option value="disable_xformers">disable_xformers</option>
+                                        <option value="auto">${t('launch_cross_attn_auto')}</option>
+                                        <option value="pytorch">${t('launch_cross_attn_pytorch')}</option>
+                                        <option value="split">${t('launch_cross_attn_split')}</option>
+                                        <option value="quad">${t('launch_cross_attn_quad')}</option>
+                                        <option value="sage">${t('launch_cross_attn_sage')}</option>
+                                        <option value="flash">${t('launch_cross_attn_flash')}</option>
+                                        <option value="disable_xformers">${t('launch_cross_attn_disable_xformers')}</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="input-label">${t('launch_vram_mode')}</label>
+                                    <label class="input-label">${t('launch_vram_mode')} <span class="help-tip" data-tooltip="${t('launch_help_vram_mode')}">?</span></label>
                                     <select id="ls-vram-mode" class="select ls-control">
-                                        <option value="gpu_only">gpu_only</option>
-                                        <option value="high">high</option>
-                                        <option value="normal">normal</option>
-                                        <option value="low">low</option>
-                                        <option value="no">no</option>
-                                        <option value="cpu">cpu</option>
+                                        <option value="gpu_only">${t('launch_vram_gpu_only')}</option>
+                                        <option value="high">${t('launch_vram_high')}</option>
+                                        <option value="normal">${t('launch_vram_normal')}</option>
+                                        <option value="low">${t('launch_vram_low')}</option>
+                                        <option value="no">${t('launch_vram_no')}</option>
+                                        <option value="cpu">${t('launch_vram_cpu')}</option>
                                     </select>
                                 </div>
                                 <div>
@@ -120,11 +120,11 @@
                                     <input type="number" id="ls-reserve-vram" class="input ls-control" min="0" step="0.1" placeholder="e.g. 1.0">
                                 </div>
                                 <div>
-                                    <label class="input-label">${t('launch_async_offload')}</label>
+                                    <label class="input-label">${t('launch_async_offload')} <span class="help-tip" data-tooltip="${t('launch_help_async_offload')}">?</span></label>
                                     <select id="ls-async-offload" class="select ls-control">
-                                        <option value="auto">auto</option>
-                                        <option value="enable">enable</option>
-                                        <option value="disable">disable</option>
+                                        <option value="auto">${t('launch_async_auto')}</option>
+                                        <option value="enable">${t('launch_async_enable')}</option>
+                                        <option value="disable">${t('launch_async_disable')}</option>
                                     </select>
                                 </div>
                                 <div>

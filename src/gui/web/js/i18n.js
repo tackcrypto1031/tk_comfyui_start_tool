@@ -182,6 +182,9 @@ const I18N = (function() {
             "launch_tls_key_placeholder": "path/to/key.pem",
             "launch_tls_cert_placeholder": "path/to/cert.pem",
             "launch_auto_open_browser": "Auto Open Browser",
+            "launch_help_cross_attention": "Controls how attention is computed during image generation. Auto is recommended for most users. Split/Quad help with low VRAM. Sage/Flash may improve speed on supported GPUs.",
+            "launch_help_vram_mode": "Controls how models are loaded into GPU memory. GPU Only = fastest but needs lots of VRAM. Normal = balanced. Low/No VRAM = slower but works on limited hardware. CPU = no GPU needed.",
+            "launch_help_async_offload": "When enabled, models are moved between GPU and CPU asynchronously to overlap computation and data transfer, improving speed on systems with limited VRAM.",
 
             // Launch — Torch Engine
             "launch_torch_engine": "Torch Engine",
@@ -513,6 +516,9 @@ const I18N = (function() {
             "launch_tls_key_placeholder": "路徑/key.pem",
             "launch_tls_cert_placeholder": "路徑/cert.pem",
             "launch_auto_open_browser": "自動開啟瀏覽器",
+            "launch_help_cross_attention": "控制圖片生成時的注意力計算方式。一般建議使用「自動」。Split/Quad 適合低顯存顯卡。Sage/Flash 在支援的 GPU 上可提升速度。",
+            "launch_help_vram_mode": "控制模型載入 GPU 顯存的方式。GPU Only = 最快但需大量顯存；正常 = 平衡；低顯存/無顯存 = 較慢但適合顯存不足的硬體；僅 CPU = 不需要 GPU。",
+            "launch_help_async_offload": "啟用後，模型會在 GPU 與 CPU 之間非同步搬移，讓運算與資料傳輸重疊進行，可在顯存有限的系統上提升速度。",
 
             // 啟動器 — 產生引擎
             "launch_torch_engine": "產生引擎",
