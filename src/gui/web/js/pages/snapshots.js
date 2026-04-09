@@ -104,6 +104,7 @@
                     list.appendChild(card);
                 });
             }
+            App.applyFallbackIcons();
             statusEl.textContent = t('snapshot_count', snaps.length);
         }).catch(function(e) {
             statusEl.textContent = t('error') + ': ' + e;

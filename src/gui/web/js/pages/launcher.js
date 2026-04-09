@@ -433,6 +433,7 @@
 
             html += '</tbody></table>';
             content.innerHTML = html;
+            App.applyFallbackIcons();
 
             // Bind open browser buttons (port links + buttons)
             content.querySelectorAll('.running-open-port, .running-btn-open').forEach(function(btn) {

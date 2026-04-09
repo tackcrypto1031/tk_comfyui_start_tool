@@ -44,7 +44,9 @@ const App = (function() {
         add_a_photo: '⊞',
         update: '⟳',
         bug_report: '⚠',
-        check_circle: '✓'
+        check_circle: '✓',
+        block: '⊘',
+        minimize: '—'
     };
 
     // ── Page Registration ──
@@ -608,5 +610,6 @@ const App = (function() {
         getBugs: getBugs,
         clearBugs: clearBugs,
         clearBugUnread: clearBugUnread,
+        applyFallbackIcons: _applyFallbackIcons,
     };
 })();

@@ -203,6 +203,8 @@
             tbody.appendChild(tr);
         });
 
+        App.applyFallbackIcons();
+
         tbody.querySelectorAll('.plug-toggle-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var name = btn.getAttribute('data-name');
