@@ -139,7 +139,7 @@
                 updateCardStates();
             }
         }).catch(function() {
-            App.showToast(t('home_no_envs'), 'error');
+            App.showToast(t('home_no_envs'), 'info');
         });
     }
 
@@ -175,7 +175,7 @@
 
                 if (card.type === 'folder') {
                     if (!selectedEnv) {
-                        App.showToast(t('home_no_env_selected'), 'error');
+                        App.showToast(t('home_no_env_selected'), 'info');
                         return;
                     }
                     BridgeAPI.openFolder(selectedEnv, card.subfolder).catch(function() {

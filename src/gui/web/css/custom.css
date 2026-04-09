@@ -314,6 +314,27 @@ html.material-icons-missing .material-symbols-outlined::before {
     animation: toast-in 0.3s ease-out;
     background-color: #262626;
     min-width: 280px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.toast-message {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+}
+.toast-close {
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+    padding: 0 2px;
+    user-select: none;
+}
+.toast-close:hover {
+    opacity: 1;
 }
 .toast-success {
     border-color: #4ade80;
@@ -329,6 +350,92 @@ html.material-icons-missing .material-symbols-outlined::before {
 }
 .toast-out {
     animation: toast-out 0.3s ease-in forwards;
+}
+
+/* Bug badge on sidebar */
+.bug-badge {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background-color: #ff6e84;
+    color: #000;
+    border-radius: 9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    margin-left: auto;
+}
+
+/* Bug report cards */
+.bug-card {
+    background-color: #131313;
+    border: 1px solid #191919;
+    border-left: 3px solid #ff6e84;
+    padding: 14px 18px;
+    transition: background-color 0.15s;
+}
+.bug-card:hover {
+    background-color: #191919;
+}
+.bug-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+.bug-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.bug-card-time {
+    font-family: 'Consolas', 'Cascadia Code', monospace;
+    font-size: 12px;
+    color: #ababab;
+}
+.bug-card-source {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 8px;
+    background-color: rgba(204, 151, 255, 0.15);
+    color: #cc97ff;
+    border: 1px solid rgba(204, 151, 255, 0.3);
+}
+.bug-card-message {
+    font-family: 'Consolas', 'Cascadia Code', monospace;
+    font-size: 13px;
+    color: #ff6e84;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+.btn-copy-bug {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 4px 12px;
+    background-color: #191919;
+    color: #ababab;
+    border: 1px solid #484848;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+.btn-copy-bug:hover {
+    border-color: #cc97ff;
+    color: #cc97ff;
+}
+.btn-copy-bug.copied {
+    border-color: #4ade80;
+    color: #4ade80;
 }
 
 @keyframes toast-in {

@@ -129,6 +129,9 @@ var BridgeAPI = (function() {
         getConfig: function() { return callSlot('get_config'); },
         debugInfo: function() { return callSlot('debug_info'); },
 
+        // Clipboard
+        copyToClipboard: function(text) { return callSlot('copy_to_clipboard', text); },
+
         // Environments
         listEnvironments: function() { return callSlot('list_environments'); },
         createEnvironment: function(name, branch, commit, onProgress) {

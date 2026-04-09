@@ -107,6 +107,20 @@ class Bridge(QObject):
             logger.error(f"_safe_call error: {e}\n{traceback.format_exc()}")
             return json.dumps({"error": str(e)}, ensure_ascii=False)
 
+    # ── Clipboard ──
+
+    @Slot(str, result=str)
+    def copy_to_clipboard(self, text):
+        """Copy text to system clipboard."""
+        try:
+            from PySide6.QtWidgets import QApplication
+            clipboard = QApplication.clipboard()
+            clipboard.setText(text)
+            return json.dumps({"success": True}, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"copy_to_clipboard error: {e}")
+            return json.dumps({"error": str(e)}, ensure_ascii=False)
+
     # ── Config ──
 
     @Slot(result=str)

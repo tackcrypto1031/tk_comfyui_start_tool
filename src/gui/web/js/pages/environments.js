@@ -414,7 +414,7 @@
 
     function doCreate() {
         const name = document.getElementById('create-name').value.trim();
-        if (!name) { App.showToast(`${t('env_name')} required`, 'error'); return; }
+        if (!name) { App.showToast(`${t('env_name')} required`, 'info'); return; }
 
         const versionType = document.querySelector('input[name="version-type"]:checked').value;
         let branch, commit;

@@ -323,6 +323,20 @@ const I18N = (function() {
             "snapshot_confirm_restore": "Restore from '{}'?",
             "snapshot_confirm_delete": "Delete snapshot '{}'?",
             "snapshot_count": "{} snapshot(s)",
+
+            // Bug report
+            "sidebar_bug_report": "Bug Report",
+            "bug_report_title": "Bug Report",
+            "bug_report_empty": "No errors recorded.",
+            "bug_report_empty_sub": "Errors will appear here automatically.",
+            "bug_report_clear": "Clear All",
+            "bug_report_clear_confirm": "Clear all bug records?",
+            "bug_report_copy": "Copy",
+            "bug_report_copied": "Copied",
+            "bug_report_time": "Time",
+            "bug_report_source": "Source",
+            "bug_report_error": "Error",
+            "bug_report_count": "{} error(s)",
         },
         "zh-TW": {
             // Main window
@@ -642,6 +656,20 @@ const I18N = (function() {
             "snapshot_confirm_restore": "確定從 '{}' 還原？",
             "snapshot_confirm_delete": "確定刪除快照 '{}'？",
             "snapshot_count": "{} 個快照",
+
+            // Bug report
+            "sidebar_bug_report": "BUG 回報",
+            "bug_report_title": "BUG 回報",
+            "bug_report_empty": "目前沒有錯誤記錄",
+            "bug_report_empty_sub": "錯誤會自動顯示在這裡。",
+            "bug_report_clear": "清除全部",
+            "bug_report_clear_confirm": "確定清除所有錯誤記錄？",
+            "bug_report_copy": "複製",
+            "bug_report_copied": "已複製",
+            "bug_report_time": "時間",
+            "bug_report_source": "來源",
+            "bug_report_error": "錯誤",
+            "bug_report_count": "{} 個錯誤",
         },
     };
 

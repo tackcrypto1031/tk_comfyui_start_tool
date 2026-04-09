@@ -685,7 +685,7 @@
             }
         }).catch(function(e) {
             if (String(e).indexOf('no_log') !== -1) {
-                App.showToast(t('launch_export_no_log'), 'error');
+                App.showToast(t('launch_export_no_log'), 'info');
             } else {
                 App.showToast(String(e), 'error');
             }

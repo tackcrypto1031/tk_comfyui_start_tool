@@ -42,7 +42,9 @@ const App = (function() {
         memory: '▤',
         restore: '↺',
         add_a_photo: '⊞',
-        update: '⟳'
+        update: '⟳',
+        bug_report: '⚠',
+        check_circle: '✓'
     };
 
     // ── Page Registration ──
@@ -192,7 +194,49 @@ const App = (function() {
         });
     }
 
+    // ── Bug Collection ──
+
+    var _bugs = [];
+    var _bugUnreadCount = 0;
+    var _BUG_MAX = 100;
+
+    function addBug(entry) {
+        _bugs.unshift(entry);
+        if (_bugs.length > _BUG_MAX) _bugs.pop();
+        _bugUnreadCount++;
+        _updateBugBadge();
+    }
+
+    function getBugs() { return _bugs; }
+
+    function clearBugs() {
+        _bugs = [];
+        _bugUnreadCount = 0;
+        _updateBugBadge();
+    }
+
+    function clearBugUnread() {
+        _bugUnreadCount = 0;
+        _updateBugBadge();
+    }
+
+    function _updateBugBadge() {
+        var badge = document.getElementById('bug-report-badge');
+        if (!badge) return;
+        if (_bugUnreadCount > 0) {
+            badge.textContent = _bugUnreadCount > 99 ? '99+' : _bugUnreadCount;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
     // ── Toast System ──
+
+    function _dismissToast(toast) {
+        toast.style.animation = 'toast-out 0.3s ease-in forwards';
+        setTimeout(function() { toast.remove(); }, 300);
+    }
 
     function showToast(message, type, duration) {
         type = type || 'info';
@@ -200,13 +244,36 @@ const App = (function() {
         var container = document.getElementById('toast-container');
         var toast = document.createElement('div');
         toast.className = 'toast toast-' + type;
-        toast.textContent = message;
+
+        var msgSpan = document.createElement('span');
+        msgSpan.className = 'toast-message';
+        msgSpan.textContent = message;
+
+        var closeBtn = document.createElement('span');
+        closeBtn.className = 'toast-close';
+        closeBtn.textContent = '\u00d7';
+        closeBtn.addEventListener('click', function() { _dismissToast(toast); });
+
+        toast.appendChild(msgSpan);
+        toast.appendChild(closeBtn);
         container.appendChild(toast);
 
-        setTimeout(function() {
-            toast.style.animation = 'toast-out 0.3s ease-in forwards';
-            setTimeout(function() { toast.remove(); }, 300);
-        }, duration);
+        // Collect error bugs
+        if (type === 'error') {
+            var pageName = currentPage || 'unknown';
+            var sidebarKey = 'sidebar_' + (pageName === 'launcher' ? 'launch' : pageName);
+            addBug({
+                timestamp: new Date().toLocaleString(),
+                source: t(sidebarKey),
+                source_page: pageName,
+                message: message,
+            });
+        }
+
+        // Error toasts: no auto-dismiss. Others: auto-dismiss.
+        if (type !== 'error') {
+            setTimeout(function() { _dismissToast(toast); }, duration);
+        }
     }
 
     // ── Loading State ──
@@ -523,5 +590,9 @@ const App = (function() {
         showProgress: showProgress,
         updateProgress: updateProgress,
         hideProgress: hideProgress,
+        addBug: addBug,
+        getBugs: getBugs,
+        clearBugs: clearBugs,
+        clearBugUnread: clearBugUnread,
     };
 })();
