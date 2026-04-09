@@ -23,29 +23,28 @@ class VersionController:
         self._cache_time = 0          # timestamp of last cache
         self._cache_lock = threading.Lock()
 
-    def list_commits(self, env_name: str, target: str = "comfyui", count: int = 20) -> List[dict]:
-        """List recent commits for ComfyUI or a custom node."""
-        repo_path = self._get_repo_path(env_name, target)
+    def list_commits(self, env_name: str, count: int = 20) -> List[dict]:
+        """List recent commits for ComfyUI."""
+        repo_path = self._get_repo_path(env_name)
         return git_ops.get_log(str(repo_path), count=count)
 
-    def list_branches(self, env_name: str, target: str = "comfyui") -> List[str]:
-        """List branches for ComfyUI or a custom node."""
-        repo_path = self._get_repo_path(env_name, target)
+    def list_branches(self, env_name: str) -> List[str]:
+        """List branches for ComfyUI."""
+        repo_path = self._get_repo_path(env_name)
         return git_ops.get_branches(str(repo_path))
 
-    def switch_version(self, env_name: str, ref: str, target: str = "comfyui") -> None:
+    def switch_version(self, env_name: str, ref: str) -> None:
         """Switch version with auto-snapshot protection."""
         self.snapshot_manager.create_snapshot(env_name, trigger="version_switch")
-        repo_path = self._get_repo_path(env_name, target)
+        repo_path = self._get_repo_path(env_name)
         git_ops.checkout(str(repo_path), ref)
-        if target == "comfyui":
-            self._reinstall_requirements(env_name)
+        self._reinstall_requirements(env_name)
         self._update_env_meta(env_name)
 
     def update_comfyui(self, env_name: str) -> None:
         """Pull latest and reinstall."""
         self.snapshot_manager.create_snapshot(env_name, trigger="update")
-        repo_path = self._get_repo_path(env_name, "comfyui")
+        repo_path = self._get_repo_path(env_name)
         git_ops.pull(str(repo_path))
         self._reinstall_requirements(env_name)
         self._update_env_meta(env_name)
@@ -107,19 +106,17 @@ class VersionController:
                     continue
         return []
 
-    def list_local_tags(self, env_name: str, target: str = "comfyui") -> list:
-        """List tags available in a local repo."""
-        repo_path = self._get_repo_path(env_name, target)
+    def list_local_tags(self, env_name: str) -> list:
+        """List tags available in the local ComfyUI repo."""
+        repo_path = self._get_repo_path(env_name)
         return git_ops.list_tags(str(repo_path))
 
-    def _get_repo_path(self, env_name: str, target: str) -> Path:
-        """Resolve the repository path for a given target."""
+    def _get_repo_path(self, env_name: str) -> Path:
+        """Resolve the ComfyUI repository path."""
         env_dir = self.environments_dir / env_name
         if not env_dir.exists():
             raise FileNotFoundError(f"Environment '{env_name}' not found")
-        if target == "comfyui":
-            return env_dir / "ComfyUI"
-        return env_dir / "ComfyUI" / "custom_nodes" / target
+        return env_dir / "ComfyUI"
 
     def _reinstall_requirements(self, env_name: str) -> None:
         """Reinstall requirements.txt if it exists."""

@@ -14,10 +14,6 @@
                 <div class="flex items-center gap-4 flex-wrap">
                     <label class="input-label">${t('version_environment')}</label>
                     <select id="ver-env" class="select w-64"></select>
-                    <label class="input-label ml-4">${t('version_target')}</label>
-                    <select id="ver-target" class="select w-40">
-                        <option value="comfyui">comfyui</option>
-                    </select>
                     <button id="ver-btn-refresh" class="btn btn-icon" title="${t('env_refresh')}">
                         <span class="material-symbols-outlined">refresh</span>
                     </button>
@@ -180,9 +176,8 @@
 
         App.confirm(t('version_confirm_switch', selectedRef)).then(ok => {
             if (!ok) return;
-            const target = document.getElementById('ver-target').value;
             document.getElementById('ver-status').textContent = t('version_switching');
-            BridgeAPI.switchVersion(envName, selectedRef, target).then(() => {
+            BridgeAPI.switchVersion(envName, selectedRef).then(() => {
                 document.getElementById('ver-status').textContent = t('version_switched');
                 App.showToast(t('version_switched'), 'success');
             }).catch(e => {

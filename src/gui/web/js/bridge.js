@@ -145,8 +145,8 @@ var BridgeAPI = (function() {
 
         // Versions
         listRemoteVersions: function() { return callAsync('list_remote_versions'); },
-        listCommits: function(envName, target) { return callSlot('list_commits', envName, target || 'comfyui'); },
-        switchVersion: function(envName, ref, target) { return callAsync('switch_version', envName, ref, target || 'comfyui'); },
+        listCommits: function(envName) { return callSlot('list_commits', envName); },
+        switchVersion: function(envName, ref) { return callAsync('switch_version', envName, ref); },
         updateComfyUI: function(envName) { return callAsync('update_comfyui', envName); },
 
         // Launcher

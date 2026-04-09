@@ -270,7 +270,6 @@ const I18N = (function() {
 
             // Version panel
             "version_environment": "Environment:",
-            "version_target": "Target:",
             "version_load": "Load Commits",
             "version_switch": "Switch to Selected",
             "version_update": "Update to Latest",
@@ -602,7 +601,6 @@ const I18N = (function() {
 
             // Version panel
             "version_environment": "環境：",
-            "version_target": "目標：",
             "version_load": "載入提交紀錄",
             "version_switch": "切換至選取版本",
             "version_update": "更新至最新版",

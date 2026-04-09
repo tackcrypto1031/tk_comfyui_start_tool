@@ -32,11 +32,6 @@ class VersionPanel(QWidget):
         self.env_combo = QComboBox()
         self.env_combo.setMinimumWidth(200)
         selector_row.addWidget(self.env_combo)
-        self.lbl_target = QLabel()
-        selector_row.addWidget(self.lbl_target)
-        self.target_combo = QComboBox()
-        self.target_combo.addItem("comfyui")
-        selector_row.addWidget(self.target_combo)
         self.btn_refresh_envs = QPushButton()
         selector_row.addWidget(self.btn_refresh_envs)
         selector_row.addStretch()
@@ -92,7 +87,6 @@ class VersionPanel(QWidget):
     def retranslate(self):
         """Update all visible text to the current language."""
         self.lbl_environment.setText(t("version_environment"))
-        self.lbl_target.setText(t("version_target"))
         self.btn_refresh_envs.setText(t("env_refresh"))
         self.lbl_tags_title.setText(t("version_available_tags"))
         self.btn_fetch_tags.setText(t("version_refresh_versions"))
@@ -151,7 +145,6 @@ class VersionPanel(QWidget):
 
     def _on_switch(self):
         env_name = self.env_combo.currentText()
-        target = self.target_combo.currentText()
         if not env_name:
             QMessageBox.information(self, t("info"), t("launch_select_env"))
             return
@@ -166,7 +159,7 @@ class VersionPanel(QWidget):
             return
         self.status_label.setText(t("version_switching"))
         self.btn_switch.setEnabled(False)
-        worker = Worker(self.controller.switch_version, env_name, ref, target)
+        worker = Worker(self.controller.switch_version, env_name, ref)
         worker.finished.connect(lambda _: (
             self.status_label.setText(t("version_switched")),
             self.btn_switch.setEnabled(True),

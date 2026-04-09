@@ -302,23 +302,22 @@ def version(ctx):
 
 @version.command("list-commits")
 @click.argument("env_name")
-@click.option("--target", default="comfyui", help="Target: comfyui or node name.")
 @click.option("--count", default=20, help="Number of commits to show.")
 @click.pass_context
-def version_list_commits(ctx, env_name, target, count):
+def version_list_commits(ctx, env_name, count):
     """List recent commits."""
     config = load_config(ctx.obj["config_path"])
     vc = VersionController(config)
     try:
-        commits = vc.list_commits(env_name, target=target, count=count)
+        commits = vc.list_commits(env_name, count=count)
     except FileNotFoundError as e:
         console.print(f"[red]Error: {e}[/red]")
         raise SystemExit(1)
     if not commits:
-        console.print(f"No commits found for '{env_name}' ({target}).")
+        console.print(f"No commits found for '{env_name}'.")
         return
     from rich.table import Table
-    table = Table(title=f"Commits for '{env_name}' ({target})")
+    table = Table(title=f"Commits for '{env_name}'")
     table.add_column("Hash", style="cyan")
     table.add_column("Message")
     table.add_column("Author")
@@ -331,16 +330,15 @@ def version_list_commits(ctx, env_name, target, count):
 @version.command("switch")
 @click.argument("env_name")
 @click.argument("ref")
-@click.option("--target", default="comfyui", help="Target: comfyui or node name.")
 @click.pass_context
-def version_switch(ctx, env_name, ref, target):
+def version_switch(ctx, env_name, ref):
     """Switch to a specific version."""
     config = load_config(ctx.obj["config_path"])
     vc = VersionController(config)
     try:
-        console.print(f"[bold]Switching '{env_name}' ({target}) to '{ref}'...[/bold]")
-        vc.switch_version(env_name, ref, target=target)
-        console.print(f"[green]Switched '{env_name}' ({target}) to '{ref}'.[/green]")
+        console.print(f"[bold]Switching '{env_name}' to '{ref}'...[/bold]")
+        vc.switch_version(env_name, ref)
+        console.print(f"[green]Switched '{env_name}' to '{ref}'.[/green]")
     except FileNotFoundError as e:
         console.print(f"[red]Error: {e}[/red]")
         raise SystemExit(1)

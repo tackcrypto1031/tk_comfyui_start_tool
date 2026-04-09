@@ -49,7 +49,7 @@ class TestListCommits:
         ]
 
         vc = VersionController(sample_config)
-        result = vc.list_commits("main", target="comfyui", count=10)
+        result = vc.list_commits("main", count=10)
 
         expected_path = str(env_dir / "ComfyUI")
         mock_git.get_log.assert_called_once_with(expected_path, count=10)
@@ -68,19 +68,6 @@ class TestListCommits:
             str(Path(sample_config["environments_dir"]) / "main" / "ComfyUI"),
             count=20,
         )
-
-    @patch("src.core.version_controller.git_ops")
-    def test_list_commits_custom_node_target(self, mock_git, sample_config):
-        env_dir = _create_mock_env(sample_config["environments_dir"], "main")
-        node_dir = env_dir / "ComfyUI" / "custom_nodes" / "MyNode"
-        node_dir.mkdir(parents=True, exist_ok=True)
-        mock_git.get_log.return_value = []
-
-        vc = VersionController(sample_config)
-        vc.list_commits("main", target="MyNode")
-
-        expected_path = str(env_dir / "ComfyUI" / "custom_nodes" / "MyNode")
-        mock_git.get_log.assert_called_once_with(expected_path, count=20)
 
 
 class TestListBranches:
@@ -141,28 +128,12 @@ class TestSwitchVersion:
         mock_pip.run_pip.return_value = MagicMock(returncode=0)
 
         vc = VersionController(sample_config)
-        vc.switch_version("main", "v1.0.0", target="comfyui")
+        vc.switch_version("main", "v1.0.0")
 
         mock_pip.run_pip.assert_called_once()
         args = mock_pip.run_pip.call_args[0]
         assert "install" in args[1]
         assert "-r" in args[1]
-
-    @patch("src.core.version_controller.pip_ops")
-    @patch("src.core.version_controller.git_ops")
-    @patch("src.core.version_controller.SnapshotManager")
-    def test_switch_no_reinstall_for_custom_node(self, mock_snap_cls, mock_git, mock_pip, sample_config):
-        env_dir = _create_mock_env(sample_config["environments_dir"], "main")
-        node_dir = env_dir / "ComfyUI" / "custom_nodes" / "MyNode"
-        node_dir.mkdir(parents=True, exist_ok=True)
-        mock_snap_cls.return_value = MagicMock()
-        mock_git.get_current_commit.return_value = "newcommit"
-        mock_pip.freeze.return_value = {}
-
-        vc = VersionController(sample_config)
-        vc.switch_version("main", "abc123", target="MyNode")
-
-        mock_pip.run_pip.assert_not_called()
 
     @patch("src.core.version_controller.pip_ops")
     @patch("src.core.version_controller.git_ops")

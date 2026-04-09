@@ -201,16 +201,16 @@ class Bridge(QObject):
         """Fetch remote tags and branches (async). Returns via poll_result."""
         self._run_async(request_id, self.version_controller.list_remote_versions)
 
-    @Slot(str, str, result=str)
-    def list_commits(self, env_name, target):
+    @Slot(str, result=str)
+    def list_commits(self, env_name):
         """List recent commits for env. Returns JSON array."""
-        return self._safe_call(self.version_controller.list_commits, env_name, target)
+        return self._safe_call(self.version_controller.list_commits, env_name)
 
-    @Slot(str, str, str, str)
-    def switch_version(self, request_id, env_name, ref, target):
+    @Slot(str, str, str)
+    def switch_version(self, request_id, env_name, ref):
         """Switch version async."""
         def _switch():
-            self.version_controller.switch_version(env_name, ref, target)
+            self.version_controller.switch_version(env_name, ref)
             return {"switched": ref}
         self._run_async(request_id, _switch)
 
