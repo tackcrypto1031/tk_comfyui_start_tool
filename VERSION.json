@@ -1,16 +1,19 @@
 {
-  "version": "0.1.5",
+  "version": "0.1.6",
   "min_python": "3.10",
-  "release_notes": "測試更新標題顯示",
+  "release_notes": "以自訂下拉元件取代原生 select，修復部分電腦下拉框無限長大問題",
   "changes": [
-    "測試更新標題有沒有重複"
+    "以自訂下拉元件取代原生 select 彈出視窗，修復部分電腦下拉框無限長大的問題",
+    "修復啟動器頁面環境標題重複顯示"
   ],
   "changes_i18n": {
     "en": [
-      "Test whether update title is duplicated"
+      "Replaced native select popups with custom dropdown component to fix infinite growth issue on some computers",
+      "Fixed duplicate environment title on launcher page"
     ],
     "zh-TW": [
-      "測試更新標題有沒有重複"
+      "以自訂下拉元件取代原生 select 彈出視窗，修復部分電腦下拉框無限長大的問題",
+      "修復啟動器頁面環境標題重複顯示"
     ]
   }
 }
