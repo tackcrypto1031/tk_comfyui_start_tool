@@ -42,14 +42,19 @@ state/
 
 # AI agent / planning files
 .planning/
+.codex/
 AGENTS.md
 CLAUDE.md
+pytest.ini
 
 # Tests
 tests/
 
 # Design & planning docs
 docs/
+
+# Dev config
+src/gui/web/tailwind.config.js
 
 # Embedded tools (installed by install.bat)
 tools/
