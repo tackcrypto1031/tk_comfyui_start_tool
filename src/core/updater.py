@@ -49,6 +49,55 @@ def _find_python() -> str:
     return sys.executable
 
 
+def _build_git_env() -> dict:
+    """Build environment with bundled git path prepended when available."""
+    env = os.environ.copy()
+    tools_git_dir = _ROOT / "tools" / "git" / "cmd"
+    if tools_git_dir.exists():
+        env["PATH"] = str(tools_git_dir) + os.pathsep + env.get("PATH", "")
+    return env
+
+
+def _load_remote_version_via_git(git: str) -> dict | None:
+    """Fallback loader: fetch origin/master and read VERSION.json from remote ref."""
+    if not (_ROOT / ".git").exists():
+        return None
+
+    env = _build_git_env()
+    fetch_proc = subprocess.run(
+        [git, "fetch", "origin", "master", "--quiet"],
+        cwd=str(_ROOT),
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=30,
+    )
+    if fetch_proc.returncode != 0:
+        logger.warning("git fetch for update check failed: %s", (fetch_proc.stderr or "").strip())
+        return None
+
+    show_proc = subprocess.run(
+        [git, "show", "origin/master:VERSION.json"],
+        cwd=str(_ROOT),
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=10,
+    )
+    if show_proc.returncode != 0:
+        logger.warning("git show remote VERSION.json failed: %s", (show_proc.stderr or "").strip())
+        return None
+
+    try:
+        remote = json.loads(show_proc.stdout or "{}")
+        if remote.get("version"):
+            return remote
+    except json.JSONDecodeError:
+        logger.warning("remote VERSION.json from git is invalid JSON")
+
+    return None
+
+
 def check_update() -> dict:
     """Check for updates by fetching remote VERSION.json.
 
@@ -59,6 +108,7 @@ def check_update() -> dict:
     local = _load_local_version()
     local_ver = local.get("version", "0.0.0")
 
+    git = _find_git()
     result = {
         "has_update": False,
         "local_version": local_ver,
@@ -67,15 +117,22 @@ def check_update() -> dict:
         "codename": None,
         "changes": [],
         "release_notes": None,
-        "git_available": _find_git() is not None,
+        "git_available": git is not None,
     }
 
+    remote = None
     try:
         resp = requests.get(REMOTE_VERSION_URL, timeout=10)
         resp.raise_for_status()
         remote = resp.json()
     except Exception as e:
         logger.warning(f"Failed to check remote version: {e}")
+        if git:
+            remote = _load_remote_version_via_git(git)
+            if remote:
+                logger.info("Update check fallback succeeded via git remote VERSION.json")
+
+    if not remote:
         return result
 
     remote_ver = remote.get("version", "0.0.0")
@@ -114,11 +171,7 @@ def do_update(progress_callback=None) -> dict:
     # Step 1: Pull code
     _progress("pull", 10, "Pulling latest code...")
 
-    env = os.environ.copy()
-    # Ensure tools/git is in PATH for git operations
-    tools_git_dir = _ROOT / "tools" / "git" / "cmd"
-    if tools_git_dir.exists():
-        env["PATH"] = str(tools_git_dir) + os.pathsep + env.get("PATH", "")
+    env = _build_git_env()
 
     if has_git_dir:
         # Normal git pull
