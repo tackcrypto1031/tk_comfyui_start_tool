@@ -45,6 +45,9 @@ state/
 AGENTS.md
 CLAUDE.md
 
+# Tests
+tests/
+
 # Design & planning docs
 docs/
 
