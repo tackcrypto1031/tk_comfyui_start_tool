@@ -14,25 +14,38 @@ const App = (function() {
     }
 
     function _setupMaterialIconFallback() {
-        function applyFallback() {
-            var loaded = false;
+        function isLoaded() {
             try {
-                if (document.fonts && document.fonts.check) {
-                    loaded = document.fonts.check('16px "Material Symbols Outlined"');
-                }
+                return !!(document.fonts && document.fonts.check
+                    && document.fonts.check('16px "Material Symbols Outlined"'));
             } catch (e) {
-                loaded = false;
+                return false;
             }
-            document.documentElement.classList.toggle('material-icons-missing', !loaded);
         }
 
-        applyFallback();
+        // Avoid repeated class toggles that can cause visible repaint flicker.
+        // We only apply fallback once if the icon font is still unavailable.
+        if (isLoaded()) {
+            return;
+        }
+
+        var applied = false;
+        function applyOnceIfMissing() {
+            if (applied) return;
+            if (!isLoaded()) {
+                document.documentElement.classList.add('material-icons-missing');
+            }
+            applied = true;
+        }
+
+        // Give font loading a short grace period before switching to fallback.
+        var timer = setTimeout(applyOnceIfMissing, 2500);
         if (document.fonts && document.fonts.ready) {
             document.fonts.ready.then(function() {
-                applyFallback();
+                clearTimeout(timer);
+                applyOnceIfMissing();
             });
         }
-        setTimeout(applyFallback, 1500);
     }
 
     // ── Navigation ──
