@@ -37,7 +37,6 @@ const I18N = (function() {
 
             // Update
             "update_available": "New version v{} available",
-            "update_codename": "Codename: {}",
             "update_changes": "Changes:",
             "update_btn": "Update Now",
             "update_progress_title": "Updating...",
@@ -371,7 +370,6 @@ const I18N = (function() {
 
             // Update
             "update_available": "新版本 v{} 可用",
-            "update_codename": "代號：{}",
             "update_changes": "更新內容：",
             "update_btn": "立即更新",
             "update_progress_title": "正在更新...",

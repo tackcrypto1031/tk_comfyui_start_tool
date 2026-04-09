@@ -452,8 +452,6 @@ const App = (function() {
         }
 
         var body = '<div>'
-            + '<p class="text-on-surface font-medium">' + t('update_available', _updateInfo.remote_version) + '</p>'
-            + '<p class="text-[12px] text-on-surface-variant mt-1">' + t('update_codename', _updateInfo.codename) + '</p>'
             + changesHtml
             + '</div>';
 

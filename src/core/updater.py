@@ -155,7 +155,7 @@ def check_update() -> dict:
 
     Returns dict with keys:
         has_update (bool), local_version, remote_version,
-        codename, changes, release_notes, git_available (bool)
+        changes, release_notes, git_available (bool)
     """
     local = _load_local_version()
     local_ver = local.get("version", "0.0.0")
@@ -164,9 +164,7 @@ def check_update() -> dict:
     result = {
         "has_update": False,
         "local_version": local_ver,
-        "local_codename": local.get("codename", ""),
         "remote_version": None,
-        "codename": None,
         "changes": [],
         "release_notes": None,
         "git_available": git is not None,
@@ -189,7 +187,6 @@ def check_update() -> dict:
 
     remote_ver = remote.get("version", "0.0.0")
     result["remote_version"] = remote_ver
-    result["codename"] = remote.get("codename", "")
     result["changes"] = remote.get("changes", [])
     result["changes_i18n"] = remote.get("changes_i18n", None)
     result["release_notes"] = remote.get("release_notes", "")

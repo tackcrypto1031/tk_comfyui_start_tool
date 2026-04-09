@@ -1,6 +1,5 @@
 {
   "version": "0.1.4",
-  "codename": "The Obsidian Edge",
   "min_python": "3.10",
   "release_notes": "測試 i18n 更新內容顯示",
   "changes": [
