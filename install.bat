@@ -101,20 +101,31 @@ echo.
 echo [3/4] 安裝 Python 套件...
 "%PYTHON_DIR%\python.exe" -m pip install --upgrade pip --quiet 2>nul
 if errorlevel 1 (
-    echo       [錯誤] pip 升級失敗！
-    pause
-    exit /b 1
+    goto :pip_upgrade_failed
 )
 
 "%PYTHON_DIR%\python.exe" -m pip install -r "%ROOT%requirements.txt" --quiet 2>nul
 if errorlevel 1 (
-    echo.
-    echo       [錯誤] Python 套件安裝失敗！
-    echo       請檢查網路連線後重新執行本程式
-    pause
-    exit /b 1
+    goto :pip_requirements_failed
 )
 echo       Python 套件安裝完成。
+goto :gpu_check
+
+:pip_upgrade_failed
+echo.
+echo       [錯誤] pip 升級失敗！
+echo       請確認可連線到 pypi.org 與 files.pythonhosted.org 後重試。
+pause
+exit /b 1
+
+:pip_requirements_failed
+echo.
+echo       [錯誤] Python 套件安裝失敗！
+echo       請確認可連線到 pypi.org 與 files.pythonhosted.org 後重試。
+echo       若要查看詳細錯誤，可執行:
+echo       "%PYTHON_DIR%\python.exe" -m pip install -r "%ROOT%requirements.txt"
+pause
+exit /b 1
 
 :: ===== Step 4: GPU Detection =====
 :gpu_check
