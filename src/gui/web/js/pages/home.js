@@ -10,7 +10,7 @@
         { id: 'models',       i18nKey: 'home_btn_models',       icon: 'deployed_code', type: 'folder', subfolder: 'models' },
         { id: 'root',         i18nKey: 'home_btn_root',         icon: 'folder_open',   type: 'folder', subfolder: '' },
         { id: 'custom_nodes', i18nKey: 'home_btn_nodes',        icon: 'extension',     type: 'folder', subfolder: 'custom_nodes' },
-        { id: 'registry',     i18nKey: 'home_btn_registry',     icon: 'store',         type: 'link',   url: 'https://www.google.com' },
+        { id: 'registry',     i18nKey: 'home_btn_registry',     icon: 'store',         type: 'link',   url: 'https://github.com/tackcrypto1031/tk_comfyui_start_tool' },
         { id: 'recommend',    i18nKey: 'home_btn_recommended',  icon: 'recommend',     type: 'link',   url: 'https://www.google.com' }
     ];
 
