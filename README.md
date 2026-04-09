@@ -8,6 +8,8 @@ Create, clone, snapshot, and version-control separate ComfyUI environments — e
 [![Python](https://img.shields.io/badge/Python-3.10%2B-green.svg)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey.svg)]()
 
+**English** | [繁體中文](README_zh-TW.md)
+
 ---
 
 ## Features
