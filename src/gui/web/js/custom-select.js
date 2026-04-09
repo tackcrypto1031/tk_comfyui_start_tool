@@ -275,9 +275,38 @@
         }
     }
 
+    // ── Auto-upgrade via global MutationObserver ─────────────────
+    // Watches the entire document for newly added <select class="select">
+    // elements and upgrades them automatically. This handles async renders
+    // (e.g. launcher page that renders inside a .then() callback).
+    var _autoObserver = new MutationObserver(function (mutations) {
+        for (var m = 0; m < mutations.length; m++) {
+            var added = mutations[m].addedNodes;
+            for (var n = 0; n < added.length; n++) {
+                var node = added[n];
+                if (node.nodeType !== 1) continue; // element nodes only
+                // Check if the added node itself is a select.select
+                if (node.matches && node.matches('select.select')) {
+                    upgrade(node);
+                }
+                // Check descendants
+                if (node.querySelectorAll) {
+                    var inner = node.querySelectorAll('select.select');
+                    for (var k = 0; k < inner.length; k++) {
+                        upgrade(inner[k]);
+                    }
+                }
+            }
+        }
+    });
+    _autoObserver.observe(document.documentElement, { childList: true, subtree: true });
+
     // Expose globally
     window.CustomSelect = {
         upgrade: upgrade,
         upgradeAll: upgradeAll
     };
+
+    // Upgrade any selects already in the DOM at script load time
+    upgradeAll();
 })();
