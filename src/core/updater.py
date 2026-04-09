@@ -191,6 +191,7 @@ def check_update() -> dict:
     result["remote_version"] = remote_ver
     result["codename"] = remote.get("codename", "")
     result["changes"] = remote.get("changes", [])
+    result["changes_i18n"] = remote.get("changes_i18n", None)
     result["release_notes"] = remote.get("release_notes", "")
 
     try:
