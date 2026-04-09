@@ -6,11 +6,58 @@ const App = (function() {
     var currentPage = null;
     var pageModules = {};  // Registered by page scripts
     var _updateInfo = null;  // Cached update check result
+    var _fallbackIconMap = {
+        home: '⌂',
+        dns: '◫',
+        rocket_launch: '↗',
+        extension: '✦',
+        history: '⟲',
+        inventory_2: '☰',
+        translate: '文',
+        progress_activity: '◌',
+        refresh: '⟳',
+        add: '+',
+        content_copy: '⧉',
+        edit: '✎',
+        delete: '✕',
+        play_arrow: '▶',
+        stop: '■',
+        open_in_new: '↗',
+        download: '⇩',
+        search: '⌕',
+        close: '✕',
+        cloud_download: '⇩',
+        store: '◎',
+        image: '◼',
+        folder_open: '▣',
+        deployed_code: '◇',
+        recommend: '★',
+        arrow_upward: '↑',
+        arrow_right: '›',
+        chevron_right: '›',
+        expand_more: '⌄',
+        expand_less: '⌃',
+        open_in_browser: '↗',
+        monitor_heart: '◉',
+        memory: '▤',
+        restore: '↺',
+        add_a_photo: '⊞',
+        update: '⟳'
+    };
 
     // ── Page Registration ──
 
     function registerPage(name, module) {
         pageModules[name] = module;
+    }
+
+    function _applyFallbackIcons() {
+        if (!document.documentElement.classList.contains('material-icons-missing')) return;
+        document.querySelectorAll('.material-symbols-outlined').forEach(function(el) {
+            if (el.dataset.fallbackIcon) return;
+            var token = (el.textContent || '').trim();
+            el.dataset.fallbackIcon = _fallbackIconMap[token] || '•';
+        });
     }
 
     function _setupMaterialIconFallback() {
@@ -34,6 +81,7 @@ const App = (function() {
             if (applied) return;
             if (!isLoaded()) {
                 document.documentElement.classList.add('material-icons-missing');
+                _applyFallbackIcons();
             }
             applied = true;
         }
@@ -72,6 +120,7 @@ const App = (function() {
         var module = pageModules[pageName];
         if (module && module.render) {
             module.render(container);
+            _applyFallbackIcons();
         } else {
             container.innerHTML = '<div class="text-on-surface-variant text-center py-20">Page "' + pageName + '" not found</div>';
         }

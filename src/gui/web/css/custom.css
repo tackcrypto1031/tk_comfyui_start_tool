@@ -17,19 +17,24 @@
 
 /* If icon font cannot be loaded, hide fallback text like "home" and show neutral dots */
 html.material-icons-missing .material-symbols-outlined {
-    font-size: 0 !important;
-    width: 1em;
+    width: 1.1em;
     min-width: 1em;
     height: 1em;
     position: relative;
+    text-indent: -9999px;
+    overflow: hidden;
 }
 html.material-icons-missing .material-symbols-outlined::before {
-    content: '';
+    content: attr(data-fallback-icon);
     position: absolute;
-    inset: 20%;
-    border-radius: 9999px;
-    background-color: currentColor;
-    opacity: 0.6;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-indent: 0;
+    font-size: 0.9em;
+    line-height: 1;
+    opacity: 0.9;
 }
 
 /* Text Glow */
