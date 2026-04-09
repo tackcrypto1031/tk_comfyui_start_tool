@@ -2,8 +2,34 @@
 
 /* Material Symbols */
 .material-symbols-outlined {
+    font-family: "Material Symbols Outlined", "Material Symbols Rounded", sans-serif;
     font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
     vertical-align: middle;
+    display: inline-block;
+    line-height: 1;
+    white-space: nowrap;
+    text-transform: none;
+    letter-spacing: normal;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "liga";
+}
+
+/* If icon font cannot be loaded, hide fallback text like "home" and show neutral dots */
+html.material-icons-missing .material-symbols-outlined {
+    font-size: 0 !important;
+    width: 1em;
+    min-width: 1em;
+    height: 1em;
+    position: relative;
+}
+html.material-icons-missing .material-symbols-outlined::before {
+    content: '';
+    position: absolute;
+    inset: 20%;
+    border-radius: 9999px;
+    background-color: currentColor;
+    opacity: 0.6;
 }
 
 /* Text Glow */

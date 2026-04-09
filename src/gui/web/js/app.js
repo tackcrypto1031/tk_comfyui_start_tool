@@ -13,6 +13,28 @@ const App = (function() {
         pageModules[name] = module;
     }
 
+    function _setupMaterialIconFallback() {
+        function applyFallback() {
+            var loaded = false;
+            try {
+                if (document.fonts && document.fonts.check) {
+                    loaded = document.fonts.check('16px "Material Symbols Outlined"');
+                }
+            } catch (e) {
+                loaded = false;
+            }
+            document.documentElement.classList.toggle('material-icons-missing', !loaded);
+        }
+
+        applyFallback();
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(function() {
+                applyFallback();
+            });
+        }
+        setTimeout(applyFallback, 1500);
+    }
+
     // ── Navigation ──
 
     function navigate(pageName) {
@@ -356,6 +378,8 @@ const App = (function() {
     // ── Initialization ──
 
     function init() {
+        _setupMaterialIconFallback();
+
         // Init bridge FIRST, then do everything else
         BridgeAPI.init().then(function() {
             console.log('Bridge connected');
