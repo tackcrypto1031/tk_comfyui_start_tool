@@ -372,14 +372,28 @@ const App = (function() {
             }, 3000);
         } else if (status === 'error') {
             panel.classList.add('progress-panel-error');
+
+            // Dismiss helper — remove panel and clean up auto-dismiss timer
+            var autoDismissTimer = null;
+            function dismissPanel() {
+                if (autoDismissTimer) clearTimeout(autoDismissTimer);
+                panel.style.animation = 'toast-out 0.3s ease-in forwards';
+                setTimeout(function() {
+                    panel.remove();
+                    delete _progressPanels[id];
+                }, 300);
+            }
+
+            // Add a clearly visible dismiss button (use × character, not icon font)
             var dismissBtn = document.createElement('button');
             dismissBtn.className = 'progress-panel-dismiss';
-            dismissBtn.innerHTML = '<span class="material-symbols-outlined text-[16px]">close</span>';
-            dismissBtn.addEventListener('click', function() {
-                panel.remove();
-                delete _progressPanels[id];
-            });
+            dismissBtn.innerHTML = '\u00d7';
+            dismissBtn.title = 'Dismiss';
+            dismissBtn.addEventListener('click', dismissPanel);
             panel.querySelector('.progress-panel-actions').appendChild(dismissBtn);
+
+            // Auto-dismiss error panels after 15 seconds
+            autoDismissTimer = setTimeout(dismissPanel, 15000);
         } else {
             panel.remove();
             delete _progressPanels[id];

@@ -728,7 +728,12 @@ html.material-icons-missing .material-symbols-outlined::before {
 .progress-panel-dismiss {
     color: #ababab;
     transition: color 0.15s;
-    padding: 0.125rem;
+    padding: 0.125rem 0.25rem;
+    font-size: 1.125rem;
+    line-height: 1;
+    cursor: pointer;
+    background: none;
+    border: none;
 }
 .progress-panel-dismiss:hover {
     color: #f87171;
