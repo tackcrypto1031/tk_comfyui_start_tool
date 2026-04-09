@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul 2>&1
-setlocal enabledelayedexpansion
+setlocal
 
 echo ================================================
 echo   TK ComfyUI Start Tool - 環境安裝程式
@@ -113,16 +113,16 @@ goto :gpu_check
 
 :pip_upgrade_failed
 echo.
-echo       [錯誤] pip 升級失敗！
-echo       請確認可連線到 pypi.org 與 files.pythonhosted.org 後重試。
+echo       [ERROR] pip upgrade failed.
+echo       Please verify access to pypi.org and files.pythonhosted.org, then retry.
 pause
 exit /b 1
 
 :pip_requirements_failed
 echo.
-echo       [錯誤] Python 套件安裝失敗！
-echo       請確認可連線到 pypi.org 與 files.pythonhosted.org 後重試。
-echo       若要查看詳細錯誤，可執行:
+echo       [ERROR] Python package installation failed.
+echo       Please verify access to pypi.org and files.pythonhosted.org, then retry.
+echo       To view detailed error, run:
 echo       "%PYTHON_DIR%\python.exe" -m pip install -r "%ROOT%requirements.txt"
 pause
 exit /b 1
