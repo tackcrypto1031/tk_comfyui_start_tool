@@ -99,31 +99,35 @@ echo       Git %GIT_VERSION% 安裝完成。
 :install_packages
 echo.
 echo [3/4] 安裝 Python 套件...
-"%PYTHON_DIR%\python.exe" -m pip install --upgrade pip --quiet 2>nul
+set "PIP_UPGRADE_LOG=%TEMP_DIR%\pip-upgrade.log"
+set "PIP_INSTALL_LOG=%TEMP_DIR%\pip-install.log"
+
+"%PYTHON_DIR%\python.exe" -m pip install --upgrade pip >"%PIP_UPGRADE_LOG%" 2>&1
 if errorlevel 1 (
-    goto :pip_upgrade_failed
+    echo       [WARN] pip upgrade failed, continue with current pip.
+    echo       Log: %PIP_UPGRADE_LOG%
 )
 
-"%PYTHON_DIR%\python.exe" -m pip install -r "%ROOT%requirements.txt" --quiet 2>nul
+"%PYTHON_DIR%\python.exe" -m pip install -r "%ROOT%requirements.txt" >"%PIP_INSTALL_LOG%" 2>&1
 if errorlevel 1 (
-    goto :pip_requirements_failed
+    echo       Standard install failed, retrying with trusted-host...
+    "%PYTHON_DIR%\python.exe" -m pip install -r "%ROOT%requirements.txt" --trusted-host pypi.org --trusted-host files.pythonhosted.org --trusted-host pypi.python.org >>"%PIP_INSTALL_LOG%" 2>&1
+    if errorlevel 1 (
+        goto :pip_requirements_failed
+    )
 )
 echo       Python 套件安裝完成。
 goto :gpu_check
-
-:pip_upgrade_failed
-echo.
-echo       [ERROR] pip upgrade failed.
-echo       Please verify access to pypi.org and files.pythonhosted.org, then retry.
-pause
-exit /b 1
 
 :pip_requirements_failed
 echo.
 echo       [ERROR] Python package installation failed.
 echo       Please verify access to pypi.org and files.pythonhosted.org, then retry.
-echo       To view detailed error, run:
-echo       "%PYTHON_DIR%\python.exe" -m pip install -r "%ROOT%requirements.txt"
+echo       Log file: %PIP_INSTALL_LOG%
+echo.
+echo       ---- Last 40 lines from pip log ----
+powershell -NoProfile -Command "if (Test-Path '%PIP_INSTALL_LOG%') { Get-Content -Path '%PIP_INSTALL_LOG%' -Tail 40 } else { Write-Output 'pip log not found' }"
+echo       ------------------------------------
 pause
 exit /b 1
 
