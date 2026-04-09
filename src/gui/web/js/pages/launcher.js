@@ -42,8 +42,7 @@
                 <div id="tab-launcher" style="display: ${activeTab === 'launcher' ? 'block' : 'none'}">
                     <!-- Controls -->
                     <div class="card">
-                        <div class="card-header">${t('launch_environment')}</div>
-                        <div class="flex items-end gap-4 mt-3">
+                        <div class="flex items-end gap-4">
                             <div class="flex-1">
                                 <label class="input-label">${t('launch_environment')}</label>
                                 <select id="launch-env" class="select"></select>
