@@ -65,10 +65,11 @@ var BridgeAPI = (function() {
     function callAsync(method) {
         var args = Array.prototype.slice.call(arguments, 1);
 
-        // Detect and extract options object if last arg has onProgress
+        // Detect and extract options object if last arg has onProgress or timeoutMinutes
         var options = {};
         if (args.length > 0 && args[args.length - 1] !== null &&
-                typeof args[args.length - 1] === 'object' && 'onProgress' in args[args.length - 1]) {
+                typeof args[args.length - 1] === 'object' &&
+                ('onProgress' in args[args.length - 1] || 'timeoutMinutes' in args[args.length - 1])) {
             options = args.pop();
         }
 
@@ -82,7 +83,8 @@ var BridgeAPI = (function() {
 
             // Poll for result every 500ms
             var pollCount = 0;
-            var maxPolls = 1200;  // 10 minutes at 500ms intervals
+            var timeoutMin = options.timeoutMinutes || 10;
+            var maxPolls = timeoutMin * 120;  // 120 polls per minute (500ms intervals)
             var pollInterval = setInterval(function() {
                 pollCount++;
                 bridge.poll_result(requestId, function(resultJson) {
@@ -135,11 +137,11 @@ var BridgeAPI = (function() {
         // Environments
         listEnvironments: function() { return callSlot('list_environments'); },
         createEnvironment: function(name, branch, commit, onProgress) {
-            return callAsync('create_environment', name, branch, commit || '', {onProgress: onProgress});
+            return callAsync('create_environment', name, branch, commit || '', {onProgress: onProgress, timeoutMinutes: 60});
         },
         deleteEnvironment: function(name, force) { return callAsync('delete_environment', name, force ? 'true' : 'false'); },
         cloneEnvironment: function(source, newName, onProgress) {
-            return callAsync('clone_environment', source, newName, {onProgress: onProgress});
+            return callAsync('clone_environment', source, newName, {onProgress: onProgress, timeoutMinutes: 60});
         },
         renameEnvironment: function(oldName, newName) { return callAsync('rename_environment', oldName, newName); },
 
@@ -169,14 +171,14 @@ var BridgeAPI = (function() {
         // Snapshots
         listSnapshots: function(envName) { return callSlot('list_snapshots', envName); },
         createSnapshot: function(envName, trigger) { return callSlot('create_snapshot', envName, trigger || 'manual'); },
-        restoreSnapshot: function(envName, snapshotId, onProgress) { return callAsync('restore_snapshot', envName, snapshotId, {onProgress: onProgress}); },
+        restoreSnapshot: function(envName, snapshotId, onProgress) { return callAsync('restore_snapshot', envName, snapshotId, {onProgress: onProgress, timeoutMinutes: 30}); },
         deleteSnapshot: function(envName, snapshotId) { return callSlot('delete_snapshot', envName, snapshotId); },
 
         // Plugins
         analyzePlugin: function(envName, pluginPath) { return callAsync('analyze_plugin', envName, pluginPath); },
         listPlugins: function(envName) { return callSlot('list_plugins', envName); },
         installPlugin: function(envName, gitUrl, onProgress) {
-            return callAsync('install_plugin', envName, gitUrl, {onProgress: onProgress});
+            return callAsync('install_plugin', envName, gitUrl, {onProgress: onProgress, timeoutMinutes: 30});
         },
         disablePlugin: function(envName, nodeName) { return callAsync('disable_plugin', envName, nodeName); },
         enablePlugin: function(envName, nodeName) { return callAsync('enable_plugin', envName, nodeName); },
@@ -185,7 +187,7 @@ var BridgeAPI = (function() {
             return callAsync('update_plugin', envName, nodeName, {onProgress: onProgress});
         },
         updateAllPlugins: function(envName, onProgress) {
-            return callAsync('update_all_plugins', envName, {onProgress: onProgress});
+            return callAsync('update_all_plugins', envName, {onProgress: onProgress, timeoutMinutes: 30});
         },
 
         // Progress polling
@@ -200,7 +202,7 @@ var BridgeAPI = (function() {
 
         // Updater
         checkUpdate: function() { return callSlot('check_update'); },
-        doUpdate: function(onProgress) { return callAsync('do_update', {onProgress: onProgress}); },
+        doUpdate: function(onProgress) { return callAsync('do_update', {onProgress: onProgress, timeoutMinutes: 30}); },
         restartApp: function() { return callSlot('restart_app'); },
 
         // Version Manager (Python/CUDA)
@@ -209,7 +211,7 @@ var BridgeAPI = (function() {
         refreshVersionLists: function() { return callAsync('refresh_version_lists'); },
         createEnvironmentV2: function(name, branch, commit, pythonVersion, cudaTag, pytorchVersion, onProgress) {
             return callAsync('create_environment_v2', name, branch, commit || '',
-                             pythonVersion || '', cudaTag || '', pytorchVersion || '', {onProgress: onProgress});
+                             pythonVersion || '', cudaTag || '', pytorchVersion || '', {onProgress: onProgress, timeoutMinutes: 60});
         },
         getPytorchVersions: function(cudaTag, pythonVersion) {
             return callSlot('get_pytorch_versions', cudaTag, pythonVersion || '');
