@@ -16,6 +16,7 @@ from src.models.environment import Environment
 from src.utils import git_ops, pip_ops
 from src.core.snapshot_manager import SnapshotManager
 
+logger = logging.getLogger(__name__)
 
 # Default ComfyUI repository URL
 DEFAULT_COMFYUI_URL = "https://github.com/comfyanonymous/ComfyUI.git"
@@ -331,6 +332,72 @@ class EnvManager:
         base.mkdir(parents=True, exist_ok=True)
         for subdir in model_subdirs:
             (base / subdir).mkdir(parents=True, exist_ok=True)
+
+    def sync_shared_model_subdirs(self, force_regen: bool = False) -> dict:
+        """Scan shared + env model dirs for new subdirs; merge into config; optionally regen yaml.
+
+        Returns:
+            {
+              "added": [str, ...],     # new lowercase subdir names merged into config
+              "synced_envs": int,       # number of envs whose yaml was (re)generated
+              "skipped": bool,          # True if pre-existence guard prevented the scan
+              "reason": str,            # populated when skipped
+            }
+        """
+        result = {"added": [], "synced_envs": 0, "skipped": False, "reason": ""}
+
+        shared_path = self._resolve_model_path()
+        if not shared_path.exists():
+            result["skipped"] = True
+            result["reason"] = "shared_path_missing"
+            return result
+
+        scan_roots = [shared_path]
+        for env in self.list_environments():
+            env_models = self.environments_dir / env.name / "ComfyUI" / "models"
+            if env_models.exists():
+                scan_roots.append(env_models)
+
+        discovered = set()
+        for root in scan_roots:
+            try:
+                for child in root.iterdir():
+                    if not child.is_dir():
+                        continue
+                    name = child.name
+                    if name.startswith(".") or name.startswith("_"):
+                        continue
+                    discovered.add(name.lower())
+            except OSError:
+                continue
+
+        current = {s.lower() for s in self.config.get("model_subdirs", [])}
+        new = sorted(discovered - current)
+
+        if new:
+            for name in new:
+                try:
+                    (shared_path / name).mkdir(parents=True, exist_ok=True)
+                except OSError as exc:
+                    logger.warning("Failed to create shared subdir %s: %s", name, exc)
+                    result["skipped"] = True
+                    result["reason"] = "mkdir_failed"
+                    return result
+            self.config.setdefault("model_subdirs", []).extend(new)
+            from src.utils.fs_ops import save_config
+            save_config(self.config, "config.json")
+            result["added"] = new
+
+        if new or force_regen:
+            for env in self.list_environments():
+                if not getattr(env, "shared_model_enabled", True):
+                    continue
+                comfyui_path = self.environments_dir / env.name / "ComfyUI"
+                if comfyui_path.exists():
+                    self._generate_extra_model_paths(comfyui_path)
+                    result["synced_envs"] += 1
+
+        return result
 
     def toggle_shared_model(self, env_name: str, enabled: bool) -> None:
         """Enable or disable shared model for a single environment."""
