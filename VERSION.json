@@ -1,16 +1,22 @@
 {
-  "version": "0.1.7",
+  "version": "0.1.8",
   "min_python": "3.10",
-  "release_notes": "修復部分電腦建立環境失敗的 Git 路徑問題",
+  "release_notes": "新增設置頁面與四款 UI 配色方案切換功能",
   "changes": [
-    "修復部分電腦因系統 Git 環境變數干擾導致建立環境失敗的問題"
+    "新增「設置」分頁，支援 UI 配色方案切換",
+    "提供四款主題：Obsidian Edge（預設暗色）、Claude（溫暖赤陶色）、MiniMax（明亮科技藍）、Ollama（極簡灰階）",
+    "主題即時切換，重啟後自動恢復上次選擇"
   ],
   "changes_i18n": {
     "en": [
-      "Fixed environment creation failure on some computers caused by system Git environment variable interference"
+      "Added Settings page with UI color scheme switcher",
+      "Four themes available: Obsidian Edge (default dark), Claude (warm parchment), MiniMax (bright tech blue), Ollama (minimal grayscale)",
+      "Instant theme switching with automatic persistence across restarts"
     ],
     "zh-TW": [
-      "修復部分電腦因系統 Git 環境變數干擾導致建立環境失敗的問題"
+      "新增「設置」分頁，支援 UI 配色方案切換",
+      "提供四款主題：Obsidian Edge（預設暗色）、Claude（溫暖赤陶色）、MiniMax（明亮科技藍）、Ollama（極簡灰階）",
+      "主題即時切換，重啟後自動恢復上次選擇"
     ]
   }
 }
