@@ -12,6 +12,8 @@ def get_default_config() -> dict:
         "base_dir": ".",
         "environments_dir": "./environments",
         "models_dir": "./models",
+        "shared_model_mode": "default",
+        "custom_model_path": "",
         "snapshots_dir": "./snapshots",
         "max_snapshots": 20,
         "auto_snapshot": True,

@@ -42,6 +42,7 @@ class Environment:
     path: str = ""
     merge_history: list = field(default_factory=list)
     launch_settings: dict = field(default_factory=dict)
+    shared_model_enabled: bool = True
 
     def get_launch_settings(self) -> dict:
         """Return launch_settings merged with defaults (lazy fallback)."""
