@@ -96,6 +96,110 @@
         loadEnvironments();
         // Preload remote versions cache so Edit/Create dialogs open instantly
         BridgeAPI.listRemoteVersions().catch(function() {});
+
+        // Load shared model config
+        loadSharedModelConfig();
+
+        // Bind shared model mode radio
+        document.querySelectorAll('input[name="shared-model-mode"]').forEach(function(radio) {
+            radio.addEventListener('change', function() {
+                var isCustom = radio.value === 'custom';
+                var pathInput = document.getElementById('shared-model-path');
+                var browseBtn = document.getElementById('shared-model-browse');
+                var saveBtn = document.getElementById('shared-model-save');
+                pathInput.readOnly = !isCustom;
+                browseBtn.classList.toggle('hidden', !isCustom);
+                saveBtn.classList.toggle('hidden', !isCustom);
+                if (!isCustom) {
+                    saveSharedModelConfig('default', '');
+                }
+            });
+        });
+
+        // Browse button
+        document.getElementById('shared-model-browse').addEventListener('click', function() {
+            BridgeAPI.browseFolder().then(function(folder) {
+                if (folder) {
+                    document.getElementById('shared-model-path').value = folder;
+                }
+            });
+        });
+
+        // Save button (custom path)
+        document.getElementById('shared-model-save').addEventListener('click', function() {
+            var path = document.getElementById('shared-model-path').value.trim();
+            if (!path) {
+                App.showToast(t('shared_model_path_empty'), 'error');
+                return;
+            }
+            saveSharedModelConfig('custom', path);
+        });
+    }
+
+    function loadSharedModelConfig() {
+        BridgeAPI.getSharedModelConfig().then(function(config) {
+            var pathInput = document.getElementById('shared-model-path');
+            var browseBtn = document.getElementById('shared-model-browse');
+            var saveBtn = document.getElementById('shared-model-save');
+            var radios = document.querySelectorAll('input[name="shared-model-mode"]');
+
+            if (config.mode === 'custom' && config.path) {
+                radios.forEach(function(r) { r.checked = r.value === 'custom'; });
+                pathInput.value = config.path;
+                pathInput.readOnly = false;
+                browseBtn.classList.remove('hidden');
+                saveBtn.classList.remove('hidden');
+            } else {
+                radios.forEach(function(r) { r.checked = r.value === 'default'; });
+                pathInput.value = config.default_path;
+                pathInput.readOnly = true;
+                browseBtn.classList.add('hidden');
+                saveBtn.classList.add('hidden');
+            }
+        }).catch(function(e) {
+            console.error('Failed to load shared model config:', e);
+        });
+    }
+
+    function saveSharedModelConfig(mode, path) {
+        BridgeAPI.getSharedModelConfig().then(function(currentConfig) {
+            // First, count enabled environments
+            return BridgeAPI.listEnvironments().then(function(envs) {
+                var enabledCount = envs.filter(function(e) { return e.shared_model_enabled !== false; }).length;
+
+                if (enabledCount > 0) {
+                    // Show confirmation dialog
+                    App.showModal({
+                        title: t('shared_model_title'),
+                        body: '<p>' + t('shared_model_confirm_sync', enabledCount) + '</p>' +
+                              '<p class="text-xs text-on-surface-variant mt-2">' + t('shared_model_confirm_sync_detail') + '</p>',
+                        buttons: [
+                            { text: t('cancel'), class: 'btn-secondary', onClick: function() {
+                                // Only update config, no sync
+                                BridgeAPI.setSharedModelConfig(mode, path, false).then(function() {
+                                    App.showToast(t('shared_model_updated'), 'success');
+                                    loadSharedModelConfig();
+                                });
+                            }},
+                            { text: t('confirm'), class: 'btn-primary', onClick: function() {
+                                // Update config and sync all enabled environments
+                                BridgeAPI.setSharedModelConfig(mode, path, true).then(function() {
+                                    App.showToast(t('shared_model_updated'), 'success');
+                                    loadSharedModelConfig();
+                                    loadEnvironments();
+                                });
+                            }},
+                        ],
+                    });
+                } else {
+                    // No enabled environments, just update config
+                    BridgeAPI.setSharedModelConfig(mode, path, false).then(function() {
+                        App.showToast(t('shared_model_updated'), 'success');
+                        loadSharedModelConfig();
+                    });
+                }
+            });
+        });
     }
 
     function createToggleSwitch(isOn, onClick) {
