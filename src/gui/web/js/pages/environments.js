@@ -30,6 +30,33 @@
                     </button>
                 </div>
 
+                <!-- Shared Model Path -->
+                <div id="shared-model-section" class="p-4 border border-surface-container rounded-lg" style="background: rgba(255,255,255,0.03);">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="material-symbols-outlined text-[18px]" style="color:rgb(var(--color-primary));">folder_shared</span>
+                        <span class="text-sm font-semibold">${t('shared_model_title')}</span>
+                    </div>
+                    <div class="flex items-center gap-4 mb-2">
+                        <label class="flex items-center gap-2 text-sm cursor-pointer">
+                            <input type="radio" name="shared-model-mode" value="default" checked class="accent-primary">
+                            ${t('shared_model_default')}
+                        </label>
+                        <label class="flex items-center gap-2 text-sm cursor-pointer">
+                            <input type="radio" name="shared-model-mode" value="custom" class="accent-primary">
+                            ${t('shared_model_custom')}
+                        </label>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="shared-model-path" class="input flex-1 font-mono text-xs" readonly placeholder="${t('shared_model_path_placeholder')}">
+                        <button id="shared-model-browse" class="btn btn-secondary hidden" style="padding:6px 10px;">
+                            <span class="material-symbols-outlined text-[16px]">folder_open</span>
+                        </button>
+                        <button id="shared-model-save" class="btn btn-primary hidden" style="padding:6px 14px;">
+                            <span class="material-symbols-outlined text-[16px]">save</span>
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Environment table -->
                 <div class="border border-surface-container">
                     <table class="data-table" id="env-table">
@@ -39,6 +66,12 @@
                                 <th>${t('env_col_branch')}</th>
                                 <th>${t('env_col_commit')}</th>
                                 <th>${t('env_col_created')}</th>
+                                <th class="text-center" style="white-space:nowrap;">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <span>${t('shared_model_col')}</span>
+                                        <div id="shared-model-header-toggle" class="toggle-switch" data-state="on" title="Toggle all"></div>
+                                    </div>
+                                </th>
                             </tr>
                         </thead>
                         <tbody id="env-table-body">
