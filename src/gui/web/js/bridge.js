@@ -235,5 +235,7 @@ var BridgeAPI = (function() {
             return callSlot('toggle_all_shared_model', enabled ? 'true' : 'false');
         },
         browseFolder: function() { return callSlot('browse_folder'); },
+        rescanSharedModelSubdirs: function() { return callSlot('rescan_shared_model_subdirs'); },
+        getLastRescanResult: function() { return callSlot('get_last_rescan_result'); },
     };
 })();
