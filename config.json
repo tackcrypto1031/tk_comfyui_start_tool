@@ -22,7 +22,23 @@
     "controlnet",
     "clip",
     "embeddings",
-    "upscale_models"
+    "upscale_models",
+    "audio_encoders",
+    "clip_vision",
+    "configs",
+    "diffusers",
+    "diffusion_models",
+    "gligen",
+    "hypernetworks",
+    "latent_upscale_models",
+    "model_patches",
+    "photomaker",
+    "seethrough",
+    "style_models",
+    "text_encoders",
+    "unet",
+    "vae_approx",
+    "test_model"
   ],
   "conflict_analyzer": {
     "critical_packages": [
@@ -42,5 +58,7 @@
       "onnxruntime-gpu"
     ],
     "auto_analyze_on_install": true
-  }
+  },
+  "shared_model_mode": "default",
+  "custom_model_path": ""
 }
