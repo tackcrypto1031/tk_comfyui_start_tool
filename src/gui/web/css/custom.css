@@ -48,17 +48,17 @@ html.material-icons-missing .material-symbols-outlined::before {
 
 /* Text Glow */
 .text-glow {
-    text-shadow: 0 0 10px rgba(204, 151, 255, 0.4);
+    text-shadow: 0 0 10px rgb(var(--color-primary) / 0.4);
 }
 
 /* Border Glow */
 .border-glow {
-    box-shadow: inset 0 0 1px rgba(204, 151, 255, 0.3);
+    box-shadow: inset 0 0 1px rgb(var(--color-primary) / 0.3);
 }
 
 /* Hero Gradient */
 .hero-gradient {
-    background: linear-gradient(135deg, #0e0e0e 0%, #1a1a1a 100%);
+    background: linear-gradient(135deg, rgb(var(--color-surface)) 0%, rgb(var(--color-surface-container-low)) 100%);
     position: relative;
     overflow: hidden;
 }
@@ -66,26 +66,26 @@ html.material-icons-missing .material-symbols-outlined::before {
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at 50% 50%, rgba(204, 151, 255, 0.05) 0%, transparent 70%);
+    background: radial-gradient(circle at 50% 50%, rgb(var(--color-primary) / 0.05) 0%, transparent 70%);
     pointer-events: none;
 }
 
 /* Sidebar nav items */
 .nav-item {
-    color: #ababab;
+    color: rgb(var(--color-on-surface-variant));
     border-left: 3px solid transparent;
     text-decoration: none;
     display: flex;
     align-items: center;
 }
 .nav-item:hover {
-    background-color: #131313;
-    color: #ffffff;
+    background-color: rgb(var(--color-surface-container-low));
+    color: rgb(var(--color-on-surface));
 }
 .nav-item.active {
-    background-color: #131313;
-    color: #cc97ff;
-    border-left-color: #cc97ff;
+    background-color: rgb(var(--color-surface-container-low));
+    color: rgb(var(--color-primary));
+    border-left-color: rgb(var(--color-primary));
 }
 
 /* Custom scrollbar */
@@ -94,19 +94,19 @@ html.material-icons-missing .material-symbols-outlined::before {
     height: 6px;
 }
 ::-webkit-scrollbar-track {
-    background: #0e0e0e;
+    background: rgb(var(--color-surface));
 }
 ::-webkit-scrollbar-thumb {
-    background: #262626;
+    background: rgb(var(--color-surface-container-highest));
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: #484848;
+    background: rgb(var(--color-outline));
 }
 
 /* Selection */
 ::selection {
-    background-color: #cc97ff;
-    color: #000000;
+    background-color: rgb(var(--color-primary));
+    color: rgb(var(--color-surface-container-lowest));
 }
 
 /* Table styles */
@@ -115,8 +115,8 @@ html.material-icons-missing .material-symbols-outlined::before {
     border-collapse: collapse;
 }
 .data-table thead th {
-    background-color: #191919;
-    color: #ababab;
+    background-color: rgb(var(--color-surface-container));
+    color: rgb(var(--color-on-surface-variant));
     font-family: 'Space Grotesk', sans-serif;
     font-size: 12px;
     font-weight: 600;
@@ -124,26 +124,26 @@ html.material-icons-missing .material-symbols-outlined::before {
     letter-spacing: 0.05em;
     padding: 10px 16px;
     text-align: left;
-    border-bottom: 1px solid #484848;
+    border-bottom: 1px solid rgb(var(--color-outline));
 }
 .data-table tbody tr {
-    border-bottom: 1px solid #191919;
+    border-bottom: 1px solid rgb(var(--color-surface-container));
     transition: background-color 0.15s;
 }
 .data-table tbody tr:nth-child(even) {
-    background-color: #131313;
+    background-color: rgb(var(--color-surface-container-low));
 }
 .data-table tbody tr:hover {
-    background-color: #1a1a1a;
+    background-color: rgb(var(--color-surface-container-low));
 }
 .data-table tbody td {
     padding: 10px 16px;
     font-size: 14px;
-    color: #ffffff;
+    color: rgb(var(--color-on-surface));
 }
 .data-table tbody tr.selected {
-    background-color: #2d1a4e !important;
-    border-left: 3px solid #cc97ff;
+    background-color: rgb(var(--color-primary-container)) !important;
+    border-left: 3px solid rgb(var(--color-primary));
 }
 
 /* Button styles */
@@ -163,42 +163,42 @@ html.material-icons-missing .material-symbols-outlined::before {
     outline: none;
 }
 .btn-primary {
-    background-color: #cc97ff;
-    color: #1a0030;
+    background-color: rgb(var(--color-primary));
+    color: rgb(var(--color-on-primary));
 }
 .btn-primary:hover {
     filter: brightness(1.1);
 }
 .btn-primary:disabled {
-    background-color: #2d1a4e;
-    color: #6b6b6b;
+    background-color: rgb(var(--color-primary-container));
+    color: rgb(var(--color-outline));
     cursor: not-allowed;
 }
 .btn-secondary {
-    background-color: #191919;
-    color: #ffffff;
-    border: 1px solid #484848;
+    background-color: rgb(var(--color-surface-container));
+    color: rgb(var(--color-on-surface));
+    border: 1px solid rgb(var(--color-outline));
 }
 .btn-secondary:hover {
-    border-color: #cc97ff;
-    color: #cc97ff;
+    border-color: rgb(var(--color-primary));
+    color: rgb(var(--color-primary));
 }
 .btn-danger {
     background-color: transparent;
-    color: #ff6e84;
-    border: 1px solid #ff6e84;
+    color: rgb(var(--color-error));
+    border: 1px solid rgb(var(--color-error));
 }
 .btn-danger:hover {
-    background-color: rgba(255, 110, 132, 0.1);
+    background-color: rgb(var(--color-error) / 0.1);
 }
 .btn-icon {
     padding: 8px;
     background: transparent;
-    color: #ababab;
+    color: rgb(var(--color-on-surface-variant));
     border: none;
 }
 .btn-icon:hover {
-    color: #cc97ff;
+    color: rgb(var(--color-primary));
 }
 .btn-sm {
     font-size: 11px;
@@ -208,9 +208,9 @@ html.material-icons-missing .material-symbols-outlined::before {
 
 /* Input styles */
 .input {
-    background-color: #000000;
-    color: #ffffff;
-    border: 1px solid #484848;
+    background-color: rgb(var(--color-surface-container-lowest));
+    color: rgb(var(--color-on-surface));
+    border: 1px solid rgb(var(--color-outline));
     padding: 10px 14px;
     font-size: 14px;
     font-family: 'Inter', sans-serif;
@@ -221,10 +221,10 @@ html.material-icons-missing .material-symbols-outlined::before {
 }
 .input:focus {
     outline: none;
-    border-color: #cc97ff;
+    border-color: rgb(var(--color-primary));
 }
 .input::placeholder {
-    color: #6b6b6b;
+    color: rgb(var(--color-outline));
 }
 .input-label {
     font-family: 'Space Grotesk', sans-serif;
@@ -232,7 +232,7 @@ html.material-icons-missing .material-symbols-outlined::before {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #ababab;
+    color: rgb(var(--color-on-surface-variant));
     margin-bottom: 6px;
     display: block;
 }
@@ -254,9 +254,9 @@ html.material-icons-missing .material-symbols-outlined::before {
 }
 
 .cs-display {
-    background-color: #000000;
-    color: #ffffff;
-    border: 1px solid #484848;
+    background-color: rgb(var(--color-surface-container-lowest));
+    color: rgb(var(--color-on-surface));
+    border: 1px solid rgb(var(--color-outline));
     padding: 10px 14px;
     font-size: 14px;
     font-family: 'Inter', sans-serif;
@@ -271,10 +271,10 @@ html.material-icons-missing .material-symbols-outlined::before {
     box-sizing: border-box;
 }
 .cs-display:hover {
-    border-color: #666;
+    border-color: rgb(var(--color-outline));
 }
 .cs-focus {
-    border-color: #cc97ff !important;
+    border-color: rgb(var(--color-primary)) !important;
 }
 
 .cs-label {
@@ -302,12 +302,12 @@ html.material-icons-missing .material-symbols-outlined::before {
     left: 0;
     right: 0;
     z-index: 9999;
-    background-color: #191919;
-    border: 1px solid #484848;
+    background-color: rgb(var(--color-surface-container));
+    border: 1px solid rgb(var(--color-outline));
     overflow-y: auto;
     overflow-x: hidden;
     max-height: 260px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    box-shadow: 0 8px 24px rgb(var(--color-surface-container-lowest) / 0.5);
 }
 .cs-list.cs-open {
     display: block;
@@ -317,7 +317,7 @@ html.material-icons-missing .material-symbols-outlined::before {
     padding: 9px 14px;
     font-size: 14px;
     font-family: 'Inter', sans-serif;
-    color: #ffffff;
+    color: rgb(var(--color-on-surface));
     cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
@@ -325,14 +325,14 @@ html.material-icons-missing .material-symbols-outlined::before {
     transition: background-color 0.1s;
 }
 .cs-item:hover {
-    background-color: #2a2a2a;
+    background-color: rgb(var(--color-surface-bright));
 }
 .cs-item.cs-active {
-    background-color: #1e1040;
-    color: #cc97ff;
+    background-color: rgb(var(--color-primary-container));
+    color: rgb(var(--color-primary));
 }
 .cs-item.cs-disabled {
-    color: #555;
+    color: rgb(var(--color-outline));
     cursor: default;
 }
 .cs-item.cs-disabled:hover {
@@ -341,13 +341,13 @@ html.material-icons-missing .material-symbols-outlined::before {
 
 /* Card styles */
 .card {
-    background-color: #131313;
-    border: 1px solid #191919;
+    background-color: rgb(var(--color-surface-container-low));
+    border: 1px solid rgb(var(--color-surface-container));
     padding: 20px;
     transition: all 0.15s;
 }
 .card:hover {
-    background-color: #191919;
+    background-color: rgb(var(--color-surface-container));
 }
 .card-header {
     font-family: 'Space Grotesk', sans-serif;
@@ -355,7 +355,7 @@ html.material-icons-missing .material-symbols-outlined::before {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #cc97ff;
+    color: rgb(var(--color-primary));
     margin-bottom: 12px;
 }
 
@@ -372,9 +372,9 @@ html.material-icons-missing .material-symbols-outlined::before {
     gap: 4px;
 }
 .badge-primary {
-    background-color: rgba(204, 151, 255, 0.15);
-    color: #cc97ff;
-    border: 1px solid rgba(204, 151, 255, 0.3);
+    background-color: rgb(var(--color-primary) / 0.15);
+    color: rgb(var(--color-primary));
+    border: 1px solid rgb(var(--color-primary) / 0.3);
 }
 .badge-success {
     background-color: rgba(74, 222, 128, 0.15);
@@ -387,9 +387,9 @@ html.material-icons-missing .material-symbols-outlined::before {
     border: 1px solid rgba(251, 191, 36, 0.3);
 }
 .badge-danger {
-    background-color: rgba(255, 110, 132, 0.15);
-    color: #ff6e84;
-    border: 1px solid rgba(255, 110, 132, 0.3);
+    background-color: rgb(var(--color-error) / 0.15);
+    color: rgb(var(--color-error));
+    border: 1px solid rgb(var(--color-error) / 0.3);
 }
 
 /* Toast notifications */
@@ -399,7 +399,7 @@ html.material-icons-missing .material-symbols-outlined::before {
     font-family: 'Inter', sans-serif;
     border-left: 3px solid;
     animation: toast-in 0.3s ease-out;
-    background-color: #262626;
+    background-color: rgb(var(--color-surface-container-highest));
     min-width: 280px;
     display: flex;
     align-items: center;
@@ -428,12 +428,12 @@ html.material-icons-missing .material-symbols-outlined::before {
     color: #4ade80;
 }
 .toast-error {
-    border-color: #ff6e84;
-    color: #ff6e84;
+    border-color: rgb(var(--color-error));
+    color: rgb(var(--color-error));
 }
 .toast-info {
-    border-color: #cc97ff;
-    color: #cc97ff;
+    border-color: rgb(var(--color-primary));
+    color: rgb(var(--color-primary));
 }
 .toast-out {
     animation: toast-out 0.3s ease-in forwards;
@@ -447,8 +447,8 @@ html.material-icons-missing .material-symbols-outlined::before {
     min-width: 18px;
     height: 18px;
     padding: 0 5px;
-    background-color: #ff6e84;
-    color: #000;
+    background-color: rgb(var(--color-error));
+    color: rgb(var(--color-surface-container-lowest));
     border-radius: 9px;
     display: inline-flex;
     align-items: center;
@@ -459,14 +459,14 @@ html.material-icons-missing .material-symbols-outlined::before {
 
 /* Bug report cards */
 .bug-card {
-    background-color: #131313;
-    border: 1px solid #191919;
-    border-left: 3px solid #ff6e84;
+    background-color: rgb(var(--color-surface-container-low));
+    border: 1px solid rgb(var(--color-surface-container));
+    border-left: 3px solid rgb(var(--color-error));
     padding: 14px 18px;
     transition: background-color 0.15s;
 }
 .bug-card:hover {
-    background-color: #191919;
+    background-color: rgb(var(--color-surface-container));
 }
 .bug-card-header {
     display: flex;
@@ -482,7 +482,7 @@ html.material-icons-missing .material-symbols-outlined::before {
 .bug-card-time {
     font-family: 'Consolas', 'Cascadia Code', monospace;
     font-size: 12px;
-    color: #ababab;
+    color: rgb(var(--color-on-surface-variant));
 }
 .bug-card-source {
     font-family: 'Space Grotesk', sans-serif;
@@ -491,14 +491,14 @@ html.material-icons-missing .material-symbols-outlined::before {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     padding: 2px 8px;
-    background-color: rgba(204, 151, 255, 0.15);
-    color: #cc97ff;
-    border: 1px solid rgba(204, 151, 255, 0.3);
+    background-color: rgb(var(--color-primary) / 0.15);
+    color: rgb(var(--color-primary));
+    border: 1px solid rgb(var(--color-primary) / 0.3);
 }
 .bug-card-message {
     font-family: 'Consolas', 'Cascadia Code', monospace;
     font-size: 13px;
-    color: #ff6e84;
+    color: rgb(var(--color-error));
     word-break: break-word;
     white-space: pre-wrap;
 }
@@ -509,16 +509,16 @@ html.material-icons-missing .material-symbols-outlined::before {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     padding: 4px 12px;
-    background-color: #191919;
-    color: #ababab;
-    border: 1px solid #484848;
+    background-color: rgb(var(--color-surface-container));
+    color: rgb(var(--color-on-surface-variant));
+    border: 1px solid rgb(var(--color-outline));
     cursor: pointer;
     transition: all 0.15s;
     flex-shrink: 0;
 }
 .btn-copy-bug:hover {
-    border-color: #cc97ff;
-    color: #cc97ff;
+    border-color: rgb(var(--color-primary));
+    color: rgb(var(--color-primary));
 }
 .btn-copy-bug.copied {
     border-color: #4ade80;
@@ -545,11 +545,11 @@ html.material-icons-missing .material-symbols-outlined::before {
 
 /* Log output */
 .log-output {
-    background-color: #000000;
-    border: 1px solid #191919;
+    background-color: rgb(var(--color-surface-container-lowest));
+    border: 1px solid rgb(var(--color-surface-container));
     font-family: 'Consolas', 'Cascadia Code', monospace;
     font-size: 13px;
-    color: #ababab;
+    color: rgb(var(--color-on-surface-variant));
     padding: 12px;
     overflow-y: auto;
     white-space: pre-wrap;
@@ -559,27 +559,27 @@ html.material-icons-missing .material-symbols-outlined::before {
 /* Timeline (for git commits) */
 .timeline-line {
     width: 2px;
-    background: linear-gradient(to bottom, #cc97ff, #484848);
+    background: linear-gradient(to bottom, rgb(var(--color-primary)), rgb(var(--color-outline)));
 }
 .timeline-node {
     width: 12px;
     height: 12px;
-    border: 2px solid #484848;
-    background: #000000;
+    border: 2px solid rgb(var(--color-outline));
+    background: rgb(var(--color-surface-container-lowest));
     position: relative;
     z-index: 1;
 }
 .timeline-node.active {
-    border-color: #cc97ff;
-    background: #cc97ff;
-    box-shadow: 0 0 8px rgba(204, 151, 255, 0.5);
+    border-color: rgb(var(--color-primary));
+    background: rgb(var(--color-primary));
+    box-shadow: 0 0 8px rgb(var(--color-primary) / 0.5);
 }
 
 /* Tab bar */
 .tab-bar {
     display: flex;
     gap: 0;
-    border-bottom: 1px solid #484848;
+    border-bottom: 1px solid rgb(var(--color-outline));
     margin-bottom: 24px;
 }
 .tab-item {
@@ -589,7 +589,7 @@ html.material-icons-missing .material-symbols-outlined::before {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     padding: 10px 24px;
-    color: #ababab;
+    color: rgb(var(--color-on-surface-variant));
     background: transparent;
     border: none;
     border-bottom: 2px solid transparent;
@@ -600,18 +600,18 @@ html.material-icons-missing .material-symbols-outlined::before {
     gap: 8px;
 }
 .tab-item:hover {
-    color: #ffffff;
+    color: rgb(var(--color-on-surface));
 }
 .tab-item.active {
-    color: #cc97ff;
-    border-bottom-color: #cc97ff;
+    color: rgb(var(--color-primary));
+    border-bottom-color: rgb(var(--color-primary));
 }
 .tab-item .tab-badge {
     font-size: 11px;
     padding: 1px 6px;
-    background-color: rgba(204, 151, 255, 0.15);
-    color: #cc97ff;
-    border: 1px solid rgba(204, 151, 255, 0.3);
+    background-color: rgb(var(--color-primary) / 0.15);
+    color: rgb(var(--color-primary));
+    border: 1px solid rgb(var(--color-primary) / 0.3);
 }
 
 /* Loading spinner */
@@ -642,14 +642,14 @@ html.material-icons-missing .material-symbols-outlined::before {
     font-size: 13px;
     letter-spacing: 0.2em;
     text-transform: uppercase;
-    color: #ffffff;
+    color: rgb(var(--color-on-surface));
 }
 .section-title::before {
     content: '';
     display: block;
     width: 4px;
     height: 16px;
-    background-color: #cc97ff;
+    background-color: rgb(var(--color-primary));
     flex-shrink: 0;
 }
 
@@ -662,12 +662,12 @@ html.material-icons-missing .material-symbols-outlined::before {
 .progress-bar {
     width: 100%;
     height: 2px;
-    background-color: #191919;
+    background-color: rgb(var(--color-surface-container));
     overflow: hidden;
 }
 .progress-bar-fill {
     height: 100%;
-    background-color: #cc97ff;
+    background-color: rgb(var(--color-primary));
     transition: width 0.3s ease;
 }
 .progress-bar-indeterminate .progress-bar-fill {
@@ -685,15 +685,15 @@ html.material-icons-missing .material-symbols-outlined::before {
     cursor: not-allowed !important;
 }
 .home-card-disabled .material-symbols-outlined {
-    color: #6b6b6b !important;
+    color: rgb(var(--color-outline)) !important;
 }
 
 /* ── Progress Panel ── */
 .progress-panel {
-    background-color: #262626;
-    border: 1px solid rgba(72, 72, 72, 0.2);
+    background-color: rgb(var(--color-surface-container-highest));
+    border: 1px solid rgb(var(--color-outline) / 0.2);
     border-radius: 12px;
-    box-shadow: 0 0 15px rgba(204, 151, 255, 0.1);
+    box-shadow: 0 0 15px rgb(var(--color-primary) / 0.1);
     overflow: hidden;
     transition: all 0.3s;
     animation: toast-in 0.3s ease-out;
@@ -703,7 +703,7 @@ html.material-icons-missing .material-symbols-outlined::before {
     align-items: center;
     justify-content: space-between;
     padding: 0.625rem 1rem;
-    border-bottom: 1px solid rgba(72, 72, 72, 0.15);
+    border-bottom: 1px solid rgb(var(--color-outline) / 0.15);
 }
 .progress-panel-title {
     font-size: 0.75rem;
@@ -711,7 +711,7 @@ html.material-icons-missing .material-symbols-outlined::before {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     font-weight: 700;
-    color: #ffffff;
+    color: rgb(var(--color-on-surface));
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -724,18 +724,18 @@ html.material-icons-missing .material-symbols-outlined::before {
     flex-shrink: 0;
 }
 .progress-panel-actions button {
-    color: #ababab;
+    color: rgb(var(--color-on-surface-variant));
     transition: color 0.15s;
     padding: 0.125rem;
 }
 .progress-panel-actions button:hover {
-    color: #ffffff;
+    color: rgb(var(--color-on-surface));
 }
 .progress-panel-percent-mini {
     font-size: 0.75rem;
     font-family: monospace;
     font-weight: 700;
-    color: #cc97ff;
+    color: rgb(var(--color-primary));
 }
 .progress-panel-body {
     padding: 0.75rem 1rem;
@@ -746,7 +746,7 @@ html.material-icons-missing .material-symbols-outlined::before {
 }
 .progress-panel-step {
     font-size: 0.875rem;
-    color: #ffffff;
+    color: rgb(var(--color-on-surface));
     font-weight: 500;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -755,13 +755,13 @@ html.material-icons-missing .material-symbols-outlined::before {
 }
 .progress-panel-bar-container {
     width: 100%;
-    background-color: #191919;
+    background-color: rgb(var(--color-surface-container));
     border-radius: 9999px;
     height: 0.375rem;
     overflow: hidden;
 }
 .progress-panel-bar {
-    background-color: #cc97ff;
+    background-color: rgb(var(--color-primary));
     height: 0.375rem;
     border-radius: 9999px;
     transition: all 0.5s ease-out;
@@ -773,7 +773,7 @@ html.material-icons-missing .material-symbols-outlined::before {
 }
 .progress-panel-detail {
     font-size: 11px;
-    color: #ababab;
+    color: rgb(var(--color-on-surface-variant));
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -785,7 +785,7 @@ html.material-icons-missing .material-symbols-outlined::before {
     font-size: 0.75rem;
     font-family: monospace;
     font-weight: 700;
-    color: #cc97ff;
+    color: rgb(var(--color-primary));
 }
 .progress-panel-minimized .progress-panel-header {
     border-bottom: 0;
@@ -813,7 +813,7 @@ html.material-icons-missing .material-symbols-outlined::before {
     color: #ef4444;
 }
 .progress-panel-dismiss {
-    color: #ababab;
+    color: rgb(var(--color-on-surface-variant));
     transition: color 0.15s;
     padding: 0.125rem 0.25rem;
     font-size: 1.125rem;
@@ -831,7 +831,7 @@ html.material-icons-missing .material-symbols-outlined::before {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border: 1px solid rgba(51, 51, 51, 0.25);
+    border: 1px solid rgb(var(--color-outline-variant) / 0.25);
     border-radius: 6px;
     padding: 7px 12px;
     margin-bottom: 10px;
@@ -840,11 +840,11 @@ html.material-icons-missing .material-symbols-outlined::before {
 }
 .version-block.has-update {
     cursor: pointer;
-    border-color: rgba(204, 151, 255, 0.3);
+    border-color: rgb(var(--color-primary) / 0.3);
 }
 .version-block.has-update:hover {
-    border-color: rgba(204, 151, 255, 0.5);
-    background-color: rgba(204, 151, 255, 0.05);
+    border-color: rgb(var(--color-primary) / 0.5);
+    background-color: rgb(var(--color-primary) / 0.05);
 }
 .version-block .version-label {
     font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
@@ -852,13 +852,13 @@ html.material-icons-missing .material-symbols-outlined::before {
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.15em;
-    color: rgba(171, 171, 171, 0.5);
+    color: rgb(var(--color-on-surface-variant) / 0.5);
 }
 .version-block .version-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background-color: #ff6e84;
+    background-color: rgb(var(--color-error));
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     display: none;
 }
@@ -874,10 +874,10 @@ html.material-icons-missing .material-symbols-outlined::before {
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    border: 1px solid #484848;
+    border: 1px solid rgb(var(--color-outline));
     font-size: 11px;
     font-weight: 700;
-    color: #ababab;
+    color: rgb(var(--color-on-surface-variant));
     cursor: help;
     position: relative;
     vertical-align: middle;
@@ -888,8 +888,8 @@ html.material-icons-missing .material-symbols-outlined::before {
     letter-spacing: 0;
 }
 .help-tip:hover {
-    border-color: #cc97ff;
-    color: #cc97ff;
+    border-color: rgb(var(--color-primary));
+    color: rgb(var(--color-primary));
 }
 .help-tip:hover::after {
     content: attr(data-tooltip);
@@ -897,9 +897,9 @@ html.material-icons-missing .material-symbols-outlined::before {
     bottom: calc(100% + 8px);
     left: 50%;
     transform: translateX(-50%);
-    background-color: #262626;
-    color: #ffffff;
-    border: 1px solid #484848;
+    background-color: rgb(var(--color-surface-container-highest));
+    color: rgb(var(--color-on-surface));
+    border: 1px solid rgb(var(--color-outline));
     padding: 8px 12px;
     font-size: 12px;
     font-weight: 400;
@@ -908,7 +908,7 @@ html.material-icons-missing .material-symbols-outlined::before {
     width: 260px;
     z-index: 1000;
     pointer-events: none;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 12px rgb(var(--color-surface-container-lowest) / 0.4);
 }
 .help-tip:hover::before {
     content: '';
@@ -917,7 +917,7 @@ html.material-icons-missing .material-symbols-outlined::before {
     left: 50%;
     transform: translateX(-50%);
     border: 5px solid transparent;
-    border-top-color: #484848;
+    border-top-color: rgb(var(--color-outline));
     z-index: 1001;
     pointer-events: none;
 }
