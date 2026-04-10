@@ -54,6 +54,10 @@
                         <button id="shared-model-save" class="btn btn-primary hidden" style="padding:6px 14px;">
                             <span class="material-symbols-outlined text-[16px]">save</span>
                         </button>
+                        <button id="shared-model-rescan" class="btn btn-secondary" style="padding:6px 14px;" title="${t('rescan_shared_models_tooltip')}">
+                            <span class="material-symbols-outlined text-[16px]">refresh</span>
+                            <span class="ml-1 text-xs">${t('rescan_shared_models')}</span>
+                        </button>
                     </div>
                 </div>
 
@@ -133,6 +137,39 @@
                 return;
             }
             saveSharedModelConfig('custom', path);
+        });
+
+        // Rescan button
+        document.getElementById('shared-model-rescan').addEventListener('click', function() {
+            var btn = document.getElementById('shared-model-rescan');
+            btn.disabled = true;
+            BridgeAPI.rescanSharedModelSubdirs().then(function(result) {
+                if (result && result.skipped) {
+                    App.showToast(
+                        t('rescan_skipped').replace('{0}', result.reason || ''),
+                        'warning'
+                    );
+                } else if (result && result.added && result.added.length > 0) {
+                    App.showToast(
+                        t('rescan_found_new')
+                            .replace('{0}', result.added.length)
+                            .replace('{1}', result.synced_envs || 0),
+                        'success'
+                    );
+                } else if (result && result.synced_envs > 0) {
+                    App.showToast(
+                        t('rescan_forced_regen').replace('{0}', result.synced_envs),
+                        'success'
+                    );
+                } else {
+                    App.showToast(t('rescan_up_to_date'), 'info');
+                }
+            }).catch(function(e) {
+                var msg = (e && e.message) ? e.message : String(e);
+                App.showToast(t('rescan_failed').replace('{0}', msg), 'error');
+            }).finally(function() {
+                btn.disabled = false;
+            });
         });
     }
 
