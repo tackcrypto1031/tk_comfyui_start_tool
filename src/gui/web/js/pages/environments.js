@@ -407,6 +407,13 @@
                                 <span id="create-version-hint" class="text-xs text-on-surface-variant"></span>
                             </div>
                         </div>
+                        <div class="border-t border-outline/20 pt-3 mt-3">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="material-symbols-outlined text-[14px]" style="color:rgb(var(--color-primary));">folder_shared</span>
+                                <span class="text-xs font-label uppercase tracking-wider">${t('shared_model_create_info')}</span>
+                            </div>
+                            <div id="create-model-path" class="text-xs text-on-surface-variant font-mono p-2 rounded" style="background: rgba(255,255,255,0.05);"></div>
+                        </div>
                     </div>
                 </div>
                 <div id="create-status" class="text-xs text-on-surface-variant"></div>
@@ -428,6 +435,18 @@
                     document.getElementById('create-branch-row').classList.toggle('hidden', radio.value !== 'branch');
                     document.getElementById('create-tag-row').classList.toggle('hidden', radio.value !== 'tag');
                 });
+            });
+
+            // Load and display shared model path (read-only)
+            BridgeAPI.getSharedModelConfig().then(function(config) {
+                var pathEl = document.getElementById('create-model-path');
+                if (pathEl) {
+                    if (config.mode === 'custom' && config.path) {
+                        pathEl.textContent = config.path + ' (' + t('shared_model_custom') + ')';
+                    } else {
+                        pathEl.textContent = config.default_path + ' (' + t('shared_model_default') + ')';
+                    }
+                }
             });
 
             BridgeAPI.listRemoteVersions().then(function(versions) {
