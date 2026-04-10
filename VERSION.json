@@ -1,22 +1,40 @@
 {
-  "version": "0.1.8",
+  "version": "0.1.9",
   "min_python": "3.10",
-  "release_notes": "新增設置頁面與四款 UI 配色方案切換功能",
+  "release_notes": "新增共用模型資料夾功能，多環境可共用同一模型目錄並自動同步新子資料夾",
   "changes": [
-    "新增「設置」分頁，支援 UI 配色方案切換",
-    "提供四款主題：Obsidian Edge（預設暗色）、Claude（溫暖赤陶色）、MiniMax（明亮科技藍）、Ollama（極簡灰階）",
-    "主題即時切換，重啟後自動恢復上次選擇"
+    "新增「共用模型資料夾」功能：多個 ComfyUI 環境可共用同一個 models 目錄，大幅節省硬碟空間",
+    "支援預設路徑或自訂外部路徑（例如 NAS、外接硬碟），可為每個環境獨立開關共用",
+    "環境管理頁面新增「共用模型路徑」區塊、「模型共用」欄位與一鍵全部切換",
+    "工具啟動時自動掃描環境與共用目錄，將節點新建的模型資料夾自動納入共用",
+    "新增「重新掃描」按鈕，可手動觸發掃描並修復環境設定檔漂移",
+    "CLI 新增 env rescan [--force] 指令，方便腳本化重新掃描",
+    "Custom 模式下路徑不存在時自動略過 bootstrap，避免在錯誤位置建立空目錄",
+    "建立環境對話框會顯示當前共用模型路徑資訊",
+    "快照備份與還原全面相容共用路徑設定"
   ],
   "changes_i18n": {
     "en": [
-      "Added Settings page with UI color scheme switcher",
-      "Four themes available: Obsidian Edge (default dark), Claude (warm parchment), MiniMax (bright tech blue), Ollama (minimal grayscale)",
-      "Instant theme switching with automatic persistence across restarts"
+      "Added shared model directory feature: multiple ComfyUI environments can share one models directory, saving disk space",
+      "Supports default path or custom external path (NAS, external drive, etc.) with per-environment enable/disable toggles",
+      "Environment management page gains a Shared Model Path section, Model Sharing column, and one-click toggle all",
+      "Tool startup automatically scans environments and shared directory, adopting new subdirectories created by custom nodes",
+      "New Rescan button manually triggers a scan and heals drifted environment config files",
+      "CLI adds env rescan [--force] command for scripted rescans",
+      "Safety guard: skips bootstrap when custom-mode path does not exist, preventing ghost directory creation",
+      "Environment creation dialog now displays the current shared model path",
+      "Snapshot backup and restore fully compatible with shared path settings"
     ],
     "zh-TW": [
-      "新增「設置」分頁，支援 UI 配色方案切換",
-      "提供四款主題：Obsidian Edge（預設暗色）、Claude（溫暖赤陶色）、MiniMax（明亮科技藍）、Ollama（極簡灰階）",
-      "主題即時切換，重啟後自動恢復上次選擇"
+      "新增「共用模型資料夾」功能：多個 ComfyUI 環境可共用同一個 models 目錄，大幅節省硬碟空間",
+      "支援預設路徑或自訂外部路徑（例如 NAS、外接硬碟），可為每個環境獨立開關共用",
+      "環境管理頁面新增「共用模型路徑」區塊、「模型共用」欄位與一鍵全部切換",
+      "工具啟動時自動掃描環境與共用目錄，將節點新建的模型資料夾自動納入共用",
+      "新增「重新掃描」按鈕，可手動觸發掃描並修復環境設定檔漂移",
+      "CLI 新增 env rescan [--force] 指令，方便腳本化重新掃描",
+      "Custom 模式下路徑不存在時自動略過 bootstrap，避免在錯誤位置建立空目錄",
+      "建立環境對話框會顯示當前共用模型路徑資訊",
+      "快照備份與還原全面相容共用路徑設定"
     ]
   }
 }
