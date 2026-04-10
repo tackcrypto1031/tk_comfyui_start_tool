@@ -333,6 +333,38 @@ class EnvManager:
         for subdir in model_subdirs:
             (base / subdir).mkdir(parents=True, exist_ok=True)
 
+    def ensure_shared_models_if_safe(self) -> bool:
+        """Guarded wrapper around ensure_shared_models().
+
+        Skips the operation entirely if the resolved shared path is likely
+        to be in an unmounted / typo'd location. Returns True if the
+        bootstrap ran, False if it was skipped.
+        """
+        mode = self.config.get("shared_model_mode", "default")
+        resolved = self._resolve_model_path()
+
+        if mode == "custom":
+            if not resolved.exists():
+                logger.warning(
+                    "Custom shared model path does not exist, skipping bootstrap: %s",
+                    resolved,
+                )
+                return False
+        else:  # default mode
+            if not resolved.exists() and not resolved.parent.exists():
+                logger.warning(
+                    "Default models dir and its parent both missing, skipping bootstrap: %s",
+                    resolved,
+                )
+                return False
+
+        try:
+            self.ensure_shared_models()
+            return True
+        except OSError as exc:
+            logger.warning("ensure_shared_models failed: %s", exc)
+            return False
+
     def sync_shared_model_subdirs(self, force_regen: bool = False) -> dict:
         """Scan shared + env model dirs for new subdirs; merge into config; optionally regen yaml.
 
