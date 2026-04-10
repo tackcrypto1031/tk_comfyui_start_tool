@@ -222,5 +222,18 @@ var BridgeAPI = (function() {
         reinstallPytorch: function(envName, cudaTag, onProgress) {
             return callAsync('reinstall_pytorch', envName, cudaTag, {onProgress: onProgress});
         },
+
+        // Shared Model Config
+        getSharedModelConfig: function() { return callSlot('get_shared_model_config'); },
+        setSharedModelConfig: function(mode, path, syncEnvironments) {
+            return callSlot('set_shared_model_config', mode, path, syncEnvironments ? 'true' : 'false');
+        },
+        toggleSharedModel: function(envName, enabled) {
+            return callSlot('toggle_shared_model', envName, enabled ? 'true' : 'false');
+        },
+        toggleAllSharedModel: function(enabled) {
+            return callSlot('toggle_all_shared_model', enabled ? 'true' : 'false');
+        },
+        browseFolder: function() { return callSlot('browse_folder'); },
     };
 })();
