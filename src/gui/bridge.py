@@ -144,6 +144,55 @@ class Bridge(QObject):
             logger.error(f"set_config error: {e}")
             return json.dumps({"error": str(e)}, ensure_ascii=False)
 
+    # ── Shared Model Config ──
+
+    @Slot(result=str)
+    def get_shared_model_config(self):
+        """Return shared model configuration."""
+        return self._safe_call(lambda: {
+            "mode": self.config.get("shared_model_mode", "default"),
+            "path": self.config.get("custom_model_path", ""),
+            "default_path": str(Path(self.config["models_dir"]).resolve()),
+        })
+
+    @Slot(str, str, str, result=str)
+    def set_shared_model_config(self, mode, path, sync_environments):
+        """Update shared model path config. sync_environments: 'true' or 'false'."""
+        def _set():
+            sync = sync_environments == 'true'
+            result = self.env_manager.set_shared_model_path(mode, path, sync)
+            save_config(self.config, "config.json")
+            return result
+        return self._safe_call(_set)
+
+    @Slot(str, str, result=str)
+    def toggle_shared_model(self, env_name, enabled):
+        """Toggle shared model for a single environment. enabled: 'true' or 'false'."""
+        def _toggle():
+            self.env_manager.toggle_shared_model(env_name, enabled == 'true')
+            return {"success": True}
+        return self._safe_call(_toggle)
+
+    @Slot(str, result=str)
+    def toggle_all_shared_model(self, enabled):
+        """Toggle shared model for all environments. enabled: 'true' or 'false'."""
+        def _toggle():
+            count = self.env_manager.toggle_all_shared_model(enabled == 'true')
+            return {"count": count}
+        return self._safe_call(_toggle)
+
+    @Slot(result=str)
+    def browse_folder(self):
+        """Open native folder selection dialog."""
+        try:
+            from PySide6.QtWidgets import QFileDialog, QApplication
+            parent = QApplication.activeWindow()
+            folder = QFileDialog.getExistingDirectory(parent, "Select Model Directory")
+            return json.dumps({"success": True, "data": folder or ""}, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"browse_folder error: {e}")
+            return json.dumps({"error": str(e)}, ensure_ascii=False)
+
     @Slot(result=str)
     def debug_info(self):
         """Return diagnostic information."""
