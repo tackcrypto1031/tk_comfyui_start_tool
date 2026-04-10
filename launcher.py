@@ -68,8 +68,22 @@ def main():
         settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
         settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
 
+        # Run shared-model bootstrap + auto-grow scan before bridge construction
+        from src.core.env_manager import EnvManager as _EnvManager
+        _rescan_result = None
+        try:
+            _startup_mgr = _EnvManager(config)
+            _startup_mgr.ensure_shared_models_if_safe()
+            _rescan_result = _startup_mgr.sync_shared_model_subdirs(force_regen=False)
+        except Exception as _e:  # pragma: no cover
+            import logging as _logging
+            _logging.getLogger("launcher").warning(
+                "Startup shared-model scan failed: %s", _e, exc_info=True,
+            )
+            _rescan_result = None
+
         channel = QWebChannel()
-        bridge = Bridge(config)
+        bridge = Bridge(config, last_rescan_result=_rescan_result)
         channel.registerObject("bridge", bridge)
         page.setWebChannel(channel)
 
