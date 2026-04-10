@@ -98,6 +98,38 @@
         BridgeAPI.listRemoteVersions().catch(function() {});
     }
 
+    function createToggleSwitch(isOn, onClick) {
+        var el = document.createElement('div');
+        el.className = 'toggle-switch';
+        el.dataset.state = isOn ? 'on' : 'off';
+        el.style.cssText = 'width:36px;height:20px;border-radius:10px;position:relative;cursor:pointer;display:inline-block;transition:background 0.2s;' +
+            (isOn ? 'background:rgb(var(--color-primary));' : 'background:rgb(var(--color-outline));');
+        var knob = document.createElement('div');
+        knob.style.cssText = 'width:16px;height:16px;border-radius:50%;position:absolute;top:2px;transition:left 0.2s,right 0.2s;' +
+            (isOn ? 'right:2px;left:auto;background:#fff;' : 'left:2px;right:auto;background:#999;');
+        el.appendChild(knob);
+        el.addEventListener('click', function(e) {
+            e.stopPropagation();
+            onClick(el);
+        });
+        return el;
+    }
+
+    function setToggleState(el, isOn) {
+        el.dataset.state = isOn ? 'on' : 'off';
+        el.style.background = isOn ? 'rgb(var(--color-primary))' : 'rgb(var(--color-outline))';
+        var knob = el.firstChild;
+        if (isOn) {
+            knob.style.right = '2px';
+            knob.style.left = 'auto';
+            knob.style.background = '#fff';
+        } else {
+            knob.style.left = '2px';
+            knob.style.right = 'auto';
+            knob.style.background = '#999';
+        }
+    }
+
     let selectedEnvName = null;
 
     function loadEnvironments() {
