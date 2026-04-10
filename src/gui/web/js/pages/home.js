@@ -52,7 +52,8 @@
                             'width: 220px; ' +
                             'background-color: rgba(0,0,0,0.7); ' +
                             'backdrop-filter: blur(8px); ' +
-                            'border-color: rgba(72,72,72,0.4);' +
+                            'border-color: rgba(72,72,72,0.4); ' +
+                            'color: #ffffff;' +
                         '">' +
                             '<option value="">' + t('home_select_env') + '</option>' +
                         '</select>' +
