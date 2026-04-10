@@ -725,11 +725,16 @@ class Bridge(QObject):
             env = next((e for e in envs if e.name == env_name), None)
             if not env:
                 raise ValueError(f"Environment not found: {env_name}")
-            target = Path(env.path) / "ComfyUI" / subfolder if subfolder else Path(env.path) / "ComfyUI"
-            resolved = target.resolve()
-            env_root = Path(env.path).resolve()
-            if not resolved.is_relative_to(env_root):
-                raise ValueError("Path escapes environment boundary")
+            # When opening the models folder and this environment has shared models
+            # enabled, redirect to the active shared model path (default or custom).
+            if subfolder == "models" and env.shared_model_enabled:
+                resolved = self.env_manager._resolve_model_path().resolve()
+            else:
+                target = Path(env.path) / "ComfyUI" / subfolder if subfolder else Path(env.path) / "ComfyUI"
+                resolved = target.resolve()
+                env_root = Path(env.path).resolve()
+                if not resolved.is_relative_to(env_root):
+                    raise ValueError("Path escapes environment boundary")
             if not resolved.exists():
                 raise FileNotFoundError(f"Folder '{subfolder or 'root'}' not found in environment '{env_name}'")
             if not resolved.is_dir():
