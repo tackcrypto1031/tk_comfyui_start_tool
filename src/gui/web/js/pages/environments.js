@@ -234,6 +234,21 @@
         }
     }
 
+    function updateHeaderToggle() {
+        var rows = document.querySelectorAll('#env-table-body tr');
+        var allOn = rows.length > 0;
+        rows.forEach(function(row) {
+            var toggle = row.querySelector('td:last-child .toggle-switch');
+            if (toggle && toggle.dataset.state !== 'on') {
+                allOn = false;
+            }
+        });
+        var headerToggle = document.getElementById('shared-model-header-toggle');
+        if (headerToggle) {
+            setToggleState(headerToggle, allOn);
+        }
+    }
+
     let selectedEnvName = null;
 
     function loadEnvironments() {
@@ -252,7 +267,28 @@
                     `<td>${escapeHtml(env.name)}</td>` +
                     `<td class="text-on-surface-variant">${escapeHtml(env.comfyui_branch || '')}</td>` +
                     `<td class="font-mono text-xs text-on-surface-variant">${commitShort}</td>` +
-                    `<td class="text-on-surface-variant text-xs">${createdShort}</td>`;
+                    `<td class="text-on-surface-variant text-xs">${createdShort}</td>` +
+                    `<td class="text-center"></td>`;
+
+                // Add toggle to the last cell
+                var toggleCell = tr.querySelector('td:last-child');
+                var isEnabled = env.shared_model_enabled !== false;
+                var toggle = createToggleSwitch(isEnabled, function(el) {
+                    var newState = el.dataset.state !== 'on';
+                    BridgeAPI.toggleSharedModel(env.name, newState).then(function() {
+                        setToggleState(el, newState);
+                        updateHeaderToggle();
+                        App.showToast(
+                            newState ? t('shared_model_toggled_on', env.name) : t('shared_model_toggled_off', env.name),
+                            'success'
+                        );
+                        App.showToast(t('shared_model_next_launch'), 'info');
+                    }).catch(function(e) {
+                        App.showToast(e.toString(), 'error');
+                    });
+                });
+                toggleCell.appendChild(toggle);
+
                 tr.addEventListener('click', () => {
                     document.querySelectorAll('#env-table-body tr.selected').forEach(r => r.classList.remove('selected'));
                     tr.classList.add('selected');
@@ -260,6 +296,29 @@
                 });
                 tbody.appendChild(tr);
             });
+
+            // Setup header toggle
+            var headerToggle = document.getElementById('shared-model-header-toggle');
+            if (headerToggle) {
+                var allEnabled = envs.length > 0 && envs.every(function(e) { return e.shared_model_enabled !== false; });
+                headerToggle.innerHTML = '';
+                var hToggle = createToggleSwitch(allEnabled, function(el) {
+                    var newState = el.dataset.state !== 'on';
+                    BridgeAPI.toggleAllSharedModel(newState).then(function() {
+                        App.showToast(
+                            newState ? t('shared_model_all_on') : t('shared_model_all_off'),
+                            'success'
+                        );
+                        App.showToast(t('shared_model_next_launch'), 'info');
+                        loadEnvironments();
+                    }).catch(function(e) {
+                        App.showToast(e.toString(), 'error');
+                    });
+                });
+                headerToggle.parentNode.replaceChild(hToggle, headerToggle);
+                hToggle.id = 'shared-model-header-toggle';
+            }
+
             statusEl.textContent = t('env_count', envs.length);
         }).catch(function(e) {
             statusEl.textContent = `${t('error')}: ${e}`;
