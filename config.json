@@ -16,16 +16,30 @@
   "color_scheme": "obsidian",
   "log_level": "INFO",
   "model_subdirs": [
-    "checkpoints", "loras", "vae", "controlnet",
-    "clip", "embeddings", "upscale_models"
+    "checkpoints",
+    "loras",
+    "vae",
+    "controlnet",
+    "clip",
+    "embeddings",
+    "upscale_models"
   ],
   "conflict_analyzer": {
     "critical_packages": [
-      "torch", "torchvision", "torchaudio",
-      "numpy", "scipy", "transformers",
-      "safetensors", "Pillow", "xformers",
-      "opencv-python", "opencv-python-headless",
-      "accelerate", "onnxruntime", "onnxruntime-gpu"
+      "torch",
+      "torchvision",
+      "torchaudio",
+      "numpy",
+      "scipy",
+      "transformers",
+      "safetensors",
+      "Pillow",
+      "xformers",
+      "opencv-python",
+      "opencv-python-headless",
+      "accelerate",
+      "onnxruntime",
+      "onnxruntime-gpu"
     ],
     "auto_analyze_on_install": true
   }

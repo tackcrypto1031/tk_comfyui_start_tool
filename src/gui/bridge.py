@@ -4,6 +4,7 @@ import logging
 import traceback
 from pathlib import Path
 from PySide6.QtCore import QObject, Slot, Signal, QThread
+from src.utils.fs_ops import save_config
 
 # Set up file logging for debugging
 _log_path = Path(__file__).parent.parent.parent / "debug.log"
@@ -127,6 +128,21 @@ class Bridge(QObject):
     def get_config(self):
         """Return current config as JSON."""
         return json.dumps(self.config, ensure_ascii=False)
+
+    @Slot(str, str, result=str)
+    def set_config(self, key, value):
+        """Update a single config key and save to disk."""
+        try:
+            try:
+                parsed = json.loads(value)
+            except (ValueError, TypeError):
+                parsed = value
+            self.config[key] = parsed
+            save_config(self.config, "config.json")
+            return json.dumps({"data": True}, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"set_config error: {e}")
+            return json.dumps({"error": str(e)}, ensure_ascii=False)
 
     @Slot(result=str)
     def debug_info(self):

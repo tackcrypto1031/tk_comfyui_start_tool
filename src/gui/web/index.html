@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant" class="dark">
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +8,17 @@
     <!-- Fonts: Space Grotesk + Inter + Material Symbols -->
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+
+    <!-- Anti-FOUC: apply theme before CSS parses -->
+    <script>
+      (function(){
+        var t = localStorage.getItem('color_scheme') || 'obsidian';
+        document.documentElement.setAttribute('data-theme', t);
+      })();
+    </script>
+
+    <!-- Theme CSS variables -->
+    <link rel="stylesheet" href="css/themes.css">
 
     <!-- Tailwind CSS (pre-compiled) -->
     <link rel="stylesheet" href="css/tailwind.css">
@@ -59,6 +70,10 @@
                 <span class="material-symbols-outlined text-[20px]">bug_report</span>
                 <span data-i18n="sidebar_bug_report">BUG 回報</span>
                 <span id="bug-report-badge" class="bug-badge hidden">0</span>
+            </a>
+            <a href="#" data-page="settings" class="nav-item flex items-center gap-4 px-6 py-4 text-[12px] font-label uppercase tracking-[0.15em] font-medium transition-all duration-200 cursor-pointer">
+                <span class="material-symbols-outlined text-[20px]">settings</span>
+                <span data-i18n="sidebar_settings">設置</span>
             </a>
         </nav>
 
@@ -133,5 +148,6 @@
     <script src="js/pages/snapshots.js"></script>
     <script src="js/pages/plugins.js"></script>
     <script src="js/pages/bug_report.js"></script>
+    <script src="js/pages/settings.js"></script>
 </body>
 </html>

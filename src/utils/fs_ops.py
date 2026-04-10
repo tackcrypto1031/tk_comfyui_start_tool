@@ -19,6 +19,7 @@ def get_default_config() -> dict:
         "default_port": 8188,
         "theme": "dark",
         "language": "zh-TW",
+        "color_scheme": "obsidian",
         "log_level": "INFO",
         "model_subdirs": [
             "checkpoints", "loras", "vae", "controlnet",
