@@ -86,10 +86,25 @@ def find_pid_on_port(port: int) -> Optional[int]:
     return None
 
 
-def find_available_port(start_port: int = 8188, max_tries: int = 10) -> int:
-    """Find an available port starting from start_port."""
+def find_available_port(start_port: int = 8188, max_tries: int = 10,
+                        exclude: Optional[set] = None) -> int:
+    """Find an available port starting from start_port.
+
+    A port is considered unavailable if either:
+      * ``is_port_in_use`` reports it as occupied (something is already
+        listening — i.e. a live socket bind), OR
+      * it appears in ``exclude`` (a set of ports that have been "claimed"
+        but not yet bound — e.g. reserved by another environment that is
+        still booting).  This closes the race where two environments
+        launched in rapid succession both call ``find_available_port(8188)``
+        before either has bound the socket and would otherwise both be
+        handed port 8188.
+    """
+    excluded = set(exclude) if exclude else set()
     for i in range(max_tries):
         port = start_port + i
+        if port in excluded:
+            continue
         if not is_port_in_use(port):
             return port
     raise RuntimeError(

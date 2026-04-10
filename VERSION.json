@@ -1,40 +1,37 @@
 {
-  "version": "0.1.9",
+  "version": "0.2.0",
   "min_python": "3.10",
-  "release_notes": "新增共用模型資料夾功能，多環境可共用同一模型目錄並自動同步新子資料夾",
+  "release_notes": "修復複製環境共用埠號的嚴重問題，複製後環境真正獨立運作",
   "changes": [
-    "新增「共用模型資料夾」功能：多個 ComfyUI 環境可共用同一個 models 目錄，大幅節省硬碟空間",
-    "支援預設路徑或自訂外部路徑（例如 NAS、外接硬碟），可為每個環境獨立開關共用",
-    "環境管理頁面新增「共用模型路徑」區塊、「模型共用」欄位與一鍵全部切換",
-    "工具啟動時自動掃描環境與共用目錄，將節點新建的模型資料夾自動納入共用",
-    "新增「重新掃描」按鈕，可手動觸發掃描並修復環境設定檔漂移",
-    "CLI 新增 env rescan [--force] 指令，方便腳本化重新掃描",
-    "Custom 模式下路徑不存在時自動略過 bootstrap，避免在錯誤位置建立空目錄",
-    "建立環境對話框會顯示當前共用模型路徑資訊",
-    "快照備份與還原全面相容共用路徑設定"
+    "修復複製環境後兩個環境實際上共用同一個 ComfyUI 程序的嚴重問題",
+    "修復同時啟動多個環境時被指派到相同埠號的競爭條件",
+    "修復關閉其中一個環境時會意外關閉另一個環境的問題",
+    "新增「啟動中」狀態顯示，啟動過程中按鈕正確鎖定以避免重複啟動",
+    "複製環境時會完整改寫 venv 內的絕對路徑（pyvenv.cfg、activate 腳本、pip.exe 等 shim）",
+    "複製環境時自動排除 .comfyui.pid 與 comfyui.log，避免繼承來源環境的執行狀態",
+    "停止環境前會驗證程序確實屬於該環境，防止誤殺其他環境的程序",
+    "啟動失敗（例如埠號被佔用）時會立即回報錯誤並附上最後的 log 內容"
   ],
   "changes_i18n": {
     "en": [
-      "Added shared model directory feature: multiple ComfyUI environments can share one models directory, saving disk space",
-      "Supports default path or custom external path (NAS, external drive, etc.) with per-environment enable/disable toggles",
-      "Environment management page gains a Shared Model Path section, Model Sharing column, and one-click toggle all",
-      "Tool startup automatically scans environments and shared directory, adopting new subdirectories created by custom nodes",
-      "New Rescan button manually triggers a scan and heals drifted environment config files",
-      "CLI adds env rescan [--force] command for scripted rescans",
-      "Safety guard: skips bootstrap when custom-mode path does not exist, preventing ghost directory creation",
-      "Environment creation dialog now displays the current shared model path",
-      "Snapshot backup and restore fully compatible with shared path settings"
+      "Fixed critical bug where cloned environments actually shared the same ComfyUI process as the source",
+      "Fixed race condition where launching multiple environments in quick succession assigned them the same port",
+      "Fixed issue where stopping one environment would accidentally kill another environment's process",
+      "Added 'starting' status display; start button is properly locked during startup to prevent double-launch",
+      "Clone now fully rewrites absolute paths inside the venv (pyvenv.cfg, activate scripts, pip.exe and other shims)",
+      "Clone now excludes .comfyui.pid and comfyui.log so runtime state is not inherited from the source environment",
+      "Stop now verifies the process actually belongs to the target environment before killing it",
+      "Launch failures (e.g. port already in use) now report immediately with the tail of comfyui.log"
     ],
     "zh-TW": [
-      "新增「共用模型資料夾」功能：多個 ComfyUI 環境可共用同一個 models 目錄，大幅節省硬碟空間",
-      "支援預設路徑或自訂外部路徑（例如 NAS、外接硬碟），可為每個環境獨立開關共用",
-      "環境管理頁面新增「共用模型路徑」區塊、「模型共用」欄位與一鍵全部切換",
-      "工具啟動時自動掃描環境與共用目錄，將節點新建的模型資料夾自動納入共用",
-      "新增「重新掃描」按鈕，可手動觸發掃描並修復環境設定檔漂移",
-      "CLI 新增 env rescan [--force] 指令，方便腳本化重新掃描",
-      "Custom 模式下路徑不存在時自動略過 bootstrap，避免在錯誤位置建立空目錄",
-      "建立環境對話框會顯示當前共用模型路徑資訊",
-      "快照備份與還原全面相容共用路徑設定"
+      "修復複製環境後兩個環境實際上共用同一個 ComfyUI 程序的嚴重問題",
+      "修復同時啟動多個環境時被指派到相同埠號的競爭條件",
+      "修復關閉其中一個環境時會意外關閉另一個環境的問題",
+      "新增「啟動中」狀態顯示，啟動過程中按鈕正確鎖定以避免重複啟動",
+      "複製環境時會完整改寫 venv 內的絕對路徑（pyvenv.cfg、activate 腳本、pip.exe 等 shim）",
+      "複製環境時自動排除 .comfyui.pid 與 comfyui.log，避免繼承來源環境的執行狀態",
+      "停止環境前會驗證程序確實屬於該環境，防止誤殺其他環境的程序",
+      "啟動失敗（例如埠號被佔用）時會立即回報錯誤並附上最後的 log 內容"
     ]
   }
 }

@@ -43,6 +43,7 @@ state/
 # AI agent / planning files
 .planning/
 .codex/
+.superpowers/
 AGENTS.md
 CLAUDE.md
 pytest.ini

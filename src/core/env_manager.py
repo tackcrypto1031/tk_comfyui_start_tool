@@ -522,9 +522,15 @@ class EnvManager:
         snap_mgr.create_snapshot(source, trigger="clone")
 
         try:
-            # 1. Copy entire directory
+            # 1. Copy entire directory, excluding runtime artifacts that must not
+            #    be shared between environments (.comfyui.pid would cause the clone
+            #    to appear "already running" if the source env's process is alive;
+            #    comfyui.log belongs to the source's run history only).
             _report("copy", 10, "Copying environment directory...")
-            shutil.copytree(str(source_dir), str(target_dir))
+            shutil.copytree(
+                str(source_dir), str(target_dir),
+                ignore=shutil.ignore_patterns(".comfyui.pid", "comfyui.log"),
+            )
 
             # 2. Fix venv paths (pyvenv.cfg and Scripts) to point to new location
             _report("fixup", 70, "Updating virtual environment paths...")
@@ -547,6 +553,11 @@ class EnvManager:
             # 4. Write updated env_meta.json
             _report("finalize", 95, "Saving environment metadata...")
             now = datetime.now(timezone.utc).isoformat()
+            # Carry over launch_settings from source (vram, cross-attention, etc.)
+            # but reset port to 0 so the launcher auto-assigns a free port on first
+            # launch rather than conflicting with the source environment's port.
+            cloned_launch_settings = dict(source_env.launch_settings)
+            cloned_launch_settings.pop("port", None)
             new_env = Environment(
                 name=new_name,
                 created_at=now,
@@ -560,6 +571,7 @@ class EnvManager:
                 parent_env=source,
                 path=str(target_dir),
                 shared_model_enabled=source_env.shared_model_enabled,
+                launch_settings=cloned_launch_settings,
             )
             new_env.save_meta()
             _report("done", 100, "Environment cloned!")
@@ -572,18 +584,98 @@ class EnvManager:
 
     @staticmethod
     def _fix_venv_paths(venv_path: Path, old_root: Path, new_root: Path) -> None:
-        """Update venv internal paths after copying to a new location."""
-        # Fix pyvenv.cfg — not all keys contain paths, only rewrite path-like values
+        """Update venv internal paths after copying to a new location.
+
+        A Windows venv embeds absolute paths in several places.  We must
+        rewrite ALL of them or the cloned environment will silently keep
+        referencing the source environment:
+
+        1. ``pyvenv.cfg`` — used by python.exe to find the base interpreter.
+        2. ``Scripts/activate.bat`` / ``activate`` / ``Activate.ps1`` / ``activate.fish``
+           / ``activate.csh`` — contain a hard-coded ``VIRTUAL_ENV=<old_path>``.
+        3. Console-script shims in ``Scripts/*.exe`` — pip.exe, etc. have a
+           shebang-style header pointing at the source venv's python.exe.
+
+        We rewrite 1 and 2 in place.  3 is handled by re-stamping the shim
+        header when we can detect it.
+        """
+        old_variants = {
+            str(old_root),
+            str(old_root).replace("\\", "/"),
+        }
+        new_variants = {
+            str(old_root): str(new_root),
+            str(old_root).replace("\\", "/"): str(new_root).replace("\\", "/"),
+        }
+
+        def _rewrite_text_file(path: Path) -> None:
+            try:
+                text = path.read_text(encoding="utf-8")
+            except Exception:
+                return
+            original = text
+            for old, new in new_variants.items():
+                if old in text:
+                    text = text.replace(old, new)
+            if text != original:
+                try:
+                    path.write_text(text, encoding="utf-8")
+                except Exception as exc:
+                    logger.warning("Could not rewrite %s: %s", path, exc)
+
+        # 1. pyvenv.cfg
         cfg_path = venv_path / "pyvenv.cfg"
         if cfg_path.exists():
-            old_str = str(old_root)
-            new_str = str(new_root)
-            text = cfg_path.read_text(encoding="utf-8")
-            text = text.replace(old_str, new_str)
-            # Also handle forward-slash variant
-            text = text.replace(old_str.replace("\\", "/"),
-                                new_str.replace("\\", "/"))
-            cfg_path.write_text(text, encoding="utf-8")
+            _rewrite_text_file(cfg_path)
+
+        # 2. Activation scripts (Windows + POSIX for completeness)
+        scripts_dir = venv_path / "Scripts"
+        if not scripts_dir.exists():
+            scripts_dir = venv_path / "bin"  # POSIX fallback
+        if scripts_dir.exists():
+            for name in (
+                "activate.bat", "deactivate.bat",
+                "Activate.ps1",
+                "activate", "activate.fish", "activate.csh",
+            ):
+                _rewrite_text_file(scripts_dir / name)
+
+            # 3. Console-script .exe shims (pip.exe, etc.)
+            # These are tiny launchers: a PE header followed by a shebang
+            # line like "#!C:\old\venv\Scripts\python.exe" and then a ZIP
+            # payload.  We rewrite only the shebang line by reading the
+            # file as bytes and replacing the ASCII path.
+            old_bytes_variants = set()
+            for old in old_variants:
+                old_bytes_variants.add(old.encode("utf-8"))
+                old_bytes_variants.add(old.encode("mbcs", errors="replace"))
+            new_path_str = str(new_root)
+            new_bytes = new_path_str.encode("utf-8")
+            new_bytes_mbcs = new_path_str.encode("mbcs", errors="replace")
+            for exe_file in scripts_dir.glob("*.exe"):
+                try:
+                    raw = exe_file.read_bytes()
+                except Exception:
+                    continue
+                original = raw
+                # Replace utf-8 variants
+                for old_b in old_bytes_variants:
+                    if old_b and old_b in raw:
+                        # Lengths MUST match exactly or the shim's ZIP offset
+                        # breaks.  Pad/truncate the replacement to match.
+                        replacement = new_bytes if len(old_b) == len(new_bytes) else None
+                        if replacement is None and len(old_b) == len(new_bytes_mbcs):
+                            replacement = new_bytes_mbcs
+                        if replacement is not None:
+                            raw = raw.replace(old_b, replacement)
+                        # If lengths don't match, we cannot safely patch
+                        # in place; the shim will be regenerated on first
+                        # pip install or by pip_ops.
+                if raw != original:
+                    try:
+                        exe_file.write_bytes(raw)
+                    except Exception as exc:
+                        logger.warning("Could not rewrite shim %s: %s", exe_file, exc)
 
     def merge_env(self, source: str, target: str, strategy: str = "add") -> dict:
         """Merge changes from source environment into target environment.

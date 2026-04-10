@@ -2,6 +2,8 @@
 import configparser
 import json
 import logging
+import threading
+import time
 import requests
 from pathlib import Path
 
@@ -12,11 +14,72 @@ logger = logging.getLogger(__name__)
 DEFAULT_MANAGER_URL = "https://github.com/Comfy-Org/ComfyUI-Manager.git"
 MANAGER_SECURITY_LEVEL = "normal-"
 
+# How long (in seconds) a pid file with state="starting" is allowed to exist
+# before get_status() considers the launch failed.  ComfyUI first-time startup
+# can take 30-60s (loading torch, custom nodes, etc), so we give it 120s.
+STARTING_STATE_TIMEOUT_SEC = 120
+
+# How long after subprocess.Popen to check that the child is still alive.
+# If it crashed within this window, we treat the launch as an immediate
+# failure (e.g. port bind conflict).
+POST_SPAWN_SANITY_DELAY_SEC = 0.5
+
 
 class ComfyUILauncher:
     def __init__(self, config: dict):
         self.config = config
         self.environments_dir = Path(config["environments_dir"])
+        # Serialize the port-pick-and-reserve phase of start() so two
+        # concurrent launches within the same process cannot race between
+        # find_available_port and writing the reservation pid file.
+        self._start_lock = threading.Lock()
+
+    def _claimed_ports(self, exclude_env: Path = None) -> set:
+        """Return the set of ports currently claimed by any env's pid file.
+
+        This includes ports whose env is fully running AND ports whose env
+        is in the "starting" state (reserved but not yet bound).  Without
+        this, two envs launched in rapid succession would both be assigned
+        the default port because neither has bound the socket yet.
+
+        The ``exclude_env`` path is skipped so a restarting env doesn't
+        exclude its own previous port.
+        """
+        claimed = set()
+        if not self.environments_dir.exists():
+            return claimed
+        exclude_resolved = str(exclude_env.resolve()).lower() if exclude_env else None
+        for entry in self.environments_dir.iterdir():
+            if exclude_resolved and str(entry.resolve()).lower() == exclude_resolved:
+                continue
+            pid_file = entry / ".comfyui.pid"
+            if not pid_file.exists():
+                continue
+            try:
+                data = json.loads(pid_file.read_text())
+            except Exception:
+                continue
+            port = data.get("port")
+            if isinstance(port, int):
+                # Starting state: always hold the reservation (even if nothing
+                # is bound yet).  Running state: hold it unless we can prove
+                # the pid is dead AND the port is actually free.
+                if data.get("status") == "starting":
+                    # Time out stale starting reservations so a crashed
+                    # launcher doesn't permanently hog a port.
+                    started_at = data.get("started_at", 0)
+                    if time.time() - started_at < STARTING_STATE_TIMEOUT_SEC:
+                        claimed.add(port)
+                    continue
+                pid = data.get("pid")
+                if pid and process_manager.is_process_running(pid):
+                    claimed.add(port)
+                elif process_manager.is_port_in_use(port):
+                    # Somebody is listening on the port even though our
+                    # recorded pid is dead — assume it's this env and keep
+                    # the reservation rather than handing the port out.
+                    claimed.add(port)
+        return claimed
 
     @staticmethod
     def _normalize_package_name(name: str) -> str:
@@ -62,7 +125,7 @@ class ComfyUILauncher:
 
         # Prevent duplicate launches in the same environment (sqlite lock/confusing state).
         status = self.get_status(env_name)
-        if status.get("status") == "running":
+        if status.get("status") in ("running", "starting"):
             raise RuntimeError(
                 f"Environment '{env_name}' is already running "
                 f"(pid={status.get('pid')}, port={status.get('port')})."
@@ -71,8 +134,25 @@ class ComfyUILauncher:
         # Ensure comfyui-manager is installed and security level is manager-compatible.
         self._ensure_manager_ready(env_dir)
 
-        # Find available port
-        port = process_manager.find_available_port(port)
+        pid_file = env_dir / ".comfyui.pid"
+
+        # CRITICAL: pick a port AND write the reservation pid file under a
+        # process-wide lock.  Without this, two concurrent start() calls
+        # would both call find_available_port() before either had written a
+        # reservation, and both would be handed the same default port.
+        #
+        # The reservation pid file has status="starting", pid=None, and the
+        # claimed port.  Concurrent starts see it via _claimed_ports() and
+        # skip the reserved port.
+        with self._start_lock:
+            claimed = self._claimed_ports(exclude_env=env_dir)
+            port = process_manager.find_available_port(port, exclude=claimed)
+            pid_file.write_text(json.dumps({
+                "pid": None,
+                "port": port,
+                "status": "starting",
+                "started_at": time.time(),
+            }))
 
         # Build command (always enable manager for custom node support).
         # Use loopback listen mode by default so Manager can allow normal- actions safely.
@@ -87,13 +167,55 @@ class ComfyUILauncher:
 
         # Start process with log file so we can debug ComfyUI output
         log_file = str(env_dir / "comfyui.log")
-        proc = process_manager.start_process(
-            cmd, cwd=str(env_dir / "ComfyUI"), log_file=log_file
-        )
+        try:
+            proc = process_manager.start_process(
+                cmd, cwd=str(env_dir / "ComfyUI"), log_file=log_file
+            )
+        except Exception:
+            # Popen itself failed — clean up the reservation.
+            pid_file.unlink(missing_ok=True)
+            raise
 
-        # Save PID
-        pid_file = env_dir / ".comfyui.pid"
-        pid_file.write_text(json.dumps({"pid": proc.pid, "port": port}))
+        # Post-spawn sanity: if the child died within a few hundred ms, the
+        # launch is already a failure (e.g. the port race handed us a port
+        # that turned out to be occupied, or python.exe itself crashed).
+        # Clean up the reservation so the user isn't left with a ghost
+        # "starting" env.
+        sanity_delay = getattr(self, "_post_spawn_sanity_delay",
+                               POST_SPAWN_SANITY_DELAY_SEC)
+        if sanity_delay > 0:
+            time.sleep(sanity_delay)
+        try:
+            exited = proc.poll() is not None
+        except Exception:
+            exited = False
+        if exited:
+            try:
+                exit_code = proc.returncode
+            except Exception:
+                exit_code = "unknown"
+            pid_file.unlink(missing_ok=True)
+            last_log = ""
+            try:
+                if Path(log_file).exists():
+                    last_log = self._tail_log(Path(log_file), line_count=20)
+            except Exception:
+                pass
+            raise RuntimeError(
+                f"ComfyUI process for '{env_name}' exited immediately "
+                f"(exit={exit_code}). This usually means the port {port} "
+                f"was taken by another process after allocation. "
+                f"Last log:\n{last_log}"
+            )
+
+        # Save PID (still in "starting" state — get_status() promotes it to
+        # "running" once the process has actually bound the socket).
+        pid_file.write_text(json.dumps({
+            "pid": proc.pid,
+            "port": port,
+            "status": "starting",
+            "started_at": time.time(),
+        }))
 
         # Auto-open browser after a short delay
         if auto_open and self.config.get("auto_open_browser", True):
@@ -197,18 +319,37 @@ class ComfyUILauncher:
         pid_file = env_dir / ".comfyui.pid"
         if not pid_file.exists():
             raise RuntimeError(f"No running instance found for '{env_name}'")
-        data = json.loads(pid_file.read_text())
+        try:
+            data = json.loads(pid_file.read_text())
+        except Exception:
+            pid_file.unlink(missing_ok=True)
+            return
 
-        stopped = False
-        # Try stopping by PID first
-        if process_manager.is_process_running(data["pid"]):
-            stopped = process_manager.stop_process(data["pid"])
+        pid = data.get("pid")
+        # CRITICAL: verify the pid in the file actually belongs to this env
+        # before killing it.  Without this check, a pid file that was stale
+        # or poisoned (e.g. a cloned env that inherited a pid file, or a
+        # prior buggy version of get_status that overwrote env2's pid file
+        # with env1's pid) will cause stop() to kill the wrong process --
+        # producing the "close one closes both" symptom.
+        #
+        # Note: pid may be None when the pid file is a "starting" reservation
+        # written before subprocess.Popen returned.  In that case there is
+        # nothing to kill -- just clear the reservation below.
+        if pid and process_manager.is_process_running(pid):
+            if self._pid_belongs_to_env(pid, env_dir):
+                process_manager.stop_process(pid)
+            else:
+                logger.warning(
+                    "Refusing to kill pid %d for env '%s': process does not "
+                    "belong to this environment (stale/poisoned pid file).",
+                    pid, env_name,
+                )
 
-        # Fallback: kill process occupying the port
-        if not stopped and "port" in data:
-            stopped = process_manager.stop_process_on_port(data["port"])
-
-        pid_file.unlink()
+        # Do NOT fall back to killing whoever is listening on the port:
+        # that would kill another env's ComfyUI that happens to be on the
+        # same port.  If the pid is dead the env is effectively stopped.
+        pid_file.unlink(missing_ok=True)
 
     def health_check(self, port: int, timeout: int = 5) -> bool:
         """Return True if ComfyUI is responding on the given port."""
@@ -222,22 +363,167 @@ class ComfyUILauncher:
     # With 5s polling interval, 3 failures = ~15s grace period for restarts.
     _MAX_FAIL_COUNT = 3
 
+    def _pid_belongs_to_env(self, pid: int, env_dir: Path) -> bool:
+        """Return True if the process with *pid* is the ComfyUI process for
+        THIS specific environment.  We match by cwd() which is set to
+        env_dir/ComfyUI at launch time -- this is the single most reliable
+        signal and is immune to PATH games, shebang rewriting, or argv spoofing.
+        Falls back to cmdline/exe path matching if cwd() isn't accessible.
+
+        Returns False (not True) on error so that ownership cannot be falsely
+        asserted: treating an unverifiable process as "not ours" forces the
+        launcher to spawn its own, which is strictly safer than hijacking
+        another env's process.
+        """
+        try:
+            import psutil
+            proc = psutil.Process(pid)
+        except Exception:
+            return False
+
+        env_dir_resolved = str(Path(env_dir).resolve()).replace("\\", "/").lower()
+        expected_cwd = str((Path(env_dir) / "ComfyUI").resolve()).replace("\\", "/").lower()
+
+        # 1. Most reliable: working directory (set by subprocess.Popen cwd=)
+        try:
+            proc_cwd = str(Path(proc.cwd()).resolve()).replace("\\", "/").lower()
+            if proc_cwd == expected_cwd:
+                return True
+            # Different cwd → definitely not ours (even if some other signal matches)
+            if proc_cwd and env_dir_resolved not in proc_cwd:
+                return False
+        except Exception:
+            pass  # fall through to exe/cmdline check
+
+        # 2. Python executable path: start() uses env_dir/venv/Scripts/python.exe
+        try:
+            exe = proc.exe()
+            if exe:
+                exe_norm = str(Path(exe).resolve()).replace("\\", "/").lower()
+                if env_dir_resolved in exe_norm:
+                    return True
+        except Exception:
+            pass
+
+        # 3. Last resort: cmdline contains env dir path
+        try:
+            cmdline = " ".join(proc.cmdline()).replace("\\", "/").lower()
+            if env_dir_resolved in cmdline:
+                return True
+        except Exception:
+            pass
+
+        return False
+
+    # Backward-compatible alias (earlier fix used this name; tests patch it).
+    _is_pid_for_env = _pid_belongs_to_env
+
+    def _with_last_log(self, env_dir: Path, result: dict) -> dict:
+        """Attach last_log lines to a status result if the log file exists."""
+        log_path = env_dir / "comfyui.log"
+        if log_path.exists():
+            last_log = self._tail_log(log_path, line_count=10)
+            if last_log:
+                result["last_log"] = last_log
+        return result
+
     def get_status(self, env_name: str) -> dict:
         """Return status dict for an environment."""
         env_dir = self.environments_dir / env_name
         pid_file = env_dir / ".comfyui.pid"
         if not pid_file.exists():
             return {"status": "stopped", "env_name": env_name}
-        data = json.loads(pid_file.read_text())
-        running = process_manager.is_process_running(data["pid"])
+        try:
+            data = json.loads(pid_file.read_text())
+        except Exception:
+            pid_file.unlink(missing_ok=True)
+            return {"status": "stopped", "env_name": env_name}
+
+        # ── "starting" state handling ─────────────────────────────────────
+        # Reservation pid file was written before subprocess.Popen returned,
+        # OR it's a subprocess that's still booting.  Resolve it to one of:
+        #   - running: port is bound and the owner matches this env
+        #   - starting: still within the timeout window, not yet bound
+        #   - stopped: the starting timeout expired OR the pid died without
+        #              ever binding -> clean up the reservation so the port
+        #              becomes available again.
+        if data.get("status") == "starting":
+            started_at = data.get("started_at", 0)
+            age = time.time() - started_at
+            pid = data.get("pid")
+
+            # If the starting pid exists and has died, the launch failed.
+            if pid and not process_manager.is_process_running(pid):
+                logger.info(
+                    "Starting reservation for '%s' cleared: pid %s is dead.",
+                    env_name, pid,
+                )
+                pid_file.unlink(missing_ok=True)
+                return {"status": "stopped", "env_name": env_name}
+
+            # If the process is now listening on the claimed port AND it
+            # belongs to this env, promote it to "running".
+            port = data.get("port")
+            if port and process_manager.is_port_in_use(port):
+                port_pid = process_manager.find_pid_on_port(port)
+                if port_pid and self._pid_belongs_to_env(port_pid, env_dir):
+                    data["pid"] = port_pid
+                    data["status"] = "running"
+                    data.pop("started_at", None)
+                    pid_file.write_text(json.dumps(data))
+                    result = {"status": "running", "env_name": env_name, **data}
+                    return self._with_last_log(env_dir, result)
+
+            # Still booting, but within the timeout window.
+            if age < STARTING_STATE_TIMEOUT_SEC:
+                result = {"status": "starting", "env_name": env_name, **data}
+                return self._with_last_log(env_dir, result)
+
+            # Timeout expired without binding — drop the reservation.
+            logger.warning(
+                "Starting reservation for '%s' expired after %ds (port %s "
+                "never became ready). Clearing pid file.",
+                env_name, int(age), data.get("port"),
+            )
+            # If the pid is still alive but hasn't bound, kill it to reclaim
+            # the port reservation (only if it really belongs to this env).
+            if pid and process_manager.is_process_running(pid) \
+                    and self._pid_belongs_to_env(pid, env_dir):
+                try:
+                    process_manager.stop_process(pid)
+                except Exception:
+                    pass
+            pid_file.unlink(missing_ok=True)
+            return {"status": "stopped", "env_name": env_name}
+        # ──────────────────────────────────────────────────────────────────
+
+        pid = data.get("pid")
+        running = bool(pid) and process_manager.is_process_running(pid)
+
+        # Guard against stale pid files inherited from a cloned environment or
+        # poisoned by the "pid-changed-after-restart" branch below: if the
+        # process is alive but does not belong to this env, drop the pid file.
+        if running and not self._pid_belongs_to_env(pid, env_dir):
+            logger.info(
+                "Removing stale pid file for '%s': pid %d belongs to a different "
+                "environment.", env_name, pid,
+            )
+            pid_file.unlink(missing_ok=True)
+            return {"status": "stopped", "env_name": env_name}
 
         if not running and "port" in data:
-            running = process_manager.is_port_in_use(data["port"])
-            # PID changed after restart (e.g. ComfyUI Manager restarted ComfyUI)
-            if running:
-                new_pid = process_manager.find_pid_on_port(data["port"])
-                if new_pid and new_pid != data["pid"]:
-                    data["pid"] = new_pid
+            # The original pid is dead.  DO NOT fall back to a "whoever is
+            # listening on the port is us" check: if env1 is listening on
+            # 8188 and env2 had a stale pid file also pointing to 8188,
+            # the naive fallback would hijack env1's pid and write it into
+            # env2's pid file -- then stopping env2 would kill env1
+            # ("close one closes both").  Only accept the port-owner as
+            # "this env's new pid" if _pid_belongs_to_env confirms it.
+            port_pid = process_manager.find_pid_on_port(data["port"])
+            if port_pid and self._pid_belongs_to_env(port_pid, env_dir):
+                running = True
+                if port_pid != pid:
+                    data["pid"] = port_pid
                     data.pop("_fail_count", None)
                     pid_file.write_text(json.dumps(data))
 
@@ -274,31 +560,78 @@ class ComfyUILauncher:
             return running
         for entry in self.environments_dir.iterdir():
             pid_file = entry / ".comfyui.pid"
-            if pid_file.exists():
+            if not pid_file.exists():
+                continue
+            try:
                 data = json.loads(pid_file.read_text())
-                # Check by PID first, fallback to port check
-                is_running = process_manager.is_process_running(data["pid"])
-                if not is_running and "port" in data:
-                    is_running = process_manager.is_port_in_use(data["port"])
-                # Include environments still within grace period (may be restarting)
-                in_grace = not is_running and data.get("_fail_count", 0) < self._MAX_FAIL_COUNT
-                if is_running or in_grace:
-                    info = {"env_name": entry.name, **data}
-                    info.pop("_fail_count", None)  # Don't expose internal field
-                    if in_grace:
-                        info["status"] = "restarting"
-                    # Read version info from env_meta.json
-                    meta_file = entry / "env_meta.json"
-                    if meta_file.exists():
-                        try:
-                            meta = json.loads(meta_file.read_text())
-                            info["branch"] = meta.get("comfyui_branch", "")
-                            info["commit"] = meta.get("comfyui_commit", "")
-                        except Exception:
-                            info["branch"] = ""
-                            info["commit"] = ""
-                    else:
-                        info["branch"] = ""
-                        info["commit"] = ""
-                    running.append(info)
+            except Exception:
+                continue
+
+            # Starting-state reservations: include only while still within
+            # the timeout window (keeps the Running tab up to date with
+            # envs that are booting) AND mark status explicitly.
+            if data.get("status") == "starting":
+                started_at = data.get("started_at", 0)
+                age = time.time() - started_at
+                if age >= STARTING_STATE_TIMEOUT_SEC:
+                    continue  # expired; get_status() will clean it up
+                port = data.get("port")
+                if port and process_manager.is_port_in_use(port):
+                    port_pid = process_manager.find_pid_on_port(port)
+                    if port_pid and self._pid_belongs_to_env(port_pid, entry):
+                        # Already bound; show as running.
+                        info = {"env_name": entry.name, "pid": port_pid,
+                                "port": port, "status": "running"}
+                        running.append(self._attach_meta(entry, info))
+                        continue
+                info = {"env_name": entry.name, "status": "starting",
+                        **{k: v for k, v in data.items() if k != "_fail_count"}}
+                running.append(self._attach_meta(entry, info))
+                continue
+
+            # Normal case: verify the pid actually belongs to THIS env.
+            # A pid file that survived from a cloned env -- or was poisoned
+            # by an older build -- may point at another env's live process.
+            # Treating such a file as "running" would mis-attribute the
+            # other env's pid to this one in the UI, and stop actions
+            # would then kill the wrong process.
+            pid = data.get("pid")
+            is_running = bool(
+                pid
+                and process_manager.is_process_running(pid)
+                and self._pid_belongs_to_env(pid, entry)
+            )
+            if not is_running:
+                # If the pid is dead but the pid file claims a port is
+                # in use, only accept that as "running" if the process
+                # currently holding the port belongs to this env.
+                port = data.get("port")
+                if port:
+                    port_pid = process_manager.find_pid_on_port(port)
+                    if port_pid and self._pid_belongs_to_env(port_pid, entry):
+                        is_running = True
+                        data["pid"] = port_pid
+            # Include environments still within grace period (may be restarting)
+            in_grace = not is_running and data.get("_fail_count", 0) < self._MAX_FAIL_COUNT
+            if is_running or in_grace:
+                info = {"env_name": entry.name, **data}
+                info.pop("_fail_count", None)  # Don't expose internal field
+                if in_grace:
+                    info["status"] = "restarting"
+                running.append(self._attach_meta(entry, info))
         return running
+
+    @staticmethod
+    def _attach_meta(env_dir: Path, info: dict) -> dict:
+        """Read env_meta.json and attach branch/commit to a running-list entry."""
+        meta_file = env_dir / "env_meta.json"
+        info.setdefault("branch", "")
+        info.setdefault("commit", "")
+        if meta_file.exists():
+            try:
+                meta = json.loads(meta_file.read_text())
+                info["branch"] = meta.get("comfyui_branch", "")
+                info["commit"] = meta.get("comfyui_commit", "")
+            except Exception:
+                pass
+        return info

@@ -622,6 +622,14 @@
             statusEl.textContent = t('launch_status_running', pid, port);
             if (startBtn) startBtn.disabled = true;
             if (stopBtn) stopBtn.disabled = false;
+        } else if (state === 'starting') {
+            // Reservation window between Popen and socket bind. Keep the
+            // start button disabled so the user can't double-launch and
+            // trigger the port-reuse race we just fixed.
+            statusEl.className = 'badge badge-warning';
+            statusEl.textContent = t('launch_status_starting', pid || '-');
+            if (startBtn) startBtn.disabled = true;
+            if (stopBtn) stopBtn.disabled = false;
         } else {
             statusEl.className = 'badge badge-primary';
             statusEl.textContent = t('launch_status_stopped');
