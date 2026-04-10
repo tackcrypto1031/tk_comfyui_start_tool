@@ -24,8 +24,11 @@ def get_default_config() -> dict:
         "color_scheme": "obsidian",
         "log_level": "INFO",
         "model_subdirs": [
-            "checkpoints", "loras", "vae", "controlnet",
-            "clip", "embeddings", "upscale_models",
+            "audio_encoders", "checkpoints", "clip", "clip_vision", "configs",
+            "controlnet", "diffusers", "diffusion_models", "embeddings", "gligen",
+            "hypernetworks", "latent_upscale_models", "loras", "model_patches",
+            "photomaker", "style_models", "text_encoders", "unet",
+            "upscale_models", "vae", "vae_approx",
         ],
         "conflict_analyzer": {
             "critical_packages": [
