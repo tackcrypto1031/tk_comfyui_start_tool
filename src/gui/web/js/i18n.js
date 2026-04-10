@@ -337,6 +337,20 @@ const I18N = (function() {
             "bug_report_source": "Source",
             "bug_report_error": "Error",
             "bug_report_count": "{} error(s)",
+
+            "sidebar_settings": "Settings",
+
+            // Settings page
+            "settings_color_scheme": "Color Scheme",
+            "theme_obsidian": "Obsidian Edge",
+            "theme_obsidian_desc": "Dark theme with purple accents (Default)",
+            "theme_claude": "Claude",
+            "theme_claude_desc": "Warm parchment with terracotta accents",
+            "theme_minimax": "MiniMax",
+            "theme_minimax_desc": "Bright theme with blue accents",
+            "theme_ollama": "Ollama",
+            "theme_ollama_desc": "Minimalist grayscale theme",
+            "theme_applied": "Theme applied",
         },
         "zh-TW": {
             // Main window
@@ -670,6 +684,20 @@ const I18N = (function() {
             "bug_report_source": "來源",
             "bug_report_error": "錯誤",
             "bug_report_count": "{} 個錯誤",
+
+            "sidebar_settings": "設置",
+
+            // Settings page
+            "settings_color_scheme": "UI 配色方案",
+            "theme_obsidian": "Obsidian Edge",
+            "theme_obsidian_desc": "暗黑紫色主題（預設）",
+            "theme_claude": "Claude",
+            "theme_claude_desc": "溫暖赤陶色主題",
+            "theme_minimax": "MiniMax",
+            "theme_minimax_desc": "明亮科技藍主題",
+            "theme_ollama": "Ollama",
+            "theme_ollama_desc": "極簡灰階主題",
+            "theme_applied": "已套用主題",
         },
     };
 

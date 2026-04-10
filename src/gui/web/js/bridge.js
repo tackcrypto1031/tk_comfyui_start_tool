@@ -129,6 +129,9 @@ var BridgeAPI = (function() {
 
         // Config — returns Promise
         getConfig: function() { return callSlot('get_config'); },
+        setConfig: function(key, value) {
+            return callSlot('set_config', key, typeof value === 'string' ? value : JSON.stringify(value));
+        },
         debugInfo: function() { return callSlot('debug_info'); },
 
         // Clipboard

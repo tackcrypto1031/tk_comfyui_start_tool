@@ -46,7 +46,8 @@ const App = (function() {
         bug_report: '⚠',
         check_circle: '✓',
         block: '⊘',
-        minimize: '—'
+        minimize: '—',
+        settings: '⚙'
     };
 
     // ── Page Registration ──
@@ -545,6 +546,14 @@ const App = (function() {
                 I18N.setLanguage(config.language);
                 var switcher = document.getElementById('lang-switcher');
                 if (switcher) switcher.value = config.language;
+            }
+            // Theme reconciliation: config.json is authoritative
+            if (config && config.color_scheme) {
+                var stored = localStorage.getItem('color_scheme') || 'obsidian';
+                if (stored !== config.color_scheme) {
+                    document.documentElement.setAttribute('data-theme', config.color_scheme);
+                    localStorage.setItem('color_scheme', config.color_scheme);
+                }
             }
             // Debug info
             return BridgeAPI.debugInfo();
