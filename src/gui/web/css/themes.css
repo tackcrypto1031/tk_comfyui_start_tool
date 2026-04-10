@@ -1,0 +1,133 @@
+/* ── Theme System — CSS Custom Properties ─────────────── */
+
+/* Default / Obsidian Edge */
+[data-theme="obsidian"] {
+  --color-primary: 204 151 255;
+  --color-primary-dim: 156 72 234;
+  --color-primary-container: 45 26 78;
+  --color-on-primary: 26 0 48;
+  --color-on-primary-container: 232 213 255;
+  --color-secondary: 216 227 251;
+  --color-secondary-container: 30 42 62;
+  --color-on-secondary-container: 192 207 235;
+  --color-tertiary: 255 149 160;
+  --color-tertiary-container: 62 26 30;
+  --color-error: 255 110 132;
+  --color-error-container: 62 26 32;
+  --color-surface: 14 14 14;
+  --color-surface-dim: 10 10 10;
+  --color-surface-bright: 44 44 44;
+  --color-surface-container-lowest: 0 0 0;
+  --color-surface-container-low: 19 19 19;
+  --color-surface-container: 25 25 25;
+  --color-surface-container-high: 31 31 31;
+  --color-surface-container-highest: 38 38 38;
+  --color-on-surface: 255 255 255;
+  --color-on-surface-variant: 171 171 171;
+  --color-outline: 72 72 72;
+  --color-outline-variant: 51 51 51;
+  --color-inverse-surface: 230 230 230;
+  --color-inverse-on-surface: 26 26 26;
+  --color-inverse-primary: 106 62 161;
+  --color-hero-gradient-start: 26 5 51;
+  --color-hero-gradient-end: 14 14 14;
+}
+
+/* Claude — Warm Parchment */
+[data-theme="claude"] {
+  --color-primary: 201 100 66;
+  --color-primary-dim: 217 119 87;
+  --color-primary-container: 240 238 230;
+  --color-on-primary: 250 249 245;
+  --color-on-primary-container: 201 100 66;
+  --color-secondary: 232 230 220;
+  --color-secondary-container: 240 238 230;
+  --color-on-secondary-container: 77 76 72;
+  --color-tertiary: 217 119 87;
+  --color-tertiary-container: 245 244 237;
+  --color-error: 181 51 51;
+  --color-error-container: 253 232 232;
+  --color-surface: 245 244 237;
+  --color-surface-dim: 232 230 220;
+  --color-surface-bright: 255 255 255;
+  --color-surface-container-lowest: 250 249 245;
+  --color-surface-container-low: 250 249 245;
+  --color-surface-container: 240 238 230;
+  --color-surface-container-high: 232 230 220;
+  --color-surface-container-highest: 209 207 197;
+  --color-on-surface: 20 20 19;
+  --color-on-surface-variant: 94 93 89;
+  --color-outline: 232 230 220;
+  --color-outline-variant: 240 238 230;
+  --color-inverse-surface: 20 20 19;
+  --color-inverse-on-surface: 250 249 245;
+  --color-inverse-primary: 217 119 87;
+  --color-hero-gradient-start: 201 100 66;
+  --color-hero-gradient-end: 245 244 237;
+}
+
+/* MiniMax — Bright Tech Blue */
+[data-theme="minimax"] {
+  --color-primary: 20 86 240;
+  --color-primary-dim: 37 99 235;
+  --color-primary-container: 191 219 254;
+  --color-on-primary: 255 255 255;
+  --color-on-primary-container: 29 78 216;
+  --color-secondary: 240 240 240;
+  --color-secondary-container: 229 231 235;
+  --color-on-secondary-container: 51 51 51;
+  --color-tertiary: 234 94 193;
+  --color-tertiary-container: 252 231 243;
+  --color-error: 239 68 68;
+  --color-error-container: 254 226 226;
+  --color-surface: 255 255 255;
+  --color-surface-dim: 240 240 240;
+  --color-surface-bright: 255 255 255;
+  --color-surface-container-lowest: 255 255 255;
+  --color-surface-container-low: 240 240 240;
+  --color-surface-container: 229 231 235;
+  --color-surface-container-high: 212 212 212;
+  --color-surface-container-highest: 192 192 192;
+  --color-on-surface: 34 34 34;
+  --color-on-surface-variant: 69 81 94;
+  --color-outline: 229 231 235;
+  --color-outline-variant: 242 243 245;
+  --color-inverse-surface: 24 30 37;
+  --color-inverse-on-surface: 255 255 255;
+  --color-inverse-primary: 96 165 250;
+  --color-hero-gradient-start: 20 86 240;
+  --color-hero-gradient-end: 255 255 255;
+}
+
+/* Ollama — Minimal Grayscale */
+[data-theme="ollama"] {
+  --color-primary: 0 0 0;
+  --color-primary-dim: 82 82 82;
+  --color-primary-container: 229 229 229;
+  --color-on-primary: 255 255 255;
+  --color-on-primary-container: 38 38 38;
+  --color-secondary: 229 229 229;
+  --color-secondary-container: 250 250 250;
+  --color-on-secondary-container: 64 64 64;
+  --color-tertiary: 163 163 163;
+  --color-tertiary-container: 250 250 250;
+  --color-error: 115 115 115;
+  --color-error-container: 229 229 229;
+  --color-surface: 255 255 255;
+  --color-surface-dim: 250 250 250;
+  --color-surface-bright: 255 255 255;
+  --color-surface-container-lowest: 255 255 255;
+  --color-surface-container-low: 250 250 250;
+  --color-surface-container: 229 229 229;
+  --color-surface-container-high: 212 212 212;
+  --color-surface-container-highest: 163 163 163;
+  --color-on-surface: 0 0 0;
+  --color-on-surface-variant: 115 115 115;
+  --color-outline: 229 229 229;
+  --color-outline-variant: 229 229 229;
+  --color-inverse-surface: 9 9 9;
+  --color-inverse-on-surface: 255 255 255;
+  --color-inverse-primary: 115 115 115;
+  --color-hero-gradient-start: 163 163 163;
+  --color-hero-gradient-end: 255 255 255;
+}
