@@ -80,8 +80,11 @@ class SnapshotManager:
         configs_dir = snap_dir / "configs"
         configs_dir.mkdir(exist_ok=True)
         extra_yaml = comfyui_path / "extra_model_paths.yaml"
+        extra_yaml_disabled = comfyui_path / "extra_model_paths.yaml.disabled"
         if extra_yaml.exists():
             shutil.copy2(str(extra_yaml), str(configs_dir / "extra_model_paths.yaml"))
+        elif extra_yaml_disabled.exists():
+            shutil.copy2(str(extra_yaml_disabled), str(configs_dir / "extra_model_paths.yaml.disabled"))
 
         # 5. Create snapshot object and save metadata
         snap = Snapshot(
