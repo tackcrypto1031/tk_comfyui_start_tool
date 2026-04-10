@@ -97,6 +97,13 @@ const I18N = (function() {
             "shared_model_path_invalid": "Model path does not exist",
             "shared_model_path_empty": "Please enter a model directory path",
             "shared_model_create_info": "Model Path:",
+            "rescan_shared_models": "Rescan",
+            "rescan_shared_models_tooltip": "Scan shared and environment model folders for new subdirectories and regenerate environment configs",
+            "rescan_found_new": "Found {0} new folder(s), synced {1} environment(s)",
+            "rescan_forced_regen": "Regenerated configs for {0} environment(s)",
+            "rescan_up_to_date": "Shared models already up to date",
+            "rescan_skipped": "Rescan skipped: {0}",
+            "rescan_failed": "Rescan failed: {0}",
 
             // Python/CUDA/PyTorch version switching
             "env_advanced_options": "Advanced Options",
@@ -462,6 +469,13 @@ const I18N = (function() {
             "shared_model_path_invalid": "模型路徑不存在",
             "shared_model_path_empty": "請輸入模型資料夾路徑",
             "shared_model_create_info": "模型路徑：",
+            "rescan_shared_models": "重新掃描",
+            "rescan_shared_models_tooltip": "掃描共用與環境模型資料夾，自動加入新子資料夾並重新產生設定",
+            "rescan_found_new": "偵測到 {0} 個新資料夾，已同步 {1} 個環境",
+            "rescan_forced_regen": "已重新產生 {0} 個環境的設定檔",
+            "rescan_up_to_date": "共用模型資料夾已是最新",
+            "rescan_skipped": "重新掃描已略過：{0}",
+            "rescan_failed": "重新掃描失敗：{0}",
 
             // Python/CUDA/PyTorch version switching
             "env_advanced_options": "進階選項",
