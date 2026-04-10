@@ -45,12 +45,13 @@ class AsyncWorker(QThread):
 class Bridge(QObject):
     """Bridge between Python backend and JS frontend via QWebChannel."""
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, last_rescan_result: dict = None):
         super().__init__()
         self.config = config
         self._workers = []  # prevent GC
         self._result_queue = {}  # request_id → result JSON string
         self._progress_queue = {}  # request_id → [message, message, ...]
+        self._last_rescan_result = last_rescan_result  # one-shot, popped on first read
 
         from src.core.env_manager import EnvManager
         from src.core.comfyui_launcher import ComfyUILauncher
@@ -180,6 +181,23 @@ class Bridge(QObject):
             count = self.env_manager.toggle_all_shared_model(enabled == 'true')
             return {"count": count}
         return self._safe_call(_toggle)
+
+    @Slot(result=str)
+    def rescan_shared_model_subdirs(self):
+        """Run a forced rescan + yaml regeneration for all enabled envs."""
+        def _rescan():
+            self.env_manager.ensure_shared_models_if_safe()
+            return self.env_manager.sync_shared_model_subdirs(force_regen=True)
+        return self._safe_call(_rescan)
+
+    @Slot(result=str)
+    def get_last_rescan_result(self):
+        """One-shot consumer of the startup rescan result. Returns {} after first read."""
+        if self._last_rescan_result is None:
+            return json.dumps({})
+        result = self._last_rescan_result
+        self._last_rescan_result = None
+        return json.dumps(result, ensure_ascii=False)
 
     @Slot(result=str)
     def browse_folder(self):
