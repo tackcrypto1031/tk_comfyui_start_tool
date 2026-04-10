@@ -80,6 +80,24 @@ const I18N = (function() {
             "env_select_version": "Select a version...",
             "env_fetching_versions": "Fetching available versions...",
 
+            // Shared Model
+            "shared_model_title": "Shared Model Path",
+            "shared_model_default": "Default",
+            "shared_model_custom": "Custom",
+            "shared_model_col": "Model Sharing",
+            "shared_model_path_placeholder": "Enter model directory path...",
+            "shared_model_confirm_sync": "Update {0} environment(s) with model sharing enabled?",
+            "shared_model_confirm_sync_detail": "Their extra_model_paths.yaml will be regenerated to point to the new path.",
+            "shared_model_updated": "Shared model path updated",
+            "shared_model_toggled_on": "Model sharing enabled for {0}",
+            "shared_model_toggled_off": "Model sharing disabled for {0}",
+            "shared_model_all_on": "Model sharing enabled for all environments",
+            "shared_model_all_off": "Model sharing disabled for all environments",
+            "shared_model_next_launch": "Changes take effect on next ComfyUI launch",
+            "shared_model_path_invalid": "Model path does not exist",
+            "shared_model_path_empty": "Please enter a model directory path",
+            "shared_model_create_info": "Model Path:",
+
             // Python/CUDA/PyTorch version switching
             "env_advanced_options": "Advanced Options",
             "env_mode_recommended": "Recommended",
@@ -426,6 +444,24 @@ const I18N = (function() {
             "env_fetch_versions": "取得版本列表",
             "env_select_version": "選擇版本...",
             "env_fetching_versions": "正在取得可用版本...",
+
+            // Shared Model
+            "shared_model_title": "共用模型路徑",
+            "shared_model_default": "預設",
+            "shared_model_custom": "自訂",
+            "shared_model_col": "模型共用",
+            "shared_model_path_placeholder": "輸入模型資料夾路徑...",
+            "shared_model_confirm_sync": "是否同步更新 {0} 個已開啟共用的環境？",
+            "shared_model_confirm_sync_detail": "將重新產生 extra_model_paths.yaml 指向新路徑。",
+            "shared_model_updated": "共用模型路徑已更新",
+            "shared_model_toggled_on": "{0} 已開啟模型共用",
+            "shared_model_toggled_off": "{0} 已關閉模型共用",
+            "shared_model_all_on": "所有環境已開啟模型共用",
+            "shared_model_all_off": "所有環境已關閉模型共用",
+            "shared_model_next_launch": "變更將在下次啟動 ComfyUI 時生效",
+            "shared_model_path_invalid": "模型路徑不存在",
+            "shared_model_path_empty": "請輸入模型資料夾路徑",
+            "shared_model_create_info": "模型路徑：",
 
             // Python/CUDA/PyTorch version switching
             "env_advanced_options": "進階選項",
