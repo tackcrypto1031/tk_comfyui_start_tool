@@ -561,6 +561,18 @@ const App = (function() {
             console.log('Bridge debug:', JSON.stringify(info));
             // Background version check (non-blocking)
             _checkUpdate();
+            // One-shot startup toast for shared-model rescan (non-blocking)
+            try {
+                BridgeAPI.getLastRescanResult().then(function(result) {
+                    if (!result || !result.added || result.added.length === 0) return;
+                    showToast(
+                        t('rescan_found_new')
+                            .replace('{0}', result.added.length)
+                            .replace('{1}', result.synced_envs || 0),
+                        'success'
+                    );
+                }).catch(function() { /* silent */ });
+            } catch (e) { /* silent */ }
         }).catch(function(e) {
             console.warn('Init failed:', e);
             showToast('Backend connection failed: ' + e, 'error');
