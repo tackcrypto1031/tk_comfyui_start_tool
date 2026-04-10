@@ -399,7 +399,8 @@ html.material-icons-missing .material-symbols-outlined::before {
     font-family: 'Inter', sans-serif;
     border-left: 3px solid;
     animation: toast-in 0.3s ease-out;
-    background-color: rgb(var(--color-surface-container-highest));
+    background-color: #262626;
+    color: #ffffff;
     min-width: 280px;
     display: flex;
     align-items: center;
@@ -428,12 +429,12 @@ html.material-icons-missing .material-symbols-outlined::before {
     color: #4ade80;
 }
 .toast-error {
-    border-color: rgb(var(--color-error));
-    color: rgb(var(--color-error));
+    border-color: #ff6e84;
+    color: #ff6e84;
 }
 .toast-info {
-    border-color: rgb(var(--color-primary));
-    color: rgb(var(--color-primary));
+    border-color: #cc97ff;
+    color: #cc97ff;
 }
 .toast-out {
     animation: toast-out 0.3s ease-in forwards;
