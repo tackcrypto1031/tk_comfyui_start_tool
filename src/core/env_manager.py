@@ -243,6 +243,7 @@ class EnvManager:
                 pip_freeze=pip_freeze,
                 custom_nodes=custom_nodes,
                 path=str(env_dir),
+                shared_model_enabled=True,
             )
             env.save_meta()
 
@@ -320,14 +321,82 @@ class EnvManager:
 
         return env
 
-    def ensure_shared_models(self) -> None:
-        """Create shared models directory with configured subdirectories."""
+    def ensure_shared_models(self, target_path: Path = None) -> None:
+        """Create model subdirectories in the target (or default) models directory."""
         model_subdirs = self.config.get("model_subdirs", [
             "checkpoints", "loras", "vae", "controlnet",
             "clip", "embeddings", "upscale_models",
         ])
+        base = target_path or self._resolve_model_path()
+        base.mkdir(parents=True, exist_ok=True)
         for subdir in model_subdirs:
-            (self.models_dir / subdir).mkdir(parents=True, exist_ok=True)
+            (base / subdir).mkdir(parents=True, exist_ok=True)
+
+    def toggle_shared_model(self, env_name: str, enabled: bool) -> None:
+        """Enable or disable shared model for a single environment."""
+        env_dir = self.environments_dir / env_name
+        if not env_dir.exists():
+            raise FileNotFoundError(f"Environment '{env_name}' not found")
+
+        comfyui_path = env_dir / "ComfyUI"
+        yaml_active = comfyui_path / "extra_model_paths.yaml"
+        yaml_disabled = comfyui_path / "extra_model_paths.yaml.disabled"
+
+        if enabled:
+            # Generate fresh yaml with current path
+            self._generate_extra_model_paths(comfyui_path)
+            # Remove disabled file if it exists
+            if yaml_disabled.exists():
+                yaml_disabled.unlink()
+        else:
+            # Rename yaml to disabled
+            if yaml_active.exists():
+                yaml_active.rename(yaml_disabled)
+
+        # Update env_meta
+        env = Environment.load_meta(str(env_dir))
+        env.shared_model_enabled = enabled
+        env.save_meta()
+
+    def toggle_all_shared_model(self, enabled: bool) -> int:
+        """Toggle shared model for all environments. Returns count of toggled environments."""
+        envs = self.list_environments()
+        count = 0
+        for env in envs:
+            self.toggle_shared_model(env.name, enabled)
+            count += 1
+        return count
+
+    def set_shared_model_path(self, mode: str, path: str, sync: bool = False) -> dict:
+        """Update the global shared model config. Optionally sync all enabled environments."""
+        if mode not in ("default", "custom"):
+            raise ValueError(f"Invalid mode: {mode}")
+        if mode == "custom" and not path:
+            raise ValueError("Custom model path cannot be empty")
+        if mode == "custom":
+            custom_path = Path(path)
+            if not custom_path.exists():
+                raise FileNotFoundError(f"Path does not exist: {path}")
+
+        # Update config
+        self.config["shared_model_mode"] = mode
+        self.config["custom_model_path"] = path if mode == "custom" else ""
+
+        # Ensure subdirectories exist
+        self.ensure_shared_models()
+
+        # Count enabled environments
+        envs = self.list_environments()
+        enabled_count = sum(1 for e in envs if e.shared_model_enabled)
+
+        if sync and enabled_count > 0:
+            for env in envs:
+                if env.shared_model_enabled:
+                    comfyui_path = self.environments_dir / env.name / "ComfyUI"
+                    if comfyui_path.exists():
+                        self._generate_extra_model_paths(comfyui_path)
+
+        return {"enabled_count": enabled_count}
 
     def clone_environment(self, source: str, new_name: str,
                           progress_callback=None) -> Environment:
@@ -367,7 +436,14 @@ class EnvManager:
             _report("finalize", 85, "Updating model paths...")
             comfyui_path = target_dir / "ComfyUI"
             if comfyui_path.exists():
-                self._generate_extra_model_paths(comfyui_path)
+                if source_env.shared_model_enabled:
+                    self._generate_extra_model_paths(comfyui_path)
+                else:
+                    # Keep disabled state: rename yaml to disabled if active exists
+                    yaml_active = comfyui_path / "extra_model_paths.yaml"
+                    yaml_disabled = comfyui_path / "extra_model_paths.yaml.disabled"
+                    if yaml_active.exists() and not yaml_disabled.exists():
+                        yaml_active.rename(yaml_disabled)
 
             # 4. Write updated env_meta.json
             _report("finalize", 95, "Saving environment metadata...")
@@ -384,6 +460,7 @@ class EnvManager:
                 custom_nodes=source_env.custom_nodes,
                 parent_env=source,
                 path=str(target_dir),
+                shared_model_enabled=source_env.shared_model_enabled,
             )
             new_env.save_meta()
             _report("done", 100, "Environment cloned!")
@@ -536,6 +613,15 @@ class EnvManager:
                 pass
         return ""
 
+    def _resolve_model_path(self) -> Path:
+        """Return the active model directory based on config."""
+        mode = self.config.get("shared_model_mode", "default")
+        if mode == "custom":
+            custom = self.config.get("custom_model_path", "")
+            if custom:
+                return Path(custom)
+        return self.models_dir
+
     def _generate_extra_model_paths(self, comfyui_path: Path) -> None:
         """Generate extra_model_paths.yaml pointing to shared models directory."""
         model_subdirs = self.config.get("model_subdirs", [
@@ -543,7 +629,8 @@ class EnvManager:
             "clip", "embeddings", "upscale_models",
         ])
 
-        models_abs = str(self.models_dir.resolve()).replace("\\", "/")
+        models_path = self._resolve_model_path()
+        models_abs = str(models_path.resolve()).replace("\\", "/")
         yaml_data = {
             "shared_models": {
                 "base_path": models_abs + "/",
