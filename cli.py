@@ -227,6 +227,29 @@ def env_analyze(ctx, env_name, node_path, output):
         raise SystemExit(1)
 
 
+@env.command("rescan")
+@click.option("--force", is_flag=True, help="Force yaml regeneration for all enabled environments.")
+@click.pass_context
+def env_rescan(ctx, force):
+    """Rescan shared and environment model folders for new subdirectories."""
+    config = load_config(ctx.obj["config_path"])
+    manager = EnvManager(config)
+    manager.ensure_shared_models_if_safe()
+    result = manager.sync_shared_model_subdirs(force_regen=force)
+    if result["skipped"]:
+        console.print(f"[yellow]Rescan skipped: {result['reason']}[/yellow]")
+        return
+    if result["added"]:
+        console.print(
+            f"[green]Found {len(result['added'])} new subdir(s):[/green] "
+            f"{', '.join(result['added'])}"
+        )
+    else:
+        console.print("[dim]No new subdirs discovered.[/dim]")
+    if result["synced_envs"]:
+        console.print(f"[green]Regenerated yaml for {result['synced_envs']} environment(s).[/green]")
+
+
 # --- snapshot group ---
 
 @cli.group()
