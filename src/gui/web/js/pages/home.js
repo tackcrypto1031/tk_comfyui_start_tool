@@ -15,14 +15,19 @@
     ];
 
     // Gradient colors for placeholder card backgrounds
-    var cardGradients = [
-        'linear-gradient(135deg, #1a0533 0%, #0e0e0e 100%)',
-        'linear-gradient(135deg, #0e1a2e 0%, #0e0e0e 100%)',
-        'linear-gradient(135deg, #1a1a0e 0%, #0e0e0e 100%)',
-        'linear-gradient(135deg, #0e2e1a 0%, #0e0e0e 100%)',
-        'linear-gradient(135deg, #2e0e1a 0%, #0e0e0e 100%)',
-        'linear-gradient(135deg, #1a0e2e 0%, #0e0e0e 100%)'
-    ];
+    function _getGradients() {
+        var cs = getComputedStyle(document.documentElement);
+        var start = cs.getPropertyValue('--color-hero-gradient-start').trim();
+        var end = cs.getPropertyValue('--color-hero-gradient-end').trim();
+        return [
+            'linear-gradient(135deg, rgb(' + start + ' / 0.6) 0%, rgb(' + end + ') 100%)',
+            'linear-gradient(135deg, rgb(' + start + ' / 0.5) 0%, rgb(' + end + ') 100%)',
+            'linear-gradient(135deg, rgb(' + start + ' / 0.4) 0%, rgb(' + end + ') 100%)',
+            'linear-gradient(135deg, rgb(' + start + ' / 0.3) 0%, rgb(' + end + ') 100%)',
+            'linear-gradient(135deg, rgb(' + start + ' / 0.4) 0%, rgb(' + end + ') 100%)',
+            'linear-gradient(135deg, rgb(' + start + ' / 0.5) 0%, rgb(' + end + ') 100%)',
+        ];
+    }
 
     function render(container) {
         container.innerHTML =
@@ -32,13 +37,13 @@
                 '<div id="home-banner" style="' +
                     'position: relative; height: 280px; overflow: hidden; border-radius: 8px; ' +
                     'background: url(../../../assets/banner.jpg) center/cover no-repeat, ' +
-                    'linear-gradient(135deg, #1a0533 0%, #0e0e0e 60%, #0e1a2e 100%); ' +
+                    'linear-gradient(135deg, rgb(var(--color-hero-gradient-start) / 0.6) 0%, rgb(var(--color-hero-gradient-end)) 60%, rgb(var(--color-hero-gradient-start) / 0.3) 100%); ' +
                     'margin: 16px 24px 0 24px;' +
                 '">' +
                     // Bottom gradient overlay
                     '<div style="' +
                         'position: absolute; inset: 0; ' +
-                        'background: linear-gradient(to top, #0e0e0e 0%, transparent 60%); ' +
+                        'background: linear-gradient(to top, rgb(var(--color-hero-gradient-end)) 0%, transparent 60%); ' +
                         'pointer-events: none; z-index: 1;' +
                     '"></div>' +
                     // Env selector (top-right)
@@ -83,7 +88,7 @@
                 '<div class="home-card' + disabledClass + '" data-action="' + card.id + '"' + disabledAttr + ' style="' +
                     'position: relative; height: 140px; overflow: hidden; cursor: pointer; ' +
                     'border: 1px solid transparent; transition: all 0.2s; border-radius: 8px; ' +
-                    'background: ' + cardGradients[i] + ';' +
+                    'background: ' + _getGradients()[i] + ';' +
                 '">' +
                     // Gradient overlay at bottom
                     '<div style="' +
@@ -96,7 +101,7 @@
                         'position: absolute; bottom: 16px; left: 16px; z-index: 1; ' +
                         'display: flex; align-items: center; gap: 8px;' +
                     '">' +
-                        '<span class="material-symbols-outlined" style="font-size: 20px; color: #cc97ff;">' +
+                        '<span class="material-symbols-outlined" style="font-size: 20px; color:rgb(var(--color-primary));">' +
                             card.icon +
                         '</span>' +
                         '<span style="' +
@@ -108,7 +113,7 @@
                     // External link indicator
                     (card.type === 'link' ?
                         '<div style="position: absolute; top: 12px; right: 12px; z-index: 1;">' +
-                            '<span class="material-symbols-outlined" style="font-size: 16px; color: #ababab;">open_in_new</span>' +
+                            '<span class="material-symbols-outlined" style="font-size: 16px; color:rgb(var(--color-on-surface-variant));">open_in_new</span>' +
                         '</div>' : '') +
                 '</div>';
         }
@@ -192,7 +197,7 @@
             // Hover effects
             cardEl.addEventListener('mouseenter', function() {
                 if (this.classList.contains('home-card-disabled')) return;
-                this.style.borderColor = '#cc97ff';
+                this.style.borderColor = 'rgb(var(--color-primary))';
             });
             cardEl.addEventListener('mouseleave', function() {
                 this.style.borderColor = 'transparent';

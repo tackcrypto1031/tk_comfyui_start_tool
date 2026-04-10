@@ -135,7 +135,7 @@
                     <input type="text" id="create-commit" class="input" placeholder="${t('env_commit_placeholder')}">
                 </div>
                 <div class="border-t border-outline/20 pt-3 mt-3">
-                    <div id="create-advanced-toggle" class="flex items-center gap-2 cursor-pointer select-none" style="color: #ababab;">
+                    <div id="create-advanced-toggle" class="flex items-center gap-2 cursor-pointer select-none" style="color:rgb(var(--color-on-surface-variant));">
                         <span class="material-symbols-outlined text-[16px]" id="create-advanced-arrow">chevron_right</span>
                         <span class="text-sm font-label uppercase tracking-wider">${t('env_advanced_options')}</span>
                     </div>

@@ -129,7 +129,7 @@
                                 <div>
                                     <label class="input-label">${t('launch_smart_memory')}</label>
                                     <label style="display:flex;align-items:center;gap:8px;margin-top:4px;cursor:pointer">
-                                        <input type="checkbox" id="ls-smart-memory" class="ls-control" style="width:18px;height:18px;accent-color:#cc97ff">
+                                        <input type="checkbox" id="ls-smart-memory" class="ls-control" style="width:18px;height:18px;accent-color:rgb(var(--color-primary))">
                                         <span style="font-size:13px;color:#ccc">${t('launch_smart_memory')}</span>
                                     </label>
                                 </div>
@@ -140,7 +140,7 @@
                                 <div>
                                     <label class="input-label">${t('launch_auto_open_browser')}</label>
                                     <label style="display:flex;align-items:center;gap:8px;margin-top:4px;cursor:pointer">
-                                        <input type="checkbox" id="ls-auto-launch" class="ls-control" style="width:18px;height:18px;accent-color:#cc97ff">
+                                        <input type="checkbox" id="ls-auto-launch" class="ls-control" style="width:18px;height:18px;accent-color:rgb(var(--color-primary))">
                                         <span style="font-size:13px;color:#ccc">${t('launch_auto_open_browser')}</span>
                                     </label>
                                 </div>
@@ -198,7 +198,7 @@
                         <div id="section-diagnostics" style="display:none" class="px-4 pb-4">
                             <div style="margin-top:12px;margin-bottom:16px;display:flex;align-items:center;gap:8px">
                                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-                                    <input type="checkbox" id="ls-auto-diagnostics" style="width:18px;height:18px;accent-color:#cc97ff">
+                                    <input type="checkbox" id="ls-auto-diagnostics" style="width:18px;height:18px;accent-color:rgb(var(--color-primary))">
                                     <span style="font-size:13px;color:#ccc">${t('launch_diag_auto_toggle')}</span>
                                 </label>
                             </div>
@@ -240,10 +240,10 @@
                     <style>
                         .ls-chip {
                             display:inline-block;padding:4px 10px;font-size:11px;font-family:monospace;
-                            background:rgba(204,151,255,0.1);color:#cc97ff;border:1px solid rgba(204,151,255,0.25);
+                            background:rgb(var(--color-primary) / 0.1);color:rgb(var(--color-primary));border:1px solid rgb(var(--color-primary) / 0.25);
                             border-radius:12px;cursor:pointer;transition:background 0.2s;user-select:none;
                         }
-                        .ls-chip:hover { background:rgba(204,151,255,0.25); }
+                        .ls-chip:hover { background:rgb(var(--color-primary) / 0.25); }
                     </style>
                 </div>
 
@@ -371,7 +371,7 @@
             if (!list || list.length === 0) {
                 content.innerHTML = `
                     <div class="flex flex-col items-center justify-center py-12 text-center">
-                        <span class="material-symbols-outlined text-[48px] text-on-surface-variant mb-3" style="color:#484848">deployed_code</span>
+                        <span class="material-symbols-outlined text-[48px] text-on-surface-variant mb-3" style="color:rgb(var(--color-outline))">deployed_code</span>
                         <p style="color:#6b6b6b;font-size:13px">${t('launch_running_empty')}</p>
                     </div>
                 `;
@@ -406,12 +406,12 @@
                         <td style="font-weight:500">${inst.env_name}</td>
                         <td>
                             <a href="#" class="running-open-port" data-port="${inst.port}"
-                               style="color:#cc97ff;text-decoration:none;border-bottom:1px dashed #cc97ff">
+                               style="color:rgb(var(--color-primary));text-decoration:none;border-bottom:1px dashed rgb(var(--color-primary))">
                                 ${inst.port}
                             </a>
                         </td>
-                        <td style="color:#ababab;font-family:monospace;font-size:12px">${inst.pid}</td>
-                        <td style="color:#ababab;font-size:12px">${version || '-'}</td>
+                        <td style="color:rgb(var(--color-on-surface-variant));font-family:monospace;font-size:12px">${inst.pid}</td>
+                        <td style="color:rgb(var(--color-on-surface-variant));font-size:12px">${version || '-'}</td>
                         <td>
                             <div style="display:flex;gap:8px">
                                 <button class="btn btn-secondary running-btn-open" data-port="${inst.port}"
@@ -461,7 +461,7 @@
                 });
             });
         }).catch(function(e) {
-            content.innerHTML = '<p style="color:#ff6e84;padding:12px">' + String(e) + '</p>';
+            content.innerHTML = '<p style="color:rgb(var(--color-error));padding:12px">' + String(e) + '</p>';
         });
     }
 
@@ -899,7 +899,7 @@
                         html += '</div>';
                     }
                     if (hasUnscannable) {
-                        html += '<div style="color:#ababab;margin-top:6px">' + t('launch_diag_unscannable_count', result.unscannable.length) + '</div>';
+                        html += '<div style="color:rgb(var(--color-on-surface-variant));margin-top:6px">' + t('launch_diag_unscannable_count', result.unscannable.length) + '</div>';
                     }
                     resultEl.innerHTML = html;
                 }
@@ -908,7 +908,7 @@
             if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">play_arrow</span> ' + t('launch_diag_run'); }
             if (resultEl) {
                 resultEl.style.display = 'block';
-                resultEl.innerHTML = '<div style="color:#ff6e84">' + String(e) + '</div>';
+                resultEl.innerHTML = '<div style="color:rgb(var(--color-error))">' + String(e) + '</div>';
             }
         });
     }
