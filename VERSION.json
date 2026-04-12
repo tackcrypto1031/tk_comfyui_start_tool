@@ -1,37 +1,19 @@
 {
-  "version": "0.2.0",
+  "version": "0.2.1",
   "min_python": "3.10",
-  "release_notes": "修復複製環境共用埠號的嚴重問題，複製後環境真正獨立運作",
+  "release_notes": "修復複製環境時 pip.exe 等工具指向舊環境的問題",
   "changes": [
-    "修復複製環境後兩個環境實際上共用同一個 ComfyUI 程序的嚴重問題",
-    "修復同時啟動多個環境時被指派到相同埠號的競爭條件",
-    "修復關閉其中一個環境時會意外關閉另一個環境的問題",
-    "新增「啟動中」狀態顯示，啟動過程中按鈕正確鎖定以避免重複啟動",
-    "複製環境時會完整改寫 venv 內的絕對路徑（pyvenv.cfg、activate 腳本、pip.exe 等 shim）",
-    "複製環境時自動排除 .comfyui.pid 與 comfyui.log，避免繼承來源環境的執行狀態",
-    "停止環境前會驗證程序確實屬於該環境，防止誤殺其他環境的程序",
-    "啟動失敗（例如埠號被佔用）時會立即回報錯誤並附上最後的 log 內容"
+    "修復複製環境後 pip.exe 等 console script 仍指向來源環境的問題（名稱長度不同時觸發）",
+    "複製環境時若路徑長度不同，自動透過 pip 重建所有 exe shim 確保路徑正確"
   ],
   "changes_i18n": {
     "en": [
-      "Fixed critical bug where cloned environments actually shared the same ComfyUI process as the source",
-      "Fixed race condition where launching multiple environments in quick succession assigned them the same port",
-      "Fixed issue where stopping one environment would accidentally kill another environment's process",
-      "Added 'starting' status display; start button is properly locked during startup to prevent double-launch",
-      "Clone now fully rewrites absolute paths inside the venv (pyvenv.cfg, activate scripts, pip.exe and other shims)",
-      "Clone now excludes .comfyui.pid and comfyui.log so runtime state is not inherited from the source environment",
-      "Stop now verifies the process actually belongs to the target environment before killing it",
-      "Launch failures (e.g. port already in use) now report immediately with the tail of comfyui.log"
+      "Fixed cloned environment pip.exe and other console scripts still pointing to source environment (triggered when names differ in length)",
+      "Clone now automatically regenerates all exe shims via pip when path lengths differ, ensuring correct paths"
     ],
     "zh-TW": [
-      "修復複製環境後兩個環境實際上共用同一個 ComfyUI 程序的嚴重問題",
-      "修復同時啟動多個環境時被指派到相同埠號的競爭條件",
-      "修復關閉其中一個環境時會意外關閉另一個環境的問題",
-      "新增「啟動中」狀態顯示，啟動過程中按鈕正確鎖定以避免重複啟動",
-      "複製環境時會完整改寫 venv 內的絕對路徑（pyvenv.cfg、activate 腳本、pip.exe 等 shim）",
-      "複製環境時自動排除 .comfyui.pid 與 comfyui.log，避免繼承來源環境的執行狀態",
-      "停止環境前會驗證程序確實屬於該環境，防止誤殺其他環境的程序",
-      "啟動失敗（例如埠號被佔用）時會立即回報錯誤並附上最後的 log 內容"
+      "修復複製環境後 pip.exe 等 console script 仍指向來源環境的問題（名稱長度不同時觸發）",
+      "複製環境時若路徑長度不同，自動透過 pip 重建所有 exe shim 確保路徑正確"
     ]
   }
 }

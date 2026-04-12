@@ -6,6 +6,7 @@ import re
 import shutil
 import stat
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
@@ -533,7 +534,7 @@ class EnvManager:
             )
 
             # 2. Fix venv paths (pyvenv.cfg and Scripts) to point to new location
-            _report("fixup", 70, "Updating virtual environment paths...")
+            _report("fixup", 60, "Updating virtual environment paths...")
             venv_path = target_dir / "venv"
             self._fix_venv_paths(venv_path, source_dir, target_dir)
 
@@ -652,6 +653,7 @@ class EnvManager:
             new_path_str = str(new_root)
             new_bytes = new_path_str.encode("utf-8")
             new_bytes_mbcs = new_path_str.encode("mbcs", errors="replace")
+            needs_shim_regen = False
             for exe_file in scripts_dir.glob("*.exe"):
                 try:
                     raw = exe_file.read_bytes()
@@ -668,14 +670,140 @@ class EnvManager:
                             replacement = new_bytes_mbcs
                         if replacement is not None:
                             raw = raw.replace(old_b, replacement)
-                        # If lengths don't match, we cannot safely patch
-                        # in place; the shim will be regenerated on first
-                        # pip install or by pip_ops.
+                        else:
+                            needs_shim_regen = True
                 if raw != original:
                     try:
                         exe_file.write_bytes(raw)
                     except Exception as exc:
                         logger.warning("Could not rewrite shim %s: %s", exe_file, exc)
+
+            # 4. Regenerate console-script shims when binary patching was
+            #    not possible (path length mismatch).  Running
+            #    ``pip install --force-reinstall pip`` rebuilds pip's own
+            #    shims and ``pip install --force-reinstall <pkg>`` would
+            #    rebuild others.  As a practical compromise we reinstall
+            #    pip (guarantees pip.exe works) and then use pip to
+            #    reinstall all packages that installed console scripts.
+            if needs_shim_regen:
+                EnvManager._regenerate_console_scripts(venv_path, scripts_dir)
+
+    @staticmethod
+    def _regenerate_console_scripts(
+        venv_path: Path, scripts_dir: Path
+    ) -> None:
+        """Regenerate console-script .exe shims via pip.
+
+        When binary patching cannot fix shims (path length mismatch), we
+        use pip itself to rebuild them.  Steps:
+
+        1. Force-reinstall pip so that pip.exe points to the new venv.
+        2. Collect every other .exe shim that still embeds the old path
+           and identify the owning package via pip's ``__main__`` name
+           convention or ``pip show``.
+        3. Force-reinstall those packages (scripts-only, no deps) so
+           their entry-point shims are regenerated.
+
+        This is a heavier operation but guarantees correctness regardless
+        of path length differences.
+        """
+        _kw = {}
+        if sys.platform == "win32":
+            _kw["creationflags"] = subprocess.CREATE_NO_WINDOW
+
+        python = str(scripts_dir / "python.exe")
+        if not Path(python).exists():
+            # POSIX fallback (shouldn't happen on Windows)
+            python = str(venv_path / "bin" / "python")
+
+        # Step 1: Reinstall pip itself so pip.exe is correct
+        try:
+            subprocess.run(
+                [python, "-m", "pip", "install",
+                 "--force-reinstall", "--no-deps", "pip"],
+                capture_output=True, text=True, check=True, **_kw,
+            )
+            logger.info("Regenerated pip shims in %s", scripts_dir)
+        except Exception as exc:
+            logger.warning("Failed to regenerate pip shims: %s", exc)
+            return  # If pip itself can't reinstall, bail out
+
+        # Step 2: Find packages that own remaining .exe shims and
+        #         reinstall them to regenerate their entry points.
+        #         We ask pip for the list of installed distributions that
+        #         have console_scripts entry points.
+        try:
+            result = subprocess.run(
+                [python, "-m", "pip", "list", "--format=freeze"],
+                capture_output=True, text=True, check=True, **_kw,
+            )
+            installed = {}
+            for line in result.stdout.strip().splitlines():
+                if "==" in line:
+                    pkg, ver = line.split("==", 1)
+                    installed[pkg.strip().lower()] = ver.strip()
+        except Exception:
+            installed = {}
+
+        # Collect exe names (minus .exe) that are NOT pip/pip3/pipX.Y
+        exe_names = set()
+        for exe_file in scripts_dir.glob("*.exe"):
+            stem = exe_file.stem.lower()
+            if stem.startswith("pip") or stem in ("python", "pythonw"):
+                continue
+            exe_names.add(stem)
+
+        if not exe_names:
+            return
+
+        # Map exe shims to their owning packages by checking
+        # ``pip show <name>`` — if the exe stem matches a package name
+        # or a known console_script, reinstall it.
+        pkgs_to_reinstall = set()
+        for name in exe_names:
+            # Common pattern: exe name == package name (e.g. accelerate)
+            if name in installed:
+                pkgs_to_reinstall.add(name)
+            # Hyphenated variants (e.g. huggingface-cli -> huggingface)
+            base = name.split("-")[0]
+            if base in installed:
+                pkgs_to_reinstall.add(base)
+
+        # Also try ``pip show`` for each exe to find the owning package
+        # via metadata inspection (handles non-obvious mappings).
+        remaining = exe_names - pkgs_to_reinstall
+        if remaining:
+            try:
+                show_result = subprocess.run(
+                    [python, "-m", "pip", "show"] + list(remaining),
+                    capture_output=True, text=True, **_kw,
+                )
+                for line in show_result.stdout.splitlines():
+                    if line.startswith("Name:"):
+                        pkg_name = line.split(":", 1)[1].strip().lower()
+                        if pkg_name in installed:
+                            pkgs_to_reinstall.add(pkg_name)
+            except Exception:
+                pass
+
+        if pkgs_to_reinstall:
+            try:
+                subprocess.run(
+                    [python, "-m", "pip", "install",
+                     "--force-reinstall", "--no-deps"]
+                    + [f"{p}=={installed[p]}" for p in pkgs_to_reinstall
+                       if p in installed],
+                    capture_output=True, text=True, check=True, **_kw,
+                )
+                logger.info(
+                    "Regenerated console-script shims for: %s",
+                    ", ".join(sorted(pkgs_to_reinstall)),
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to regenerate some console-script shims: %s",
+                    exc,
+                )
 
     def merge_env(self, source: str, target: str, strategy: str = "add") -> dict:
         """Merge changes from source environment into target environment.
