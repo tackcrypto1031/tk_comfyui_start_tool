@@ -299,9 +299,51 @@
 
         // Advanced settings change listeners
         document.querySelectorAll('.ls-control').forEach(function(el) {
+            if (el.id === 'ls-listen-enable') return;  // handled separately
             var evtType = (el.tagName === 'SELECT' || el.type === 'checkbox') ? 'change' : 'input';
             el.addEventListener(evtType, onSettingChanged);
         });
+
+        // Dedicated handler for LAN enable checkbox (intercepts with modal)
+        var lanCb = document.getElementById('ls-listen-enable');
+        if (lanCb) {
+            lanCb.addEventListener('change', async function(ev) {
+                if (!ev.target.checked) {
+                    // Unchecking never prompts — just persist
+                    _syncListenControls();
+                    onSettingChanged();
+                    return;
+                }
+                var flagJson;
+                try {
+                    flagJson = await bridge.getUiFlag('listen_warning_dismissed');
+                } catch (e) {
+                    flagJson = 'null';
+                }
+                var dismissed = false;
+                try { dismissed = JSON.parse(flagJson) === true; } catch (e) {}
+                if (dismissed) {
+                    _syncListenControls();
+                    onSettingChanged();
+                    return;
+                }
+                // Revert until user confirms
+                ev.target.checked = false;
+                _showListenConfirm(function(ok, dontAsk) {
+                    if (!ok) {
+                        _syncListenControls();
+                        onSettingChanged();
+                        return;
+                    }
+                    ev.target.checked = true;
+                    if (dontAsk) {
+                        bridge.setUiFlag('listen_warning_dismissed', true);
+                    }
+                    _syncListenControls();
+                    onSettingChanged();
+                });
+            });
+        }
 
         // Arg chip click handlers
         document.querySelectorAll('.ls-chip').forEach(function(chip) {
@@ -765,6 +807,35 @@
         if (!ip) return false;
         var v = String(ip).trim().toLowerCase();
         return v === '127.0.0.1' || v === 'localhost' || v === '::1' || v.indexOf('127.') === 0;
+    }
+
+    function _showListenConfirm(onConfirm) {
+        var overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999';
+        overlay.innerHTML = (
+            '<div class="modal" style="background:#222;color:#eee;padding:20px;border-radius:8px;max-width:420px;box-shadow:0 4px 24px rgba(0,0,0,.5)">' +
+            '  <h3 style="margin-top:0">' + t('launch_listen_confirm_title') + '</h3>' +
+            '  <p>' + t('launch_listen_confirm_body') + '</p>' +
+            '  <label style="display:flex;gap:6px;align-items:center;margin:12px 0">' +
+            '    <input type="checkbox" id="listen-confirm-dontask"><span>' + t('launch_listen_confirm_dont_ask') + '</span>' +
+            '  </label>' +
+            '  <div style="display:flex;gap:8px;justify-content:flex-end">' +
+            '    <button id="listen-confirm-cancel" class="btn">' + t('launch_listen_confirm_cancel') + '</button>' +
+            '    <button id="listen-confirm-ok" class="btn btn-primary">' + t('launch_listen_confirm_ok') + '</button>' +
+            '  </div>' +
+            '</div>'
+        );
+        document.body.appendChild(overlay);
+        document.getElementById('listen-confirm-cancel').addEventListener('click', function() {
+            document.body.removeChild(overlay);
+            onConfirm(false, false);
+        });
+        document.getElementById('listen-confirm-ok').addEventListener('click', function() {
+            var dontAsk = document.getElementById('listen-confirm-dontask').checked;
+            document.body.removeChild(overlay);
+            onConfirm(true, dontAsk);
+        });
     }
 
     function _syncListenControls() {
