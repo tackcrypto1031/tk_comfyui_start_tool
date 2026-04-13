@@ -52,6 +52,26 @@ def get_branches(repo_path: str) -> list:
     return [ref.remote_head for ref in repo.remotes.origin.refs]
 
 
+def list_branches_with_dates(repo_path: str) -> list:
+    """Return remote branches with last-commit date, sorted by date desc.
+
+    Each entry: {"name": str, "date": ISO-8601 str}.
+    """
+    repo = git.Repo(repo_path)
+    out = []
+    for ref in repo.remotes.origin.refs:
+        name = ref.remote_head
+        if name == "HEAD":
+            continue
+        try:
+            dt = ref.commit.committed_datetime.isoformat()
+        except Exception:
+            dt = ""
+        out.append({"name": name, "date": dt})
+    out.sort(key=lambda b: b["date"] or "", reverse=True)
+    return out
+
+
 def get_log(repo_path: str, count: int = 20) -> list:
     """Get recent commit log entries."""
     repo = git.Repo(repo_path)
