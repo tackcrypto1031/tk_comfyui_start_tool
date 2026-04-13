@@ -374,30 +374,26 @@
                     <label class="input-label">${t('version_type')}</label>
                     <div class="flex gap-4 mt-2">
                         <label class="flex items-center gap-2 text-sm cursor-pointer">
-                            <input type="radio" name="version-type" value="branch" checked class="accent-primary">
+                            <input type="radio" name="version-type" value="branch" class="accent-primary">
                             ${t('version_type_branch')}
                         </label>
                         <label class="flex items-center gap-2 text-sm cursor-pointer">
-                            <input type="radio" name="version-type" value="tag" class="accent-primary">
+                            <input type="radio" name="version-type" value="tag" checked class="accent-primary">
                             ${t('version_type_tag')}
                         </label>
                     </div>
                 </div>
-                <div id="create-branch-row">
+                <div id="create-branch-row" class="hidden">
                     <label class="input-label">${t('env_branch')}</label>
                     <select id="create-branch" class="select">
                         <option value="master">master</option>
                     </select>
                 </div>
-                <div id="create-tag-row" class="hidden">
+                <div id="create-tag-row">
                     <label class="input-label">${t('version_tag')}</label>
                     <select id="create-tag" class="select">
                         <option value="">-- ${t('loading')} --</option>
                     </select>
-                </div>
-                <div>
-                    <label class="input-label">${t('env_commit')}</label>
-                    <input type="text" id="create-commit" class="input" placeholder="${t('env_commit_placeholder')}">
                 </div>
                 <div class="border-t border-outline/20 pt-3 mt-3">
                     <div id="create-advanced-toggle" class="flex items-center gap-2 cursor-pointer select-none" style="color:rgb(var(--color-on-surface-variant));">
@@ -487,33 +483,61 @@
             });
 
             BridgeAPI.listRemoteVersions().then(function(versions) {
-                const branchSelect = document.getElementById('create-branch');
-                if (branchSelect) {
-                    branchSelect.innerHTML = '';
-                    versions.branches.forEach(b => {
-                        const opt = document.createElement('option');
-                        opt.value = b;
-                        opt.textContent = b;
-                        if (b === 'master' || b === 'main') opt.selected = true;
-                        branchSelect.appendChild(opt);
-                    });
-                }
                 const tagSelect = document.getElementById('create-tag');
+                const branchSelect = document.getElementById('create-branch');
+                const statusDiv = document.getElementById('create-version-status');
+
+                const tags = (versions && versions.tags) || [];
                 if (tagSelect) {
                     tagSelect.innerHTML = '';
-                    versions.tags.forEach(tag => {
+                    tags.forEach(function(tag) {
                         const opt = document.createElement('option');
                         opt.value = tag.name;
-                        opt.textContent = `${tag.name}  (${tag.hash})`;
+                        opt.textContent = tag.name;
                         tagSelect.appendChild(opt);
                     });
+                    const stable = tags.filter(function(t) { return t.name.indexOf('-') === -1; });
+                    const defaultTag = (stable[0] || tags[0] || {}).name;
+                    if (defaultTag) tagSelect.value = defaultTag;
                 }
-                const statusDiv = document.getElementById('create-status');
+
+                const rawBranches = (versions && versions.branches) || [];
+                const withDates = rawBranches.length > 0 && typeof rawBranches[0] === 'object';
+                let names;
+                if (withDates) {
+                    names = rawBranches.slice()
+                        .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); })
+                        .map(function(b) { return b.name; });
+                } else {
+                    names = rawBranches.slice().sort(function(a, b) {
+                        const pa = /^(master|main)$/i.test(a);
+                        const pb = /^(master|main)$/i.test(b);
+                        if (pa && !pb) return -1;
+                        if (!pa && pb) return 1;
+                        return a.localeCompare(b);
+                    });
+                }
+                let top = names.slice(0, 10);
+                const master = names.find(function(n) { return /^(master|main)$/i.test(n); });
+                if (master && top.indexOf(master) === -1) {
+                    top = [master].concat(top);
+                }
+                if (branchSelect) {
+                    branchSelect.innerHTML = '';
+                    top.forEach(function(name) {
+                        const opt = document.createElement('option');
+                        opt.value = name;
+                        opt.textContent = name;
+                        branchSelect.appendChild(opt);
+                    });
+                    if (top.length) branchSelect.value = top[0];
+                }
+
                 if (statusDiv) {
-                    statusDiv.textContent = `${t('version_branch_count', versions.branches.length)} / ${t('version_tag_count', versions.tags.length)}`;
+                    statusDiv.textContent = `${t('version_branch_count', names.length)} / ${t('version_tag_count', tags.length)}`;
                 }
             }).catch(function(e) {
-                const statusDiv = document.getElementById('create-status');
+                const statusDiv = document.getElementById('create-version-status');
                 if (statusDiv) statusDiv.textContent = t('version_fetch_failed', e.toString());
             });
 
@@ -705,7 +729,7 @@
             commit = document.getElementById('create-tag').value;
         } else {
             branch = document.getElementById('create-branch').value || 'master';
-            commit = document.getElementById('create-commit').value.trim() || '';
+            commit = '';
         }
 
         // Read advanced options based on mode
@@ -893,30 +917,56 @@
             });
 
             BridgeAPI.listRemoteVersions().then(function(versions) {
-                var branchSelect = document.getElementById('edit-branch');
-                if (branchSelect) {
-                    branchSelect.innerHTML = '<option value="">-- No change --</option>';
-                    versions.branches.forEach(function(b) {
-                        var opt = document.createElement('option');
-                        opt.value = b;
-                        opt.textContent = b;
-                        branchSelect.appendChild(opt);
-                    });
-                }
                 var tagSelect = document.getElementById('edit-tag');
+                var branchSelect = document.getElementById('edit-branch');
+                var statusDiv = document.getElementById('edit-status');
+
+                var tags = (versions && versions.tags) || [];
                 if (tagSelect) {
                     tagSelect.innerHTML = '<option value="">-- No change --</option>';
-                    versions.tags.forEach(function(tag) {
+                    tags.forEach(function(tag) {
                         var opt = document.createElement('option');
                         opt.value = tag.name;
-                        opt.textContent = tag.name + '  (' + tag.hash + ')';
+                        opt.textContent = tag.name;
                         tagSelect.appendChild(opt);
                     });
                 }
-                var statusDiv = document.getElementById('edit-status');
+
+                var rawBranches = (versions && versions.branches) || [];
+                var withDates = rawBranches.length > 0 && typeof rawBranches[0] === 'object';
+                var names;
+                if (withDates) {
+                    names = rawBranches.slice()
+                        .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); })
+                        .map(function(b) { return b.name; });
+                } else {
+                    names = rawBranches.slice().sort(function(a, b) {
+                        var pa = /^(master|main)$/i.test(a);
+                        var pb = /^(master|main)$/i.test(b);
+                        if (pa && !pb) return -1;
+                        if (!pa && pb) return 1;
+                        return a.localeCompare(b);
+                    });
+                }
+                var top = names.slice(0, 10);
+                var master = names.find(function(n) { return /^(master|main)$/i.test(n); });
+                if (master && top.indexOf(master) === -1) {
+                    top = [master].concat(top);
+                }
+                if (branchSelect) {
+                    branchSelect.innerHTML = '<option value="">-- No change --</option>';
+                    top.forEach(function(name) {
+                        var opt = document.createElement('option');
+                        opt.value = name;
+                        opt.textContent = name;
+                        branchSelect.appendChild(opt);
+                    });
+                    // Do NOT set branchSelect.value — keep "-- No change --" selected.
+                }
+
                 if (statusDiv) {
-                    statusDiv.textContent = (t('version_branch_count', versions.branches.length) || '') +
-                        ' / ' + (t('version_tag_count', versions.tags.length) || '');
+                    statusDiv.textContent = (t('version_branch_count', names.length) || '') +
+                        ' / ' + (t('version_tag_count', tags.length) || '');
                 }
             }).catch(function(e) {
                 var statusDiv = document.getElementById('edit-status');
