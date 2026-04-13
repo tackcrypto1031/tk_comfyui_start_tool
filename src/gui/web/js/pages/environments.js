@@ -374,30 +374,26 @@
                     <label class="input-label">${t('version_type')}</label>
                     <div class="flex gap-4 mt-2">
                         <label class="flex items-center gap-2 text-sm cursor-pointer">
-                            <input type="radio" name="version-type" value="branch" checked class="accent-primary">
+                            <input type="radio" name="version-type" value="branch" class="accent-primary">
                             ${t('version_type_branch')}
                         </label>
                         <label class="flex items-center gap-2 text-sm cursor-pointer">
-                            <input type="radio" name="version-type" value="tag" class="accent-primary">
+                            <input type="radio" name="version-type" value="tag" checked class="accent-primary">
                             ${t('version_type_tag')}
                         </label>
                     </div>
                 </div>
-                <div id="create-branch-row">
+                <div id="create-branch-row" class="hidden">
                     <label class="input-label">${t('env_branch')}</label>
                     <select id="create-branch" class="select">
                         <option value="master">master</option>
                     </select>
                 </div>
-                <div id="create-tag-row" class="hidden">
+                <div id="create-tag-row">
                     <label class="input-label">${t('version_tag')}</label>
                     <select id="create-tag" class="select">
                         <option value="">-- ${t('loading')} --</option>
                     </select>
-                </div>
-                <div>
-                    <label class="input-label">${t('env_commit')}</label>
-                    <input type="text" id="create-commit" class="input" placeholder="${t('env_commit_placeholder')}">
                 </div>
                 <div class="border-t border-outline/20 pt-3 mt-3">
                     <div id="create-advanced-toggle" class="flex items-center gap-2 cursor-pointer select-none" style="color:rgb(var(--color-on-surface-variant));">
@@ -705,7 +701,7 @@
             commit = document.getElementById('create-tag').value;
         } else {
             branch = document.getElementById('create-branch').value || 'master';
-            commit = document.getElementById('create-commit').value.trim() || '';
+            commit = '';
         }
 
         // Read advanced options based on mode
