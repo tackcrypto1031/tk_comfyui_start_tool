@@ -68,14 +68,15 @@ class VersionController:
         """Actually fetch tags and branches from remote."""
         url = repo_url or self.config.get("comfyui_repo_url", "https://github.com/comfyanonymous/ComfyUI.git")
 
-        # Try to use a local clone for tag dates
         tags = self._get_tags_with_dates()
         if not tags:
-            # Fallback: ls-remote (no dates) — normalize shape to include both date and hash
             raw_tags = git_ops.list_remote_tags(url)
             tags = [{"name": t["name"], "date": "", "hash": t["hash"]} for t in raw_tags]
 
-        branches = git_ops.list_remote_branches(url)
+        branches = self._get_branches_with_dates()
+        if not branches:
+            branches = git_ops.list_remote_branches(url)
+
         return {"tags": tags, "branches": branches}
 
     def refresh_versions_cache(self, repo_url: str = None) -> None:
@@ -102,6 +103,22 @@ class VersionController:
                     repo = gitmodule.Repo(str(comfyui_path))
                     repo.remotes.origin.fetch(tags=True)
                     return git_ops.list_tags_with_dates(str(comfyui_path))
+                except Exception:
+                    continue
+        return []
+
+    def _get_branches_with_dates(self) -> list:
+        """Try to get branches with dates from any local ComfyUI clone."""
+        if not self.environments_dir.exists():
+            return []
+        for env_dir in self.environments_dir.iterdir():
+            comfyui_path = env_dir / "ComfyUI"
+            if comfyui_path.exists() and (comfyui_path / ".git").exists():
+                try:
+                    import git as gitmodule
+                    repo = gitmodule.Repo(str(comfyui_path))
+                    repo.remotes.origin.fetch()
+                    return git_ops.list_branches_with_dates(str(comfyui_path))
                 except Exception:
                     continue
         return []
