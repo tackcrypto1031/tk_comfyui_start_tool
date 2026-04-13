@@ -63,11 +63,11 @@ def build_launch_args(settings: dict) -> list:
     if not settings.get("smart_memory", True):
         args.append("--disable-smart-memory")
 
-    # Listen IP — launcher.start() checks '"--listen" not in extra_args'
-    # so emitting --listen here is safe and overrides the default 127.0.0.1
-    listen = settings.get("listen", "")
-    if listen:
-        args.extend(["--listen", listen])
+    # Listen: only emit --listen when the toggle is on.
+    # Empty/whitespace IP defaults to 0.0.0.0 so "enabled + blank" means "all interfaces".
+    if settings.get("listen_enabled"):
+        ip = (settings.get("listen") or "").strip() or "0.0.0.0"
+        args.extend(["--listen", ip])
 
     # CORS
     cors = settings.get("cors_origin", "")
