@@ -134,8 +134,16 @@
                                     </label>
                                 </div>
                                 <div>
+                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                                        <input type="checkbox" id="ls-listen-enable" class="ls-control" style="width:18px;height:18px;accent-color:rgb(var(--color-primary))">
+                                        <span style="font-size:13px;color:#ccc">${t('launch_listen_enable')}</span>
+                                    </label>
+                                    <div class="input-desc" style="font-size:12px;opacity:0.7;margin-top:4px">${t('launch_listen_enable_desc')}</div>
+                                </div>
+                                <div>
                                     <label class="input-label">${t('launch_listen_ip')}</label>
-                                    <input type="text" id="ls-listen" class="input ls-control" placeholder="127.0.0.1">
+                                    <input type="text" id="ls-listen" class="input ls-control" placeholder="0.0.0.0" disabled>
+                                    <div class="input-error" id="ls-listen-error" style="display:none;color:#e66;font-size:12px;margin-top:4px"></div>
                                 </div>
                                 <div>
                                     <label class="input-label">${t('launch_auto_open_browser')}</label>
@@ -492,6 +500,9 @@
     }
 
     function doStart() {
+        if (!_syncListenControls()) {
+            return;  // Loopback IP with LAN enabled — don't start
+        }
         const envSelect = document.getElementById('launch-env');
         const portInput = document.getElementById('launch-port');
         if (!envSelect || !envSelect.value) { App.showToast(t('launch_select_env'), 'info'); return; }
@@ -726,6 +737,9 @@
             if (el) el.checked = !!settings.smart_memory;
             el = document.getElementById('ls-listen');
             if (el) el.value = settings.listen || '';
+            el = document.getElementById('ls-listen-enable');
+            if (el) el.checked = !!settings.listen_enabled;
+            _syncListenControls();
             // Update the top port input from launch_settings
             el = document.getElementById('launch-port');
             if (el && settings.port) el.value = settings.port;
@@ -747,7 +761,36 @@
         });
     }
 
+    function _isLoopbackIp(ip) {
+        if (!ip) return false;
+        var v = String(ip).trim().toLowerCase();
+        return v === '127.0.0.1' || v === 'localhost' || v === '::1' || v.indexOf('127.') === 0;
+    }
+
+    function _syncListenControls() {
+        var cb = document.getElementById('ls-listen-enable');
+        var ipEl = document.getElementById('ls-listen');
+        var errEl = document.getElementById('ls-listen-error');
+        if (!cb || !ipEl) return true;
+        var enabled = cb.checked;
+        ipEl.disabled = !enabled;
+        if (!enabled) {
+            if (errEl) errEl.style.display = 'none';
+            return true;
+        }
+        if (_isLoopbackIp(ipEl.value)) {
+            if (errEl) {
+                errEl.textContent = t('launch_listen_invalid_loopback');
+                errEl.style.display = 'block';
+            }
+            return false;
+        }
+        if (errEl) errEl.style.display = 'none';
+        return true;
+    }
+
     function onSettingChanged() {
+        _syncListenControls();
         var settings = {};
         var el;
         el = document.getElementById('ls-cross-attention');
@@ -762,6 +805,8 @@
         if (el) settings.smart_memory = el.checked;
         el = document.getElementById('ls-listen');
         if (el) settings.listen = el.value;
+        el = document.getElementById('ls-listen-enable');
+        if (el) settings.listen_enabled = el.checked;
         // Read port from the top input (single source of truth)
         el = document.getElementById('launch-port');
         if (el) settings.port = el.value ? parseInt(el.value) : 8188;
