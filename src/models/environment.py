@@ -11,6 +11,7 @@ LAUNCH_SETTINGS_DEFAULTS = {
     "reserve_vram": None,
     "async_offload": "auto",
     "smart_memory": True,
+    "listen_enabled": False,
     "listen": "",
     "port": 8188,
     "auto_launch": True,
@@ -20,6 +21,21 @@ LAUNCH_SETTINGS_DEFAULTS = {
     "custom_args": "",
     "auto_diagnostics": False,
 }
+
+_LOOPBACK_VALUES = {"127.0.0.1", "localhost", "::1", "0:0:0:0:0:0:0:1"}
+
+
+def _migrate_listen_fields_from_legacy(settings: dict) -> dict:
+    """Apply legacy migration: derive listen_enabled from a raw listen string."""
+    migrated = dict(settings)
+    raw = (migrated.get("listen") or "").strip().lower()
+    if raw and raw not in _LOOPBACK_VALUES:
+        migrated["listen_enabled"] = True
+    else:
+        migrated["listen_enabled"] = False
+        if raw in _LOOPBACK_VALUES:
+            migrated["listen"] = ""
+    return migrated
 
 
 @dataclass
@@ -47,6 +63,13 @@ class Environment:
     def get_launch_settings(self) -> dict:
         """Return launch_settings merged with defaults (lazy fallback)."""
         return {**LAUNCH_SETTINGS_DEFAULTS, **self.launch_settings}
+
+    def get_effective_launch_settings(self) -> dict:
+        """Return merged launch settings, applying legacy migration when needed."""
+        merged = {**LAUNCH_SETTINGS_DEFAULTS, **self.launch_settings}
+        if "listen_enabled" not in self.launch_settings:
+            return _migrate_listen_fields_from_legacy(merged)
+        return merged
 
     def to_dict(self) -> dict:
         """Serialize to dictionary."""

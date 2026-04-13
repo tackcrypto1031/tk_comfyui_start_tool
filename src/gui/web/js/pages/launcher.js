@@ -134,8 +134,16 @@
                                     </label>
                                 </div>
                                 <div>
+                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                                        <input type="checkbox" id="ls-listen-enable" class="ls-control" style="width:18px;height:18px;accent-color:rgb(var(--color-primary))">
+                                        <span style="font-size:13px;color:#ccc">${t('launch_listen_enable')}</span>
+                                    </label>
+                                    <div class="input-desc" style="font-size:12px;opacity:0.7;margin-top:4px">${t('launch_listen_enable_desc')}</div>
+                                </div>
+                                <div>
                                     <label class="input-label">${t('launch_listen_ip')}</label>
-                                    <input type="text" id="ls-listen" class="input ls-control" placeholder="127.0.0.1">
+                                    <input type="text" id="ls-listen" class="input ls-control" placeholder="0.0.0.0" disabled>
+                                    <div class="input-error" id="ls-listen-error" style="display:none;color:#e66;font-size:12px;margin-top:4px"></div>
                                 </div>
                                 <div>
                                     <label class="input-label">${t('launch_auto_open_browser')}</label>
@@ -291,9 +299,51 @@
 
         // Advanced settings change listeners
         document.querySelectorAll('.ls-control').forEach(function(el) {
+            if (el.id === 'ls-listen-enable') return;  // handled separately
             var evtType = (el.tagName === 'SELECT' || el.type === 'checkbox') ? 'change' : 'input';
             el.addEventListener(evtType, onSettingChanged);
         });
+
+        // Dedicated handler for LAN enable checkbox (intercepts with modal)
+        var lanCb = document.getElementById('ls-listen-enable');
+        if (lanCb) {
+            lanCb.addEventListener('change', async function(ev) {
+                if (!ev.target.checked) {
+                    // Unchecking never prompts — just persist
+                    _syncListenControls();
+                    onSettingChanged();
+                    return;
+                }
+                var flagJson;
+                try {
+                    flagJson = await bridge.getUiFlag('listen_warning_dismissed');
+                } catch (e) {
+                    flagJson = 'null';
+                }
+                var dismissed = false;
+                try { dismissed = JSON.parse(flagJson) === true; } catch (e) {}
+                if (dismissed) {
+                    _syncListenControls();
+                    onSettingChanged();
+                    return;
+                }
+                // Revert until user confirms
+                ev.target.checked = false;
+                _showListenConfirm(function(ok, dontAsk) {
+                    if (!ok) {
+                        _syncListenControls();
+                        onSettingChanged();
+                        return;
+                    }
+                    ev.target.checked = true;
+                    if (dontAsk) {
+                        bridge.setUiFlag('listen_warning_dismissed', true);
+                    }
+                    _syncListenControls();
+                    onSettingChanged();
+                });
+            });
+        }
 
         // Arg chip click handlers
         document.querySelectorAll('.ls-chip').forEach(function(chip) {
@@ -492,6 +542,9 @@
     }
 
     function doStart() {
+        if (!_syncListenControls()) {
+            return;  // Loopback IP with LAN enabled — don't start
+        }
         const envSelect = document.getElementById('launch-env');
         const portInput = document.getElementById('launch-port');
         if (!envSelect || !envSelect.value) { App.showToast(t('launch_select_env'), 'info'); return; }
@@ -582,6 +635,10 @@
             document.getElementById('launch-btn-start').disabled = true;
             document.getElementById('launch-btn-stop').disabled = false;
             App.showToast(t('launch_started', info.pid, info.port), 'success');
+            if (info && info.lan_url) {
+                var lanMsg = t('launch_listen_toast_lan_url').replace('{url}', info.lan_url);
+                App.showToast(lanMsg, 'info', 10000);
+            }
             // Refresh running list
             loadRunningList();
         }).catch(function(e) {
@@ -726,6 +783,9 @@
             if (el) el.checked = !!settings.smart_memory;
             el = document.getElementById('ls-listen');
             if (el) el.value = settings.listen || '';
+            el = document.getElementById('ls-listen-enable');
+            if (el) el.checked = !!settings.listen_enabled;
+            _syncListenControls();
             // Update the top port input from launch_settings
             el = document.getElementById('launch-port');
             if (el && settings.port) el.value = settings.port;
@@ -747,7 +807,65 @@
         });
     }
 
+    function _isLoopbackIp(ip) {
+        if (!ip) return false;
+        var v = String(ip).trim().toLowerCase();
+        return v === '127.0.0.1' || v === 'localhost' || v === '::1' || v.indexOf('127.') === 0;
+    }
+
+    function _showListenConfirm(onConfirm) {
+        var overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999';
+        overlay.innerHTML = (
+            '<div class="modal" style="background:#222;color:#eee;padding:20px;border-radius:8px;max-width:420px;box-shadow:0 4px 24px rgba(0,0,0,.5)">' +
+            '  <h3 style="margin-top:0">' + t('launch_listen_confirm_title') + '</h3>' +
+            '  <p>' + t('launch_listen_confirm_body') + '</p>' +
+            '  <label style="display:flex;gap:6px;align-items:center;margin:12px 0">' +
+            '    <input type="checkbox" id="listen-confirm-dontask"><span>' + t('launch_listen_confirm_dont_ask') + '</span>' +
+            '  </label>' +
+            '  <div style="display:flex;gap:8px;justify-content:flex-end">' +
+            '    <button id="listen-confirm-cancel" class="btn">' + t('launch_listen_confirm_cancel') + '</button>' +
+            '    <button id="listen-confirm-ok" class="btn btn-primary">' + t('launch_listen_confirm_ok') + '</button>' +
+            '  </div>' +
+            '</div>'
+        );
+        document.body.appendChild(overlay);
+        document.getElementById('listen-confirm-cancel').addEventListener('click', function() {
+            document.body.removeChild(overlay);
+            onConfirm(false, false);
+        });
+        document.getElementById('listen-confirm-ok').addEventListener('click', function() {
+            var dontAsk = document.getElementById('listen-confirm-dontask').checked;
+            document.body.removeChild(overlay);
+            onConfirm(true, dontAsk);
+        });
+    }
+
+    function _syncListenControls() {
+        var cb = document.getElementById('ls-listen-enable');
+        var ipEl = document.getElementById('ls-listen');
+        var errEl = document.getElementById('ls-listen-error');
+        if (!cb || !ipEl) return true;
+        var enabled = cb.checked;
+        ipEl.disabled = !enabled;
+        if (!enabled) {
+            if (errEl) errEl.style.display = 'none';
+            return true;
+        }
+        if (_isLoopbackIp(ipEl.value)) {
+            if (errEl) {
+                errEl.textContent = t('launch_listen_invalid_loopback');
+                errEl.style.display = 'block';
+            }
+            return false;
+        }
+        if (errEl) errEl.style.display = 'none';
+        return true;
+    }
+
     function onSettingChanged() {
+        _syncListenControls();
         var settings = {};
         var el;
         el = document.getElementById('ls-cross-attention');
@@ -762,6 +880,8 @@
         if (el) settings.smart_memory = el.checked;
         el = document.getElementById('ls-listen');
         if (el) settings.listen = el.value;
+        el = document.getElementById('ls-listen-enable');
+        if (el) settings.listen_enabled = el.checked;
         // Read port from the top input (single source of truth)
         el = document.getElementById('launch-port');
         if (el) settings.port = el.value ? parseInt(el.value) : 8188;

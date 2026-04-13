@@ -40,6 +40,7 @@ def get_default_config() -> dict:
             ],
             "auto_analyze_on_install": True,
         },
+        "ui_flags": {},
     }
 
 
