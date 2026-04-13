@@ -1,16 +1,16 @@
 {
-  "version": "0.2.3",
+  "version": "0.2.4",
   "min_python": "3.10",
-  "release_notes": "修正監聽模式下開啟瀏覽器仍使用 localhost 的問題",
+  "release_notes": "修正剛勾選監聽就按啟動時會因存檔 debounce 未完成而走 localhost 的問題",
   "changes": [
-    "修正監聽模式下開啟瀏覽器仍使用 localhost 的問題，改為開啟區網 IP 以便分享給其他電腦"
+    "修正剛勾選內網監聽就立刻按啟動時，設定存檔未完成導致仍走 localhost 的問題"
   ],
   "changes_i18n": {
     "en": [
-      "Fixed: browser now opens the LAN URL (not localhost) when listen mode is enabled, so the address bar shows an IP other machines can reach"
+      "Fixed: clicking Start right after enabling LAN listen no longer races the settings save — backend now sees the latest listen_enabled flag"
     ],
     "zh-TW": [
-      "修正監聽模式下開啟瀏覽器仍使用 localhost 的問題，改為開啟區網 IP 以便分享給其他電腦"
+      "修正剛勾選內網監聽就立刻按啟動時，設定存檔未完成導致仍走 localhost 的問題"
     ]
   }
 }

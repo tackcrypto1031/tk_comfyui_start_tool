@@ -552,6 +552,26 @@
         const envName = envSelect.value;
         const port = parseInt(portInput.value) || 8188;
 
+        // Flush any pending debounced settings save so the backend reads the
+        // latest listen_enabled/listen values. Without this, toggling LAN and
+        // immediately clicking Start races the 500ms debounce.
+        if (saveDebounceTimer) {
+            clearTimeout(saveDebounceTimer);
+            saveDebounceTimer = null;
+            if (selectedEnv && currentLaunchSettings) {
+                BridgeAPI.saveLaunchSettings(selectedEnv, currentLaunchSettings).then(function() {
+                    _doStartAfterFlush(envName, port);
+                }).catch(function(e) {
+                    App.showToast(String(e), 'error');
+                });
+                return;
+            }
+        }
+        _doStartAfterFlush(envName, port);
+    }
+
+    function _doStartAfterFlush(envName, port) {
+
         // Check auto_diagnostics setting
         if (currentLaunchSettings && currentLaunchSettings.auto_diagnostics) {
             document.getElementById('launch-btn-start').disabled = true;
