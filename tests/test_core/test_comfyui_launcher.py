@@ -288,6 +288,64 @@ class TestStartLanUrl:
         assert "lan_url" not in result
 
 
+class TestLanUrlPidFile:
+    @patch("src.core.comfyui_launcher.get_local_lan_ip")
+    @patch("src.core.comfyui_launcher.process_manager")
+    @patch("src.core.comfyui_launcher.pip_ops")
+    def test_start_writes_lan_url_to_pid_file_when_listen_non_loopback(
+        self, mock_pip, mock_pm, mock_lan_ip, launcher, env_dir
+    ):
+        mock_pip.get_venv_python.return_value = "/venv/python"
+        mock_pip.freeze.return_value = {"comfyui-manager": "4.2b1"}
+        mock_pm.find_available_port.return_value = 8188
+        mock_pm.is_port_in_use.return_value = False
+        mock_proc = MagicMock()
+        mock_proc.poll.return_value = None
+        mock_proc.pid = 4242
+        mock_pm.start_process.return_value = mock_proc
+        mock_lan_ip.return_value = "192.168.1.23"
+
+        with patch.object(launcher, "_ensure_manager_ready"):
+            result = launcher.start(
+                "main", port=8188, extra_args=["--listen", "0.0.0.0"], auto_open=False
+            )
+
+        assert result["lan_url"] == "http://192.168.1.23:8188"
+
+        pid_file = env_dir / ".comfyui.pid"
+        assert pid_file.exists()
+        pid_data = json.loads(pid_file.read_text())
+        assert pid_data["lan_url"] == "http://192.168.1.23:8188"
+
+    @patch("src.core.comfyui_launcher.get_local_lan_ip")
+    @patch("src.core.comfyui_launcher.process_manager")
+    @patch("src.core.comfyui_launcher.pip_ops")
+    def test_start_omits_lan_url_when_listen_loopback(
+        self, mock_pip, mock_pm, mock_lan_ip, launcher, env_dir
+    ):
+        mock_pip.get_venv_python.return_value = "/venv/python"
+        mock_pip.freeze.return_value = {"comfyui-manager": "4.2b1"}
+        mock_pm.find_available_port.return_value = 8188
+        mock_pm.is_port_in_use.return_value = False
+        mock_proc = MagicMock()
+        mock_proc.poll.return_value = None
+        mock_proc.pid = 4242
+        mock_pm.start_process.return_value = mock_proc
+        mock_lan_ip.return_value = "192.168.1.23"
+
+        with patch.object(launcher, "_ensure_manager_ready"):
+            result = launcher.start(
+                "main", port=8188, extra_args=["--listen", "127.0.0.1"], auto_open=False
+            )
+
+        assert "lan_url" not in result
+
+        pid_file = env_dir / ".comfyui.pid"
+        assert pid_file.exists()
+        pid_data = json.loads(pid_file.read_text())
+        assert "lan_url" not in pid_data
+
+
 class TestStop:
     def test_stop_raises_if_no_pid_file(self, launcher, env_dir):
         with pytest.raises(RuntimeError, match="No running instance"):
