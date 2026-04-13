@@ -8,6 +8,7 @@ import requests
 from pathlib import Path
 
 from src.utils import git_ops, pip_ops, process_manager
+from src.utils.net_ops import get_local_lan_ip
 
 logger = logging.getLogger(__name__)
 
@@ -233,7 +234,17 @@ class ComfyUILauncher:
                         return
             threading.Thread(target=_open_browser, daemon=True).start()
 
-        return {"pid": proc.pid, "port": port, "env_name": env_name}
+        result = {"pid": proc.pid, "port": port, "env_name": env_name}
+        listen_ip = None
+        if extra_args:
+            try:
+                idx = extra_args.index("--listen")
+                listen_ip = extra_args[idx + 1]
+            except (ValueError, IndexError):
+                listen_ip = None
+        if listen_ip and listen_ip not in ("127.0.0.1", "localhost", "::1"):
+            result["lan_url"] = f"http://{get_local_lan_ip()}:{port}"
+        return result
 
     def _ensure_manager_ready(self, env_dir: Path) -> None:
         """Ensure manager repo exists and security_level is permissive for local launcher use."""
