@@ -1,16 +1,16 @@
 {
-  "version": "0.2.4",
+  "version": "0.2.5",
   "min_python": "3.10",
-  "release_notes": "修正剛勾選監聽就按啟動時會因存檔 debounce 未完成而走 localhost 的問題",
+  "release_notes": "修正開啟內網監聽後從 ComfyUI Manager 安裝插件失敗的問題",
   "changes": [
-    "修正剛勾選內網監聽就立刻按啟動時，設定存檔未完成導致仍走 localhost 的問題"
+    "修正開啟內網監聽 (LAN) 後,從 ComfyUI Manager 安裝插件會失敗的問題"
   ],
   "changes_i18n": {
     "en": [
-      "Fixed: clicking Start right after enabling LAN listen no longer races the settings save — backend now sees the latest listen_enabled flag"
+      "Fixed: installing custom nodes via ComfyUI Manager now works when LAN listen mode is enabled (Manager security level is auto-adjusted for non-loopback listens)"
     ],
     "zh-TW": [
-      "修正剛勾選內網監聽就立刻按啟動時，設定存檔未完成導致仍走 localhost 的問題"
+      "修正開啟內網監聽 (LAN) 後,從 ComfyUI Manager 安裝插件會失敗的問題"
     ]
   }
 }

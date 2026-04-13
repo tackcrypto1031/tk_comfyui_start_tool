@@ -452,6 +452,86 @@ class TestEnsureManagerReady:
 
         assert launcher.health_check(8188) is False
 
+    @patch("src.core.comfyui_launcher.pip_ops")
+    @patch("src.core.comfyui_launcher.git_ops")
+    def test_lan_listen_writes_weak_security_level(self, mock_git, mock_pip, launcher, env_dir):
+        """When listen_ip is non-loopback, Manager config must use 'weak' security level.
+
+        ComfyUI Manager's is_local_mode=False (non-loopback) path requires
+        security_level='weak' for 'high'-risk installs (nodes not in the known
+        registry).  'normal-' is insufficient and causes 403 on install.
+        """
+        mock_pip.freeze.return_value = {"comfyui-manager": "4.2b1"}
+
+        launcher._ensure_manager_ready(env_dir, listen_ip="0.0.0.0")
+
+        config_path = env_dir / "ComfyUI" / "user" / "__manager" / "config.ini"
+        assert config_path.exists()
+        content = config_path.read_text(encoding="utf-8")
+        assert "security_level = weak" in content
+
+    @patch("src.core.comfyui_launcher.pip_ops")
+    @patch("src.core.comfyui_launcher.git_ops")
+    def test_lan_listen_with_explicit_lan_ip_writes_weak(self, mock_git, mock_pip, launcher, env_dir):
+        """A concrete LAN IP (non-loopback) also triggers 'weak' security level."""
+        mock_pip.freeze.return_value = {"comfyui-manager": "4.2b1"}
+
+        launcher._ensure_manager_ready(env_dir, listen_ip="192.168.1.100")
+
+        config_path = env_dir / "ComfyUI" / "user" / "__manager" / "config.ini"
+        content = config_path.read_text(encoding="utf-8")
+        assert "security_level = weak" in content
+
+    @patch("src.core.comfyui_launcher.pip_ops")
+    @patch("src.core.comfyui_launcher.git_ops")
+    def test_loopback_listen_writes_normal_minus_security_level(self, mock_git, mock_pip, launcher, env_dir):
+        """When listen_ip is loopback, Manager config keeps 'normal-' (sufficient for local mode)."""
+        mock_pip.freeze.return_value = {"comfyui-manager": "4.2b1"}
+
+        launcher._ensure_manager_ready(env_dir, listen_ip="127.0.0.1")
+
+        config_path = env_dir / "ComfyUI" / "user" / "__manager" / "config.ini"
+        content = config_path.read_text(encoding="utf-8")
+        assert "security_level = normal-" in content
+
+    @patch("src.core.comfyui_launcher.pip_ops")
+    @patch("src.core.comfyui_launcher.git_ops")
+    def test_no_listen_ip_writes_normal_minus_security_level(self, mock_git, mock_pip, launcher, env_dir):
+        """When no listen_ip is provided (default loopback mode), 'normal-' is used."""
+        mock_pip.freeze.return_value = {"comfyui-manager": "4.2b1"}
+
+        launcher._ensure_manager_ready(env_dir, listen_ip=None)
+
+        config_path = env_dir / "ComfyUI" / "user" / "__manager" / "config.ini"
+        content = config_path.read_text(encoding="utf-8")
+        assert "security_level = normal-" in content
+
+    @patch("src.core.comfyui_launcher.process_manager")
+    @patch("src.core.comfyui_launcher.pip_ops")
+    def test_start_with_lan_listen_passes_listen_ip_to_ensure_manager(
+        self, mock_pip, mock_pm, launcher, env_dir
+    ):
+        """start() with --listen 0.0.0.0 must pass the IP to _ensure_manager_ready."""
+        mock_pip.get_venv_python.return_value = "/venv/python"
+        mock_pip.freeze.return_value = {"comfyui-manager": "4.2b1"}
+        mock_pm.find_available_port.return_value = 8188
+        mock_proc = MagicMock()
+        mock_proc.poll.return_value = None
+        mock_proc.pid = 9999
+        mock_pm.start_process.return_value = mock_proc
+
+        captured = {}
+
+        def fake_ensure(env_dir_arg, listen_ip=None):
+            captured["listen_ip"] = listen_ip
+
+        with patch.object(launcher, "_ensure_manager_ready", side_effect=fake_ensure):
+            with patch("src.core.comfyui_launcher.get_local_lan_ip", return_value="192.168.1.5"):
+                launcher.start("main", port=8188, extra_args=["--listen", "0.0.0.0"],
+                               auto_open=False)
+
+        assert captured["listen_ip"] == "0.0.0.0"
+
 
 class TestGetStatus:
     def test_status_stopped_no_pid_file(self, launcher, env_dir):

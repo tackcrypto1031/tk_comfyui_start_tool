@@ -21,7 +21,15 @@ def _is_loopback_ip(ip: str) -> bool:
 
 
 DEFAULT_MANAGER_URL = "https://github.com/Comfy-Org/ComfyUI-Manager.git"
+# Security level written to Manager's config.ini before each launch.
+# "normal-" is sufficient when ComfyUI listens on loopback (127.0.0.1): Manager's
+# is_local_mode=True path allows 'high'-risk installs with normal-.
+# "weak" is required when ComfyUI listens on a non-loopback address (0.0.0.0 / LAN
+# IP): Manager's is_local_mode=False path requires security_level='weak' for 'high'-
+# risk installs (nodes not in the known list).  Without this, Manager returns 403 for
+# any non-CNR or nightly node install in LAN/listen mode.
 MANAGER_SECURITY_LEVEL = "normal-"
+MANAGER_SECURITY_LEVEL_LAN = "weak"
 
 # How long (in seconds) a pid file with state="starting" is allowed to exist
 # before get_status() considers the launch failed.  ComfyUI first-time startup
@@ -141,7 +149,16 @@ class ComfyUILauncher:
             )
 
         # Ensure comfyui-manager is installed and security level is manager-compatible.
-        self._ensure_manager_ready(env_dir)
+        # Pass the listen IP so the correct security level is written: 'weak' for
+        # non-loopback (LAN) mode, 'normal-' for loopback/default mode.
+        listen_ip_for_manager = None
+        if extra_args:
+            try:
+                idx = extra_args.index("--listen")
+                listen_ip_for_manager = extra_args[idx + 1]
+            except (ValueError, IndexError):
+                pass
+        self._ensure_manager_ready(env_dir, listen_ip=listen_ip_for_manager)
 
         pid_file = env_dir / ".comfyui.pid"
 
@@ -264,8 +281,16 @@ class ComfyUILauncher:
             result["lan_url"] = lan_url
         return result
 
-    def _ensure_manager_ready(self, env_dir: Path) -> None:
-        """Ensure manager repo exists and security_level is permissive for local launcher use."""
+    def _ensure_manager_ready(self, env_dir: Path, listen_ip: str = None) -> None:
+        """Ensure manager repo exists and security_level is permissive for local launcher use.
+
+        Args:
+            listen_ip: The --listen IP address that will be passed to ComfyUI.  When this is
+                a non-loopback address (0.0.0.0, LAN IP, etc.) ComfyUI Manager's
+                ``is_local_mode`` flag is False, which means it requires security_level='weak'
+                to allow 'high'-risk node installs (nodes not in the known registry).  For
+                loopback / unset, 'normal-' is sufficient.
+        """
         comfyui_dir = env_dir / "ComfyUI"
         manager_repo_dir = comfyui_dir / "custom_nodes" / "ComfyUI-Manager"
 
@@ -282,15 +307,29 @@ class ComfyUILauncher:
 
         self._ensure_manager_python_package(env_dir)
 
+        # Choose security level based on listen mode.
+        # When ComfyUI is bound to a non-loopback address, Manager treats all
+        # requests as remote (is_local_mode=False) and requires security_level='weak'
+        # to permit 'high'-risk installs.  On loopback, 'normal-' suffices.
+        is_lan = listen_ip and not _is_loopback_ip(listen_ip)
+        security_level = MANAGER_SECURITY_LEVEL_LAN if is_lan else MANAGER_SECURITY_LEVEL
+        if is_lan:
+            logger.info(
+                "LAN listen mode detected (%s); writing security_level=%s to Manager config "
+                "so node installs are permitted from non-loopback clients.",
+                listen_ip, security_level,
+            )
+
         manager_config = comfyui_dir / "user" / "__manager" / "config.ini"
-        self._write_manager_security_config(manager_config)
+        self._write_manager_security_config(manager_config, security_level)
 
         # Keep backward compatibility for existing legacy config files.
         legacy_config = comfyui_dir / "user" / "default" / "ComfyUI-Manager" / "config.ini"
         if legacy_config.exists():
-            self._write_manager_security_config(legacy_config)
+            self._write_manager_security_config(legacy_config, security_level)
 
-    def _write_manager_security_config(self, config_path: Path) -> None:
+    def _write_manager_security_config(self, config_path: Path,
+                                       security_level: str = MANAGER_SECURITY_LEVEL) -> None:
         """Write manager security policy without creating legacy folders unnecessarily."""
         config = configparser.ConfigParser()
         if config_path.exists():
@@ -299,7 +338,7 @@ class ComfyUILauncher:
         if "default" not in config:
             config["default"] = {}
 
-        config["default"]["security_level"] = MANAGER_SECURITY_LEVEL
+        config["default"]["security_level"] = security_level
 
         config_path.parent.mkdir(parents=True, exist_ok=True)
         with open(str(config_path), "w", encoding="utf-8") as f:
