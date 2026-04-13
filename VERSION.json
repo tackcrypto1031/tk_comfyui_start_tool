@@ -1,16 +1,19 @@
 {
-  "version": "0.2.5",
+  "version": "0.2.6",
   "min_python": "3.10",
-  "release_notes": "修正開啟內網監聽後從 ComfyUI Manager 安裝插件失敗的問題",
+  "release_notes": "修正內網監聽模式下無法啟動與無法從 Manager 安裝插件的問題",
   "changes": [
-    "修正開啟內網監聽 (LAN) 後,從 ComfyUI Manager 安裝插件會失敗的問題"
+    "修正舊環境開啟內網監聽後仍綁在 localhost、需反覆重啟才會進入監聽模式的問題",
+    "修正內網監聽模式下從 ComfyUI Manager 安裝插件失敗 (security_level / network_mode 設定與路徑修正)"
   ],
   "changes_i18n": {
     "en": [
-      "Fixed: installing custom nodes via ComfyUI Manager now works when LAN listen mode is enabled (Manager security level is auto-adjusted for non-loopback listens)"
+      "Fixed: legacy environments now honor LAN listen setting on first start (previously fell back to localhost until several restarts)",
+      "Fixed: installing custom nodes via ComfyUI Manager in LAN listen mode (writes security_level and network_mode=personal_cloud to the correct repo-local config.ini)"
     ],
     "zh-TW": [
-      "修正開啟內網監聽 (LAN) 後,從 ComfyUI Manager 安裝插件會失敗的問題"
+      "修正舊環境開啟內網監聽後仍綁在 localhost、需反覆重啟才會進入監聽模式的問題",
+      "修正內網監聽模式下從 ComfyUI Manager 安裝插件失敗 (security_level / network_mode 設定與路徑修正)"
     ]
   }
 }

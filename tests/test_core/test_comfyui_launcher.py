@@ -454,12 +454,14 @@ class TestEnsureManagerReady:
 
     @patch("src.core.comfyui_launcher.pip_ops")
     @patch("src.core.comfyui_launcher.git_ops")
-    def test_lan_listen_writes_weak_security_level(self, mock_git, mock_pip, launcher, env_dir):
-        """When listen_ip is non-loopback, Manager config must use 'weak' security level.
+    def test_lan_listen_writes_personal_cloud_network_mode(self, mock_git, mock_pip, launcher, env_dir):
+        """LAN listen mode must write network_mode=personal_cloud.
 
-        ComfyUI Manager's is_local_mode=False (non-loopback) path requires
-        security_level='weak' for 'high'-risk installs (nodes not in the known
-        registry).  'normal-' is insufficient and causes 403 on install.
+        ComfyUI Manager's 'middle+'/'high+' security gates reject installs from
+        non-loopback clients unless either is_local_mode=True (not possible in LAN
+        mode) OR network_mode=='personal_cloud'.  security_level stays at 'normal-'
+        which is accepted once the personal_cloud gate is open; downgrading to
+        'weak' is not required for normal listed-node installs.
         """
         mock_pip.freeze.return_value = {"comfyui-manager": "4.2b1"}
 
@@ -468,24 +470,30 @@ class TestEnsureManagerReady:
         config_path = env_dir / "ComfyUI" / "user" / "__manager" / "config.ini"
         assert config_path.exists()
         content = config_path.read_text(encoding="utf-8")
-        assert "security_level = weak" in content
+        assert "security_level = normal-" in content
+        assert "network_mode = personal_cloud" in content
 
     @patch("src.core.comfyui_launcher.pip_ops")
     @patch("src.core.comfyui_launcher.git_ops")
-    def test_lan_listen_with_explicit_lan_ip_writes_weak(self, mock_git, mock_pip, launcher, env_dir):
-        """A concrete LAN IP (non-loopback) also triggers 'weak' security level."""
+    def test_lan_listen_with_explicit_lan_ip_writes_personal_cloud(self, mock_git, mock_pip, launcher, env_dir):
+        """A concrete LAN IP (non-loopback) also triggers network_mode=personal_cloud."""
         mock_pip.freeze.return_value = {"comfyui-manager": "4.2b1"}
 
         launcher._ensure_manager_ready(env_dir, listen_ip="192.168.1.100")
 
         config_path = env_dir / "ComfyUI" / "user" / "__manager" / "config.ini"
         content = config_path.read_text(encoding="utf-8")
-        assert "security_level = weak" in content
+        assert "security_level = normal-" in content
+        assert "network_mode = personal_cloud" in content
 
     @patch("src.core.comfyui_launcher.pip_ops")
     @patch("src.core.comfyui_launcher.git_ops")
-    def test_loopback_listen_writes_normal_minus_security_level(self, mock_git, mock_pip, launcher, env_dir):
-        """When listen_ip is loopback, Manager config keeps 'normal-' (sufficient for local mode)."""
+    def test_loopback_listen_does_not_write_network_mode(self, mock_git, mock_pip, launcher, env_dir):
+        """Loopback listen: security_level stays 'normal-', network_mode is NOT written.
+
+        is_local_mode=True bypasses Manager's network_mode gate, so we should not
+        override Manager's default network_mode ('public') in loopback mode.
+        """
         mock_pip.freeze.return_value = {"comfyui-manager": "4.2b1"}
 
         launcher._ensure_manager_ready(env_dir, listen_ip="127.0.0.1")
@@ -493,11 +501,12 @@ class TestEnsureManagerReady:
         config_path = env_dir / "ComfyUI" / "user" / "__manager" / "config.ini"
         content = config_path.read_text(encoding="utf-8")
         assert "security_level = normal-" in content
+        assert "network_mode" not in content
 
     @patch("src.core.comfyui_launcher.pip_ops")
     @patch("src.core.comfyui_launcher.git_ops")
-    def test_no_listen_ip_writes_normal_minus_security_level(self, mock_git, mock_pip, launcher, env_dir):
-        """When no listen_ip is provided (default loopback mode), 'normal-' is used."""
+    def test_no_listen_ip_does_not_write_network_mode(self, mock_git, mock_pip, launcher, env_dir):
+        """No listen_ip (default/loopback mode): network_mode is NOT written."""
         mock_pip.freeze.return_value = {"comfyui-manager": "4.2b1"}
 
         launcher._ensure_manager_ready(env_dir, listen_ip=None)
@@ -505,6 +514,39 @@ class TestEnsureManagerReady:
         config_path = env_dir / "ComfyUI" / "user" / "__manager" / "config.ini"
         content = config_path.read_text(encoding="utf-8")
         assert "security_level = normal-" in content
+        assert "network_mode" not in content
+
+    @patch("src.core.comfyui_launcher.pip_ops")
+    @patch("src.core.comfyui_launcher.git_ops")
+    def test_lan_listen_also_writes_repo_local_config(self, mock_git, mock_pip, launcher, env_dir):
+        """LAN mode must also write network_mode=personal_cloud to the Manager repo's
+        own config.ini (custom_nodes/ComfyUI-Manager/config.ini), not just
+        user/__manager/config.ini.  This is the path the installed Manager actually
+        reads at runtime for some versions.
+        """
+        mock_pip.freeze.return_value = {"comfyui-manager": "4.2b1"}
+
+        launcher._ensure_manager_ready(env_dir, listen_ip="0.0.0.0")
+
+        repo_config = env_dir / "ComfyUI" / "custom_nodes" / "ComfyUI-Manager" / "config.ini"
+        assert repo_config.exists()
+        content = repo_config.read_text(encoding="utf-8")
+        assert "security_level = normal-" in content
+        assert "network_mode = personal_cloud" in content
+
+    @patch("src.core.comfyui_launcher.pip_ops")
+    @patch("src.core.comfyui_launcher.git_ops")
+    def test_loopback_does_not_add_network_mode_to_repo_config(self, mock_git, mock_pip, launcher, env_dir):
+        """Repo-local config.ini in loopback mode: security_level only, no network_mode."""
+        mock_pip.freeze.return_value = {"comfyui-manager": "4.2b1"}
+
+        launcher._ensure_manager_ready(env_dir, listen_ip="127.0.0.1")
+
+        repo_config = env_dir / "ComfyUI" / "custom_nodes" / "ComfyUI-Manager" / "config.ini"
+        assert repo_config.exists()
+        content = repo_config.read_text(encoding="utf-8")
+        assert "security_level = normal-" in content
+        assert "network_mode" not in content
 
     @patch("src.core.comfyui_launcher.process_manager")
     @patch("src.core.comfyui_launcher.pip_ops")

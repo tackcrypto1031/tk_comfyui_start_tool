@@ -328,12 +328,17 @@ class Bridge(QObject):
     @Slot(str, int, result=str)
     def start_comfyui(self, env_name, port):
         """Start ComfyUI with launch_settings applied as CLI args."""
-        from src.models.environment import Environment, LAUNCH_SETTINGS_DEFAULTS
+        from src.models.environment import Environment
         from src.core.launch_config import build_launch_args, extract_launch_params
 
         try:
             env = Environment.load_meta(str(self.environments_dir / env_name))
-            settings = {**LAUNCH_SETTINGS_DEFAULTS, **env.launch_settings}
+            # Use get_effective_launch_settings() so that legacy env_meta.json files
+            # that have a raw "listen" IP but no "listen_enabled" key are migrated
+            # correctly (listen_enabled is derived from the listen string).  A plain
+            # {**LAUNCH_SETTINGS_DEFAULTS, **env.launch_settings} merge would return
+            # listen_enabled=False for those envs, silently falling back to localhost.
+            settings = env.get_effective_launch_settings()
             extra_args = build_launch_args(settings)
             params = extract_launch_params(settings)
 

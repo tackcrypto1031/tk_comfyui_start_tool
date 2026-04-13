@@ -22,14 +22,19 @@ def _is_loopback_ip(ip: str) -> bool:
 
 DEFAULT_MANAGER_URL = "https://github.com/Comfy-Org/ComfyUI-Manager.git"
 # Security level written to Manager's config.ini before each launch.
-# "normal-" is sufficient when ComfyUI listens on loopback (127.0.0.1): Manager's
-# is_local_mode=True path allows 'high'-risk installs with normal-.
-# "weak" is required when ComfyUI listens on a non-loopback address (0.0.0.0 / LAN
-# IP): Manager's is_local_mode=False path requires security_level='weak' for 'high'-
-# risk installs (nodes not in the known list).  Without this, Manager returns 403 for
-# any non-CNR or nightly node install in LAN/listen mode.
+# "normal-" is accepted by Manager's 'middle+' / 'middle' gates when either
+#   - is_local_mode=True  (ComfyUI listens on loopback), OR
+#   - is_personal_cloud=True  (network_mode=personal_cloud in config.ini)
+# We therefore always write "normal-" and additionally write
+# network_mode=personal_cloud when ComfyUI is in LAN listen mode so that
+# node installs from non-loopback clients are permitted.  Downgrading
+# security_level further (e.g. "weak") is not required for normal listed
+# custom nodes and would unnecessarily weaken the launcher's defaults.
 MANAGER_SECURITY_LEVEL = "normal-"
-MANAGER_SECURITY_LEVEL_LAN = "weak"
+# Manager's network_mode value that permits remote (non-loopback) installs.
+# See comfyui_manager/glob/utils/security_utils.py — the 'middle+' / 'high+'
+# gates require either is_local_mode=True OR network_mode == 'personal_cloud'.
+MANAGER_NETWORK_MODE_LAN = "personal_cloud"
 
 # How long (in seconds) a pid file with state="starting" is allowed to exist
 # before get_status() considers the launch failed.  ComfyUI first-time startup
@@ -282,14 +287,16 @@ class ComfyUILauncher:
         return result
 
     def _ensure_manager_ready(self, env_dir: Path, listen_ip: str = None) -> None:
-        """Ensure manager repo exists and security_level is permissive for local launcher use.
+        """Ensure manager repo exists and Manager's config.ini is permissive.
 
         Args:
-            listen_ip: The --listen IP address that will be passed to ComfyUI.  When this is
-                a non-loopback address (0.0.0.0, LAN IP, etc.) ComfyUI Manager's
-                ``is_local_mode`` flag is False, which means it requires security_level='weak'
-                to allow 'high'-risk node installs (nodes not in the known registry).  For
-                loopback / unset, 'normal-' is sufficient.
+            listen_ip: The --listen IP address that will be passed to ComfyUI.  When
+                this is a non-loopback address (0.0.0.0, LAN IP, etc.) ComfyUI Manager
+                sets ``is_local_mode=False``; in that state the 'middle+' / 'high+'
+                security gates also require ``network_mode=personal_cloud`` before
+                they accept ``security_level=normal-``.  When listen_ip is loopback
+                (or unset) we leave network_mode alone (Manager's default 'public'
+                is fine because is_local_mode=True bypasses the gate).
         """
         comfyui_dir = env_dir / "ComfyUI"
         manager_repo_dir = comfyui_dir / "custom_nodes" / "ComfyUI-Manager"
@@ -307,30 +314,48 @@ class ComfyUILauncher:
 
         self._ensure_manager_python_package(env_dir)
 
-        # Choose security level based on listen mode.
-        # When ComfyUI is bound to a non-loopback address, Manager treats all
-        # requests as remote (is_local_mode=False) and requires security_level='weak'
-        # to permit 'high'-risk installs.  On loopback, 'normal-' suffices.
-        is_lan = listen_ip and not _is_loopback_ip(listen_ip)
-        security_level = MANAGER_SECURITY_LEVEL_LAN if is_lan else MANAGER_SECURITY_LEVEL
+        # Always write the same security_level; the LAN-specific gate is opened
+        # via network_mode=personal_cloud instead (see MANAGER_NETWORK_MODE_LAN
+        # docstring).
+        is_lan = bool(listen_ip) and not _is_loopback_ip(listen_ip)
+        security_level = MANAGER_SECURITY_LEVEL
+        network_mode = MANAGER_NETWORK_MODE_LAN if is_lan else None
         if is_lan:
             logger.info(
-                "LAN listen mode detected (%s); writing security_level=%s to Manager config "
-                "so node installs are permitted from non-loopback clients.",
-                listen_ip, security_level,
+                "LAN listen mode detected (%s); writing security_level=%s and "
+                "network_mode=%s to Manager config so node installs are permitted "
+                "from non-loopback clients.",
+                listen_ip, security_level, network_mode,
             )
 
         manager_config = comfyui_dir / "user" / "__manager" / "config.ini"
-        self._write_manager_security_config(manager_config, security_level)
+        self._write_manager_security_config(manager_config, security_level, network_mode)
+
+        # Also write to the Manager repo's own config.ini — this is the path that
+        # ComfyUI Manager reads at runtime (custom_nodes/ComfyUI-Manager/config.ini).
+        # The user/__manager path is the new canonical location but Manager still
+        # falls back to (or reads exclusively from) its repo-local config depending
+        # on the installed version.  Writing to both guarantees the policy takes
+        # effect regardless of Manager version.
+        repo_config = manager_repo_dir / "config.ini"
+        self._write_manager_security_config(repo_config, security_level, network_mode)
 
         # Keep backward compatibility for existing legacy config files.
         legacy_config = comfyui_dir / "user" / "default" / "ComfyUI-Manager" / "config.ini"
         if legacy_config.exists():
-            self._write_manager_security_config(legacy_config, security_level)
+            self._write_manager_security_config(legacy_config, security_level, network_mode)
 
     def _write_manager_security_config(self, config_path: Path,
-                                       security_level: str = MANAGER_SECURITY_LEVEL) -> None:
-        """Write manager security policy without creating legacy folders unnecessarily."""
+                                       security_level: str = MANAGER_SECURITY_LEVEL,
+                                       network_mode: str = None) -> None:
+        """Write manager security policy without creating legacy folders unnecessarily.
+
+        When ``network_mode`` is None we do NOT touch the network_mode key (preserves
+        any pre-existing value / Manager's default).  When ``network_mode`` is a
+        string we write it to config['default']['network_mode'] — used in LAN
+        listen mode to set ``personal_cloud`` so Manager's non-loopback install
+        gates open.
+        """
         config = configparser.ConfigParser()
         if config_path.exists():
             config.read(str(config_path), encoding="utf-8")
@@ -339,6 +364,8 @@ class ComfyUILauncher:
             config["default"] = {}
 
         config["default"]["security_level"] = security_level
+        if network_mode is not None:
+            config["default"]["network_mode"] = network_mode
 
         config_path.parent.mkdir(parents=True, exist_ok=True)
         with open(str(config_path), "w", encoding="utf-8") as f:
