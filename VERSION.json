@@ -1,19 +1,22 @@
 {
-  "version": "0.2.8",
+  "version": "0.2.9",
   "min_python": "3.10",
-  "release_notes": "建立環境時加入名稱即時驗證與輸入提示",
+  "release_notes": "強化 Bug 回報:自動捕獲未處理錯誤,顯示 stack trace 與檔名行號",
   "changes": [
-    "建立環境對話框新增名稱格式提示與即時驗證,輸入非法字元時立即顯示紅字提醒",
-    "輸入欄位限制最長 64 字元,避免事後才因中文或符號被拒建立"
+    "Bug 回報新增全域錯誤捕獲 (window.onerror 與 Promise unhandledrejection),不再只收集 toast 錯誤",
+    "每筆錯誤卡片可展開技術細節,顯示錯誤類型、檔名:行號、頁面、版本與完整 stack trace",
+    "複製按鈕現在會輸出完整報告 (含 stack 與 UA),貼出來更容易判斷根因"
   ],
   "changes_i18n": {
     "en": [
-      "Create Environment dialog now shows a name-format hint and validates the name live — invalid characters surface red inline feedback immediately",
-      "Name input capped at 64 chars to prevent failures later due to Chinese or disallowed symbols"
+      "Bug Report now captures global errors (window.onerror and Promise unhandledrejection) — not just toast errors",
+      "Each bug card has an expandable technical-details section showing error type, file:line, page, app version, and full stack trace",
+      "Copy button now exports a complete report (stack trace + user agent) for easier root-cause diagnosis"
     ],
     "zh-TW": [
-      "建立環境對話框新增名稱格式提示與即時驗證,輸入非法字元時立即顯示紅字提醒",
-      "輸入欄位限制最長 64 字元,避免事後才因中文或符號被拒建立"
+      "Bug 回報新增全域錯誤捕獲 (window.onerror 與 Promise unhandledrejection),不再只收集 toast 錯誤",
+      "每筆錯誤卡片可展開技術細節,顯示錯誤類型、檔名:行號、頁面、版本與完整 stack trace",
+      "複製按鈕現在會輸出完整報告 (含 stack 與 UA),貼出來更容易判斷根因"
     ]
   }
 }

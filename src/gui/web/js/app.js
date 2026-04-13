@@ -234,6 +234,87 @@ const App = (function() {
         }
     }
 
+    function _recordBug(messageOrError, errorObj, origin) {
+        var pageName = currentPage || 'unknown';
+        var sidebarKey = 'sidebar_' + (pageName === 'launcher' ? 'launch' : pageName);
+        var message = '';
+        var stack = '';
+        var errorType = '';
+        var fileInfo = '';
+
+        // Normalize input
+        var err = errorObj;
+        if (messageOrError instanceof Error) {
+            err = messageOrError;
+            message = err.message || String(err);
+        } else if (messageOrError && typeof messageOrError === 'object' && messageOrError.message) {
+            message = String(messageOrError.message);
+            if (!err && messageOrError.stack) { err = messageOrError; }
+        } else {
+            message = String(messageOrError);
+        }
+
+        if (err) {
+            if (err.name) errorType = err.name;
+            if (err.stack) stack = String(err.stack);
+            if (err.fileName || err.filename) {
+                fileInfo = (err.fileName || err.filename) + ':' + (err.lineNumber || err.lineno || '?') + ':' + (err.columnNumber || err.colno || '?');
+            }
+        }
+
+        // Try to pull file:line from the stack's first frame if not provided directly
+        if (!fileInfo && stack) {
+            var m = stack.match(/at\s+(?:[^()\s]+\s+\()?([^()\n]+):(\d+):(\d+)/);
+            if (m) fileInfo = m[1] + ':' + m[2] + ':' + m[3];
+        }
+
+        addBug({
+            timestamp: new Date().toLocaleString(),
+            source: t(sidebarKey),
+            source_page: pageName,
+            origin: origin || 'unknown',
+            error_type: errorType,
+            message: message,
+            file_info: fileInfo,
+            stack: stack,
+            user_agent: (navigator && navigator.userAgent) || '',
+            app_version: (window.APP_VERSION || ''),
+        });
+    }
+
+    // Global error handlers — capture everything, not only explicit toast('error')
+    window.addEventListener('error', function(ev) {
+        if (!ev) return;
+        var err = ev.error || null;
+        var msg = ev.message || (err && err.message) || 'Unknown error';
+        var fallbackFile = ev.filename ? ev.filename + ':' + (ev.lineno || '?') + ':' + (ev.colno || '?') : '';
+        if (err) {
+            _recordBug(err, err, 'window.onerror');
+        } else {
+            addBug({
+                timestamp: new Date().toLocaleString(),
+                source: t('sidebar_' + ((currentPage || 'unknown') === 'launcher' ? 'launch' : (currentPage || 'unknown'))),
+                source_page: currentPage || 'unknown',
+                origin: 'window.onerror',
+                error_type: '',
+                message: String(msg),
+                file_info: fallbackFile,
+                stack: '',
+                user_agent: (navigator && navigator.userAgent) || '',
+                app_version: (window.APP_VERSION || ''),
+            });
+        }
+    });
+
+    window.addEventListener('unhandledrejection', function(ev) {
+        var reason = ev && ev.reason;
+        if (reason instanceof Error) {
+            _recordBug(reason, reason, 'unhandledrejection');
+        } else {
+            _recordBug(reason === undefined ? 'Unhandled promise rejection' : reason, null, 'unhandledrejection');
+        }
+    });
+
     // ── Toast System ──
 
     function _dismissToast(toast) {
@@ -263,14 +344,7 @@ const App = (function() {
 
         // Collect error bugs
         if (type === 'error') {
-            var pageName = currentPage || 'unknown';
-            var sidebarKey = 'sidebar_' + (pageName === 'launcher' ? 'launch' : pageName);
-            addBug({
-                timestamp: new Date().toLocaleString(),
-                source: t(sidebarKey),
-                source_page: pageName,
-                message: message,
-            });
+            _recordBug(message, null, 'toast');
         }
 
         // Error toasts: no auto-dismiss. Others: auto-dismiss.
@@ -408,6 +482,7 @@ const App = (function() {
     function _checkUpdate() {
         BridgeAPI.checkUpdate().then(function(info) {
             console.log('Update check:', JSON.stringify(info));
+            if (info && info.local_version) { window.APP_VERSION = info.local_version; }
             var label = document.getElementById('version-label');
             if (label) label.textContent = 'v' + info.local_version;
             if (info.has_update) {
