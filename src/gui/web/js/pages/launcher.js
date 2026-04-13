@@ -635,6 +635,10 @@
             document.getElementById('launch-btn-start').disabled = true;
             document.getElementById('launch-btn-stop').disabled = false;
             App.showToast(t('launch_started', info.pid, info.port), 'success');
+            if (info && info.lan_url) {
+                var lanMsg = t('launch_listen_toast_lan_url').replace('{url}', info.lan_url);
+                App.showToast(lanMsg, 'info', 10000);
+            }
             // Refresh running list
             loadRunningList();
         }).catch(function(e) {
