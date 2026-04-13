@@ -917,30 +917,56 @@
             });
 
             BridgeAPI.listRemoteVersions().then(function(versions) {
-                var branchSelect = document.getElementById('edit-branch');
-                if (branchSelect) {
-                    branchSelect.innerHTML = '<option value="">-- No change --</option>';
-                    versions.branches.forEach(function(b) {
-                        var opt = document.createElement('option');
-                        opt.value = b;
-                        opt.textContent = b;
-                        branchSelect.appendChild(opt);
-                    });
-                }
                 var tagSelect = document.getElementById('edit-tag');
+                var branchSelect = document.getElementById('edit-branch');
+                var statusDiv = document.getElementById('edit-status');
+
+                var tags = (versions && versions.tags) || [];
                 if (tagSelect) {
                     tagSelect.innerHTML = '<option value="">-- No change --</option>';
-                    versions.tags.forEach(function(tag) {
+                    tags.forEach(function(tag) {
                         var opt = document.createElement('option');
                         opt.value = tag.name;
-                        opt.textContent = tag.name + '  (' + tag.hash + ')';
+                        opt.textContent = tag.name;
                         tagSelect.appendChild(opt);
                     });
                 }
-                var statusDiv = document.getElementById('edit-status');
+
+                var rawBranches = (versions && versions.branches) || [];
+                var withDates = rawBranches.length > 0 && typeof rawBranches[0] === 'object';
+                var names;
+                if (withDates) {
+                    names = rawBranches.slice()
+                        .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); })
+                        .map(function(b) { return b.name; });
+                } else {
+                    names = rawBranches.slice().sort(function(a, b) {
+                        var pa = /^(master|main)$/i.test(a);
+                        var pb = /^(master|main)$/i.test(b);
+                        if (pa && !pb) return -1;
+                        if (!pa && pb) return 1;
+                        return a.localeCompare(b);
+                    });
+                }
+                var top = names.slice(0, 10);
+                var master = names.find(function(n) { return /^(master|main)$/i.test(n); });
+                if (master && top.indexOf(master) === -1) {
+                    top = [master].concat(top);
+                }
+                if (branchSelect) {
+                    branchSelect.innerHTML = '<option value="">-- No change --</option>';
+                    top.forEach(function(name) {
+                        var opt = document.createElement('option');
+                        opt.value = name;
+                        opt.textContent = name;
+                        branchSelect.appendChild(opt);
+                    });
+                    // Do NOT set branchSelect.value — keep "-- No change --" selected.
+                }
+
                 if (statusDiv) {
-                    statusDiv.textContent = (t('version_branch_count', versions.branches.length) || '') +
-                        ' / ' + (t('version_tag_count', versions.tags.length) || '');
+                    statusDiv.textContent = (t('version_branch_count', names.length) || '') +
+                        ' / ' + (t('version_tag_count', tags.length) || '');
                 }
             }).catch(function(e) {
                 var statusDiv = document.getElementById('edit-status');
