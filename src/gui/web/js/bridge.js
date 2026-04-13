@@ -237,5 +237,9 @@ var BridgeAPI = (function() {
         browseFolder: function() { return callSlot('browse_folder'); },
         rescanSharedModelSubdirs: function() { return callSlot('rescan_shared_model_subdirs'); },
         getLastRescanResult: function() { return callSlot('get_last_rescan_result'); },
+
+        // UI Flags
+        getUiFlag: function(key) { return callSlot('get_ui_flag', key); },
+        setUiFlag: function(key, value) { return callSlot('set_ui_flag', key, JSON.stringify(value)); },
     };
 })();

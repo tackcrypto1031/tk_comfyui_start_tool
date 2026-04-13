@@ -199,6 +199,24 @@ class Bridge(QObject):
         self._last_rescan_result = None
         return json.dumps(result, ensure_ascii=False)
 
+    @Slot(str, result=str)
+    def get_ui_flag(self, key: str) -> str:
+        """Return a UI flag value as JSON. Returns 'null' if unset."""
+        flags = self.config.get("ui_flags") or {}
+        return json.dumps(flags.get(key))
+
+    @Slot(str, str)
+    def set_ui_flag(self, key: str, json_value: str) -> None:
+        """Set a UI flag (JSON-encoded value) and persist config.json."""
+        try:
+            value = json.loads(json_value)
+        except json.JSONDecodeError:
+            value = json_value
+        if "ui_flags" not in self.config or not isinstance(self.config.get("ui_flags"), dict):
+            self.config["ui_flags"] = {}
+        self.config["ui_flags"][key] = value
+        save_config(self.config, "config.json")
+
     @Slot(result=str)
     def browse_folder(self):
         """Open native folder selection dialog."""
