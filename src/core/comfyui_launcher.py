@@ -12,6 +12,14 @@ from src.utils.net_ops import get_local_lan_ip
 
 logger = logging.getLogger(__name__)
 
+
+def _is_loopback_ip(ip: str) -> bool:
+    """Return True if ip is a loopback address (no LAN reachability)."""
+    if not ip:
+        return False
+    return ip in ("127.0.0.1", "localhost", "::1") or ip.startswith("127.")
+
+
 DEFAULT_MANAGER_URL = "https://github.com/Comfy-Org/ComfyUI-Manager.git"
 MANAGER_SECURITY_LEVEL = "normal-"
 
@@ -209,18 +217,35 @@ class ComfyUILauncher:
                 f"Last log:\n{last_log}"
             )
 
+        # Compute listen_ip and lan_url before writing the pid file so they
+        # can be persisted alongside pid/port.
+        listen_ip = None
+        if extra_args:
+            try:
+                idx = extra_args.index("--listen")
+                listen_ip = extra_args[idx + 1]
+            except (ValueError, IndexError):
+                listen_ip = None
+        lan_url = None
+        if listen_ip and not _is_loopback_ip(listen_ip):
+            lan_url = f"http://{get_local_lan_ip()}:{port}"
+
         # Save PID (still in "starting" state — get_status() promotes it to
         # "running" once the process has actually bound the socket).
-        pid_file.write_text(json.dumps({
+        pid_payload = {
             "pid": proc.pid,
             "port": port,
             "status": "starting",
             "started_at": time.time(),
-        }))
+        }
+        if lan_url:
+            pid_payload["lan_url"] = lan_url
+        pid_file.write_text(json.dumps(pid_payload))
 
         # Auto-open browser after a short delay
         if auto_open and self.config.get("auto_open_browser", True):
             import threading
+            open_target = lan_url or f"http://localhost:{port}"
             def _open_browser():
                 import time
                 import webbrowser
@@ -230,20 +255,13 @@ class ComfyUILauncher:
                     if not process_manager.is_process_running(proc.pid):
                         return  # Process died, don't open browser
                     if self.health_check(port, timeout=2):
-                        webbrowser.open(f"http://localhost:{port}")
+                        webbrowser.open(open_target)
                         return
             threading.Thread(target=_open_browser, daemon=True).start()
 
         result = {"pid": proc.pid, "port": port, "env_name": env_name}
-        listen_ip = None
-        if extra_args:
-            try:
-                idx = extra_args.index("--listen")
-                listen_ip = extra_args[idx + 1]
-            except (ValueError, IndexError):
-                listen_ip = None
-        if listen_ip and listen_ip not in ("127.0.0.1", "localhost", "::1"):
-            result["lan_url"] = f"http://{get_local_lan_ip()}:{port}"
+        if lan_url:
+            result["lan_url"] = lan_url
         return result
 
     def _ensure_manager_ready(self, env_dir: Path) -> None:

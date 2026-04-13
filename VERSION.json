@@ -1,19 +1,16 @@
 {
-  "version": "0.2.2",
+  "version": "0.2.3",
   "min_python": "3.10",
-  "release_notes": "新增內網監聽開關，可開放同網段機器連線",
+  "release_notes": "修正監聽模式下開啟瀏覽器仍使用 localhost 的問題",
   "changes": [
-    "新增內網監聽開關，可開放同網段機器連線使用 ComfyUI",
-    "啟動時自動顯示內網可連網址"
+    "修正監聽模式下開啟瀏覽器仍使用 localhost 的問題，改為開啟區網 IP 以便分享給其他電腦"
   ],
   "changes_i18n": {
     "en": [
-      "Add LAN listen toggle for sharing ComfyUI with other machines on your network",
-      "Show the LAN URL as a toast when starting with LAN access enabled"
+      "Fixed: browser now opens the LAN URL (not localhost) when listen mode is enabled, so the address bar shows an IP other machines can reach"
     ],
     "zh-TW": [
-      "新增內網監聽開關，可開放同網段機器連線使用 ComfyUI",
-      "啟動時自動顯示內網可連網址"
+      "修正監聽模式下開啟瀏覽器仍使用 localhost 的問題，改為開啟區網 IP 以便分享給其他電腦"
     ]
   }
 }
