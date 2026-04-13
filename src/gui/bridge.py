@@ -415,10 +415,24 @@ class Bridge(QObject):
 
     @Slot(int, result=str)
     def open_browser(self, port):
-        """Open browser to localhost:<port>."""
+        """Open browser to the running env's URL.
+
+        If the running env was started with --listen on a non-loopback IP,
+        list_running() reports a lan_url — we open that so the address bar
+        shows an IP another machine can reach. Otherwise fall back to
+        localhost.
+        """
         import webbrowser
         try:
-            webbrowser.open(f"http://localhost:{port}")
+            target = f"http://localhost:{port}"
+            try:
+                for entry in self.launcher.list_running() or []:
+                    if entry.get("port") == port and entry.get("lan_url"):
+                        target = entry["lan_url"]
+                        break
+            except Exception:
+                pass  # any lookup error → keep localhost fallback
+            webbrowser.open(target)
             return json.dumps({"success": True})
         except Exception as e:
             return json.dumps({"error": str(e)})
