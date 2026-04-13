@@ -12,6 +12,14 @@ from src.utils.net_ops import get_local_lan_ip
 
 logger = logging.getLogger(__name__)
 
+
+def _is_loopback_ip(ip: str) -> bool:
+    """Return True if ip is a loopback address (no LAN reachability)."""
+    if not ip:
+        return False
+    return ip in ("127.0.0.1", "localhost", "::1") or ip.startswith("127.")
+
+
 DEFAULT_MANAGER_URL = "https://github.com/Comfy-Org/ComfyUI-Manager.git"
 MANAGER_SECURITY_LEVEL = "normal-"
 
@@ -242,7 +250,7 @@ class ComfyUILauncher:
                 listen_ip = extra_args[idx + 1]
             except (ValueError, IndexError):
                 listen_ip = None
-        if listen_ip and listen_ip not in ("127.0.0.1", "localhost", "::1"):
+        if listen_ip and not _is_loopback_ip(listen_ip):
             result["lan_url"] = f"http://{get_local_lan_ip()}:{port}"
         return result
 
