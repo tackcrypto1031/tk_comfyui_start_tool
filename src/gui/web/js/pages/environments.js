@@ -483,33 +483,61 @@
             });
 
             BridgeAPI.listRemoteVersions().then(function(versions) {
-                const branchSelect = document.getElementById('create-branch');
-                if (branchSelect) {
-                    branchSelect.innerHTML = '';
-                    versions.branches.forEach(b => {
-                        const opt = document.createElement('option');
-                        opt.value = b;
-                        opt.textContent = b;
-                        if (b === 'master' || b === 'main') opt.selected = true;
-                        branchSelect.appendChild(opt);
-                    });
-                }
                 const tagSelect = document.getElementById('create-tag');
+                const branchSelect = document.getElementById('create-branch');
+                const statusDiv = document.getElementById('create-version-status');
+
+                const tags = (versions && versions.tags) || [];
                 if (tagSelect) {
                     tagSelect.innerHTML = '';
-                    versions.tags.forEach(tag => {
+                    tags.forEach(function(tag) {
                         const opt = document.createElement('option');
                         opt.value = tag.name;
-                        opt.textContent = `${tag.name}  (${tag.hash})`;
+                        opt.textContent = tag.name;
                         tagSelect.appendChild(opt);
                     });
+                    const stable = tags.filter(function(t) { return t.name.indexOf('-') === -1; });
+                    const defaultTag = (stable[0] || tags[0] || {}).name;
+                    if (defaultTag) tagSelect.value = defaultTag;
                 }
-                const statusDiv = document.getElementById('create-status');
+
+                const rawBranches = (versions && versions.branches) || [];
+                const withDates = rawBranches.length > 0 && typeof rawBranches[0] === 'object';
+                let names;
+                if (withDates) {
+                    names = rawBranches.slice()
+                        .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); })
+                        .map(function(b) { return b.name; });
+                } else {
+                    names = rawBranches.slice().sort(function(a, b) {
+                        const pa = /^(master|main)$/i.test(a);
+                        const pb = /^(master|main)$/i.test(b);
+                        if (pa && !pb) return -1;
+                        if (!pa && pb) return 1;
+                        return a.localeCompare(b);
+                    });
+                }
+                let top = names.slice(0, 10);
+                const master = names.find(function(n) { return /^(master|main)$/i.test(n); });
+                if (master && top.indexOf(master) === -1) {
+                    top = [master].concat(top);
+                }
+                if (branchSelect) {
+                    branchSelect.innerHTML = '';
+                    top.forEach(function(name) {
+                        const opt = document.createElement('option');
+                        opt.value = name;
+                        opt.textContent = name;
+                        branchSelect.appendChild(opt);
+                    });
+                    if (top.length) branchSelect.value = top[0];
+                }
+
                 if (statusDiv) {
-                    statusDiv.textContent = `${t('version_branch_count', versions.branches.length)} / ${t('version_tag_count', versions.tags.length)}`;
+                    statusDiv.textContent = `${t('version_branch_count', names.length)} / ${t('version_tag_count', tags.length)}`;
                 }
             }).catch(function(e) {
-                const statusDiv = document.getElementById('create-status');
+                const statusDiv = document.getElementById('create-version-status');
                 if (statusDiv) statusDiv.textContent = t('version_fetch_failed', e.toString());
             });
 
