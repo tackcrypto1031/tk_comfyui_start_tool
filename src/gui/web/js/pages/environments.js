@@ -368,7 +368,9 @@
             `<div class="space-y-4">
                 <div>
                     <label class="input-label">${t('env_name')}</label>
-                    <input type="text" id="create-name" class="input" placeholder="e.g. production, dev-test">
+                    <input type="text" id="create-name" class="input" placeholder="e.g. production, dev-test" pattern="[A-Za-z0-9][A-Za-z0-9_-]*" maxlength="64">
+                    <div class="text-xs text-on-surface-variant mt-1">${t('env_name_hint')}</div>
+                    <div id="create-name-error" class="text-xs text-error mt-1 hidden"></div>
                 </div>
                 <div>
                     <label class="input-label">${t('version_type')}</label>
@@ -469,6 +471,22 @@
                     document.getElementById('create-tag-row').classList.toggle('hidden', radio.value !== 'tag');
                 });
             });
+
+            // Live-validate environment name
+            const nameInput = document.getElementById('create-name');
+            const nameError = document.getElementById('create-name-error');
+            if (nameInput && nameError) {
+                nameInput.addEventListener('input', function() {
+                    const v = nameInput.value.trim();
+                    if (v === '' || /^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(v)) {
+                        nameError.classList.add('hidden');
+                        nameError.textContent = '';
+                    } else {
+                        nameError.classList.remove('hidden');
+                        nameError.textContent = t('env_name_invalid');
+                    }
+                });
+            }
 
             // Load and display shared model path (read-only)
             BridgeAPI.getSharedModelConfig().then(function(config) {
@@ -720,7 +738,16 @@
 
     function doCreate() {
         const name = document.getElementById('create-name').value.trim();
+        const nameError = document.getElementById('create-name-error');
         if (!name) { App.showToast(`${t('env_name')} required`, 'info'); return; }
+        if (!/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(name)) {
+            if (nameError) {
+                nameError.classList.remove('hidden');
+                nameError.textContent = t('env_name_invalid');
+            }
+            App.showToast(t('env_name_invalid'), 'error');
+            return;
+        }
 
         const versionType = document.querySelector('input[name="version-type"]:checked').value;
         let branch, commit;

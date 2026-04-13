@@ -1,28 +1,19 @@
 {
-  "version": "0.2.7",
+  "version": "0.2.8",
   "min_python": "3.10",
-  "release_notes": "優化新手建立環境體驗:預設選擇最新穩定版、精簡版本選擇 UI",
+  "release_notes": "建立環境時加入名稱即時驗證與輸入提示",
   "changes": [
-    "建立環境對話框預設改為「標籤」模式,並自動選擇最新穩定版 (例如 v0.18.5)",
-    "標籤下拉清單不再顯示後方的 commit hash,介面更乾淨",
-    "分支下拉清單改為依最後更新時間排序,僅顯示最新 10 個 (master/main 永遠可見)",
-    "移除建立環境時多餘的「提交」輸入欄位,避免新手困惑",
-    "編輯環境 (切換版本) 對話框套用相同顯示規則,預設維持「不變更」"
+    "建立環境對話框新增名稱格式提示與即時驗證,輸入非法字元時立即顯示紅字提醒",
+    "輸入欄位限制最長 64 字元,避免事後才因中文或符號被拒建立"
   ],
   "changes_i18n": {
     "en": [
-      "Create Environment dialog now defaults to Tag mode with the latest stable tag pre-selected (e.g. v0.18.5)",
-      "Tag dropdown shows only the tag name — no more trailing commit hash",
-      "Branch dropdown is sorted by last commit date and limited to the 10 most recent (master/main always visible)",
-      "Removed the redundant \"Commit\" text field from the Create dialog to reduce confusion",
-      "Edit environment (switch version) dialog applies the same display rules, keeping \"No change\" as the default"
+      "Create Environment dialog now shows a name-format hint and validates the name live — invalid characters surface red inline feedback immediately",
+      "Name input capped at 64 chars to prevent failures later due to Chinese or disallowed symbols"
     ],
     "zh-TW": [
-      "建立環境對話框預設改為「標籤」模式,並自動選擇最新穩定版 (例如 v0.18.5)",
-      "標籤下拉清單不再顯示後方的 commit hash,介面更乾淨",
-      "分支下拉清單改為依最後更新時間排序,僅顯示最新 10 個 (master/main 永遠可見)",
-      "移除建立環境時多餘的「提交」輸入欄位,避免新手困惑",
-      "編輯環境 (切換版本) 對話框套用相同顯示規則,預設維持「不變更」"
+      "建立環境對話框新增名稱格式提示與即時驗證,輸入非法字元時立即顯示紅字提醒",
+      "輸入欄位限制最長 64 字元,避免事後才因中文或符號被拒建立"
     ]
   }
 }
