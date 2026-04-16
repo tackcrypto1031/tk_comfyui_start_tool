@@ -1,22 +1,19 @@
 {
-  "version": "0.2.10",
+  "version": "0.2.11",
   "min_python": "3.10",
-  "release_notes": "修復:ComfyUI Manager 安裝節點重啟後,運行列表環境消失的問題",
+  "release_notes": "修復:安裝插件時,若遠端預設分支不是 master 會失敗的問題",
   "changes": [
-    "延長運行中環境的重啟寬限期從 15 秒到 120 秒,與啟動逾時一致",
-    "ComfyUI Manager 安裝節點觸發重啟時,環境會顯示為「重啟中」而非直接消失",
-    "新進程 bind port 後會自動回到「運行中」狀態,無需手動重啟工具"
+    "修復安裝自訂節點時硬寫死 master 分支導致 clone 失敗的問題",
+    "安裝插件現在會跟隨遠端預設分支(main/master/其他皆可),不再需要手動指定"
   ],
   "changes_i18n": {
     "en": [
-      "Extended running-env restart grace period from 15s to 120s, matching the startup timeout",
-      "When ComfyUI Manager triggers a restart after installing a node, the env now shows as 'restarting' instead of disappearing from the list",
-      "Once the new process binds the port, the env automatically returns to 'running' state — no manual tool restart needed"
+      "Fix custom node install failing when the remote's default branch isn't 'master' (e.g. repos using 'main')",
+      "Plugin install now follows the remote's default branch automatically — no manual branch override needed"
     ],
     "zh-TW": [
-      "延長運行中環境的重啟寬限期從 15 秒到 120 秒,與啟動逾時一致",
-      "ComfyUI Manager 安裝節點觸發重啟時,環境會顯示為「重啟中」而非直接消失",
-      "新進程 bind port 後會自動回到「運行中」狀態,無需手動重啟工具"
+      "修復安裝自訂節點時硬寫死 master 分支導致 clone 失敗的問題",
+      "安裝插件現在會跟隨遠端預設分支(main/master/其他皆可),不再需要手動指定"
     ]
   }
 }

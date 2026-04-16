@@ -1151,7 +1151,7 @@ class EnvManager:
                 progress_callback("Cloning repository...")
 
             custom_nodes_dir.mkdir(parents=True, exist_ok=True)
-            git_ops.clone_repo(git_url, str(node_path))
+            git_ops.clone_repo(git_url, str(node_path), branch=None)
             clone_started = True
 
             if progress_callback:

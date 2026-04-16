@@ -28,12 +28,18 @@ for _var in ("GIT_DIR", "GIT_WORK_TREE", "GIT_CEILING_DIRECTORIES"):
     os.environ.pop(_var, None)
 
 
-def clone_repo(url: str, dest: str, branch: str = "master",
+def clone_repo(url: str, dest: str, branch: Optional[str] = "master",
                commit: Optional[str] = None,
                progress_callback=None) -> git.Repo:
-    """Clone a git repository. Optionally checkout a specific commit."""
+    """Clone a git repository. Optionally checkout a specific commit.
+
+    When ``branch`` is None, the remote's default branch is used.
+    """
     progress = CloneProgress(progress_callback) if progress_callback else None
-    repo = git.Repo.clone_from(url, dest, branch=branch, progress=progress)
+    clone_kwargs = {"progress": progress}
+    if branch:
+        clone_kwargs["branch"] = branch
+    repo = git.Repo.clone_from(url, dest, **clone_kwargs)
     if commit:
         repo.git.checkout(commit)
     return repo
