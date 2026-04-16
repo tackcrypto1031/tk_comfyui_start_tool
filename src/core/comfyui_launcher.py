@@ -455,8 +455,12 @@ class ComfyUILauncher:
             return False
 
     # Max consecutive poll failures before cleaning up pid file.
-    # With 5s polling interval, 3 failures = ~15s grace period for restarts.
-    _MAX_FAIL_COUNT = 3
+    # With 5s polling interval, 24 failures = ~120s grace period — long enough
+    # to survive a ComfyUI Manager "install node + restart" cycle (python/torch
+    # re-import + custom node re-scan can easily take 30-90s on Windows).
+    # Matches STARTING_STATE_TIMEOUT_SEC so startup and restart tolerate the
+    # same worst-case boot time.
+    _MAX_FAIL_COUNT = 24
 
     def _pid_belongs_to_env(self, pid: int, env_dir: Path) -> bool:
         """Return True if the process with *pid* is the ComfyUI process for

@@ -1,22 +1,22 @@
 {
-  "version": "0.2.9",
+  "version": "0.2.10",
   "min_python": "3.10",
-  "release_notes": "強化 Bug 回報:自動捕獲未處理錯誤,顯示 stack trace 與檔名行號",
+  "release_notes": "修復:ComfyUI Manager 安裝節點重啟後,運行列表環境消失的問題",
   "changes": [
-    "Bug 回報新增全域錯誤捕獲 (window.onerror 與 Promise unhandledrejection),不再只收集 toast 錯誤",
-    "每筆錯誤卡片可展開技術細節,顯示錯誤類型、檔名:行號、頁面、版本與完整 stack trace",
-    "複製按鈕現在會輸出完整報告 (含 stack 與 UA),貼出來更容易判斷根因"
+    "延長運行中環境的重啟寬限期從 15 秒到 120 秒,與啟動逾時一致",
+    "ComfyUI Manager 安裝節點觸發重啟時,環境會顯示為「重啟中」而非直接消失",
+    "新進程 bind port 後會自動回到「運行中」狀態,無需手動重啟工具"
   ],
   "changes_i18n": {
     "en": [
-      "Bug Report now captures global errors (window.onerror and Promise unhandledrejection) — not just toast errors",
-      "Each bug card has an expandable technical-details section showing error type, file:line, page, app version, and full stack trace",
-      "Copy button now exports a complete report (stack trace + user agent) for easier root-cause diagnosis"
+      "Extended running-env restart grace period from 15s to 120s, matching the startup timeout",
+      "When ComfyUI Manager triggers a restart after installing a node, the env now shows as 'restarting' instead of disappearing from the list",
+      "Once the new process binds the port, the env automatically returns to 'running' state — no manual tool restart needed"
     ],
     "zh-TW": [
-      "Bug 回報新增全域錯誤捕獲 (window.onerror 與 Promise unhandledrejection),不再只收集 toast 錯誤",
-      "每筆錯誤卡片可展開技術細節,顯示錯誤類型、檔名:行號、頁面、版本與完整 stack trace",
-      "複製按鈕現在會輸出完整報告 (含 stack 與 UA),貼出來更容易判斷根因"
+      "延長運行中環境的重啟寬限期從 15 秒到 120 秒,與啟動逾時一致",
+      "ComfyUI Manager 安裝節點觸發重啟時,環境會顯示為「重啟中」而非直接消失",
+      "新進程 bind port 後會自動回到「運行中」狀態,無需手動重啟工具"
     ]
   }
 }
