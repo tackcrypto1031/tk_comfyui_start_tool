@@ -14,7 +14,6 @@
             '<div class="ti-content fade-in">' +
                 '<div class="ti-page-head">' +
                     '<div>' +
-                        '<h1>' + h(t('sidebar_plugins')) + '</h1>' +
                         '<p class="ti-page-sub" id="plug-sub">—</p>' +
                     '</div>' +
                     '<div class="ti-page-actions">' +

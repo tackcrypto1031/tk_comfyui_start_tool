@@ -8,7 +8,6 @@
             '<div class="ti-content fade-in">' +
                 '<div class="ti-page-head">' +
                     '<div>' +
-                        '<h1>' + escapeHtml(t('sidebar_environments')) + '</h1>' +
                         '<p class="ti-page-sub" id="env-sub">' + escapeHtml(t('env_manage_desc') || '管理你的 ComfyUI 安裝環境') + '</p>' +
                     '</div>' +
                     '<div class="ti-page-actions">' +

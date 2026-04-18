@@ -8,7 +8,6 @@
     let selectedEnv = null;  // persist selected environment across tab switches
     let activeTab = 'launcher'; // 'launcher' or 'running'
     let currentLaunchSettings = null;
-    let diagnosticResults = { deps: null, conflicts: null, duplicates: null };
     let saveDebounceTimer = null;
 
     function render(container) {
@@ -28,7 +27,6 @@
                 <!-- Page head -->
                 <div class="ti-page-head">
                     <div>
-                        <h1>${t('sidebar_launch')}</h1>
                         <p class="ti-page-sub" id="launcher-sub">—</p>
                     </div>
                     <div class="ti-page-actions">
@@ -79,7 +77,7 @@
                                     </div>
                                     <div class="ti-field">
                                         <label>${t('launch_vram_mode')}</label>
-                                        <select id="ls-vram-mode" class="ls-control" style="width:100%">
+                                        <select id="ls-vram-mode" class="ls-control select" style="width:100%">
                                             <option value="gpu_only">${t('launch_vram_gpu_only')}</option>
                                             <option value="high">${t('launch_vram_high')}</option>
                                             <option value="normal">${t('launch_vram_normal')}</option>
@@ -90,7 +88,7 @@
                                     </div>
                                     <div class="ti-field">
                                         <label>${t('launch_cross_attention') || '精度'}</label>
-                                        <select id="ls-cross-attention" class="ls-control" style="width:100%">
+                                        <select id="ls-cross-attention" class="ls-control select" style="width:100%">
                                             <option value="auto">${t('launch_cross_attn_auto')}</option>
                                             <option value="pytorch">${t('launch_cross_attn_pytorch')}</option>
                                             <option value="split">${t('launch_cross_attn_split')}</option>
@@ -107,146 +105,7 @@
                             </div>
                         </div>
 
-                        <!-- Section A: Advanced Settings -->
-                    <div class="card mt-6">
-                        <div class="card-header cursor-pointer flex items-center justify-between" onclick="window.__launcherToggleCollapsible('advanced-settings')">
-                            <span>${t('launch_advanced_settings')}</span>
-                            <span class="material-symbols-outlined transition-transform" id="chevron-advanced-settings">expand_more</span>
-                        </div>
-                        <div id="section-advanced-settings" style="display:none" class="px-4 pb-4">
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 24px;margin-top:12px">
-                                <div class="ti-field">
-                                    <label>${t('launch_reserve_vram')}</label>
-                                    <input type="number" id="ls-reserve-vram" class="ls-control" min="0" step="0.1" placeholder="e.g. 1.0">
-                                </div>
-                                <div class="ti-field">
-                                    <label>${t('launch_async_offload')} <span class="help-tip" data-tooltip="${t('launch_help_async_offload')}">?</span></label>
-                                    <select id="ls-async-offload" class="ls-control">
-                                        <option value="auto">${t('launch_async_auto')}</option>
-                                        <option value="enable">${t('launch_async_enable')}</option>
-                                        <option value="disable">${t('launch_async_disable')}</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-family:var(--font-mono);font-size:11px;text-transform:uppercase;color:var(--text-2);letter-spacing:0.05em">
-                                        <input type="checkbox" id="ls-smart-memory" class="ls-control">
-                                        <span>${t('launch_smart_memory')}</span>
-                                    </label>
-                                </div>
-                                <div>
-                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-family:var(--font-mono);font-size:11px;text-transform:uppercase;color:var(--text-2);letter-spacing:0.05em">
-                                        <input type="checkbox" id="ls-listen-enable" class="ls-control">
-                                        <span>${t('launch_listen_enable')}</span>
-                                    </label>
-                                    <div style="font-size:11px;color:var(--text-3);margin-top:4px">${t('launch_listen_enable_desc')}</div>
-                                </div>
-                                <div>
-                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-family:var(--font-mono);font-size:11px;text-transform:uppercase;color:var(--text-2);letter-spacing:0.05em">
-                                        <input type="checkbox" id="ls-auto-launch" class="ls-control">
-                                        <span>${t('launch_auto_open_browser')}</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <!-- Network Advanced (sub-collapsible) -->
-                            <div style="margin-top:16px;border:1px solid rgba(255,255,255,0.08);border-radius:8px">
-                                <div style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.1em" onclick="window.__launcherToggleCollapsible('network-advanced')">
-                                    <span>${t('launch_network_advanced')}</span>
-                                    <span class="material-symbols-outlined transition-transform" id="chevron-network-advanced" style="font-size:18px">expand_more</span>
-                                </div>
-                                <div id="section-network-advanced" style="display:none;padding:0 14px 14px 14px">
-                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px">
-                                        <div>
-                                            <label class="input-label">${t('launch_cors')}</label>
-                                            <input type="text" id="ls-cors-origin" class="input ls-control" placeholder="* or https://...">
-                                        </div>
-                                        <div></div>
-                                        <div>
-                                            <label class="input-label">${t('launch_tls_key')}</label>
-                                            <input type="text" id="ls-tls-keyfile" class="input ls-control" placeholder="${t('launch_tls_key_placeholder')}">
-                                        </div>
-                                        <div>
-                                            <label class="input-label">${t('launch_tls_cert')}</label>
-                                            <input type="text" id="ls-tls-certfile" class="input ls-control" placeholder="${t('launch_tls_cert_placeholder')}">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div style="margin-top:16px">
-                                <label class="input-label">${t('launch_custom_args')}</label>
-                                <textarea id="ls-custom-args" class="input ls-control" rows="2" style="resize:vertical;font-family:monospace;font-size:12px"></textarea>
-                                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px" id="ls-arg-chips">
-                                    <span class="ls-chip" data-arg="--force-fp16">--force-fp16</span>
-                                    <span class="ls-chip" data-arg="--force-fp32">--force-fp32</span>
-                                    <span class="ls-chip" data-arg="--bf16-unet">--bf16-unet</span>
-                                    <span class="ls-chip" data-arg="--fp8_e4m3fn-unet">--fp8_e4m3fn-unet</span>
-                                    <span class="ls-chip" data-arg="--cpu-vae">--cpu-vae</span>
-                                    <span class="ls-chip" data-arg="--fast">--fast</span>
-                                    <span class="ls-chip" data-arg="--deterministic">--deterministic</span>
-                                    <span class="ls-chip" data-arg="--disable-cuda-malloc">--disable-cuda-malloc</span>
-                                </div>
-                            </div>
-                            <div style="margin-top:12px;text-align:right">
-                                <span id="ls-save-status" style="font-size:12px;color:#66bb6a;opacity:0;transition:opacity 0.3s"></span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Section B: Diagnostics -->
-                    <div class="card mt-6">
-                        <div class="card-header cursor-pointer flex items-center justify-between" onclick="window.__launcherToggleCollapsible('diagnostics')">
-                            <span>${t('launch_diagnostics')}</span>
-                            <span class="material-symbols-outlined transition-transform" id="chevron-diagnostics">expand_more</span>
-                        </div>
-                        <div id="section-diagnostics" style="display:none" class="px-4 pb-4">
-                            <div style="margin-top:12px;margin-bottom:16px;display:flex;align-items:center;gap:8px">
-                                <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-                                    <input type="checkbox" id="ls-auto-diagnostics" style="width:18px;height:18px;accent-color:rgb(var(--color-primary))">
-                                    <span style="font-size:13px;color:#ccc">${t('launch_diag_auto_toggle')}</span>
-                                </label>
-                            </div>
-                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
-                                <div class="card" style="background:rgba(255,255,255,0.03)">
-                                    <div style="padding:12px">
-                                        <div style="font-size:13px;font-weight:500;margin-bottom:8px">${t('launch_diag_check_deps')}</div>
-                                        <button class="btn btn-secondary diag-run-btn" data-diag="deps" style="width:100%;padding:6px 12px;font-size:12px">
-                                            <span class="material-symbols-outlined text-[16px]">play_arrow</span>
-                                            ${t('launch_diag_run')}
-                                        </button>
-                                        <div id="diag-result-deps" style="display:none;margin-top:8px;font-size:12px;max-height:150px;overflow-y:auto"></div>
-                                    </div>
-                                </div>
-                                <div class="card" style="background:rgba(255,255,255,0.03)">
-                                    <div style="padding:12px">
-                                        <div style="font-size:13px;font-weight:500;margin-bottom:8px">${t('launch_diag_check_conflicts')}</div>
-                                        <button class="btn btn-secondary diag-run-btn" data-diag="conflicts" style="width:100%;padding:6px 12px;font-size:12px">
-                                            <span class="material-symbols-outlined text-[16px]">play_arrow</span>
-                                            ${t('launch_diag_run')}
-                                        </button>
-                                        <div id="diag-result-conflicts" style="display:none;margin-top:8px;font-size:12px;max-height:150px;overflow-y:auto"></div>
-                                    </div>
-                                </div>
-                                <div class="card" style="background:rgba(255,255,255,0.03)">
-                                    <div style="padding:12px">
-                                        <div style="font-size:13px;font-weight:500;margin-bottom:8px">${t('launch_diag_check_duplicates')}</div>
-                                        <button class="btn btn-secondary diag-run-btn" data-diag="duplicates" style="width:100%;padding:6px 12px;font-size:12px">
-                                            <span class="material-symbols-outlined text-[16px]">play_arrow</span>
-                                            ${t('launch_diag_run')}
-                                        </button>
-                                        <div id="diag-result-duplicates" style="display:none;margin-top:8px;font-size:12px;max-height:150px;overflow-y:auto"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <style>
-                        .ls-chip {
-                            display:inline-block;padding:4px 10px;font-size:11px;font-family:var(--font-mono);
-                            background:var(--accent-glow);color:var(--accent);border:1px solid var(--accent-dim);
-                            border-radius:12px;cursor:pointer;transition:background 0.2s;user-select:none;
-                        }
-                        .ls-chip:hover { background:oklch(0.82 0.17 128 / 0.25); }
-                    </style>
+                        <!-- Advanced settings + diagnostics now live under Settings page -->
                     </div><!-- /LEFT column -->
 
                     <!-- ═══ RIGHT: Launch state + Logs ═══ -->
@@ -302,8 +161,8 @@
             </div>
         `;
 
-        // Tab switching
-        document.querySelectorAll('#launcher-tabs .tab-item').forEach(function(tab) {
+        // Tab switching — supports both legacy .tab-item and industrial .ti-launcher-tab
+        document.querySelectorAll('#launcher-tabs .tab-item, #launcher-tabs .ti-launcher-tab').forEach(function(tab) {
             tab.addEventListener('click', function() {
                 switchTab(this.dataset.tab);
             });
@@ -319,93 +178,21 @@
             selectedEnv = this.value;
             pollStatus();
             loadLaunchSettings(this.value);
-            diagnosticResults = { deps: null, conflicts: null, duplicates: null };
-            ['deps', 'conflicts', 'duplicates'].forEach(function(k) {
-                var el = document.getElementById('diag-result-' + k);
-                if (el) { el.style.display = 'none'; el.innerHTML = ''; }
-            });
         });
 
         // Running list refresh
         document.getElementById('running-btn-refresh').addEventListener('click', loadRunningList);
 
-        // Advanced settings change listeners
-        document.querySelectorAll('.ls-control').forEach(function(el) {
-            if (el.id === 'ls-listen-enable') return;  // handled separately
+        // Launcher params change listeners (Port / VRAM / Cross-attention).
+        // The legacy .ls-control matches LAN listen input too, but that stays
+        // read-only on this page — users edit it from Settings now.
+        document.querySelectorAll('#tab-launcher .ls-control').forEach(function(el) {
             var evtType = (el.tagName === 'SELECT' || el.type === 'checkbox') ? 'change' : 'input';
             el.addEventListener(evtType, onSettingChanged);
         });
-
-        // Dedicated handler for LAN enable checkbox (intercepts with modal)
-        var lanCb = document.getElementById('ls-listen-enable');
-        if (lanCb) {
-            lanCb.addEventListener('change', async function(ev) {
-                if (!ev.target.checked) {
-                    // Unchecking never prompts — just persist
-                    _syncListenControls();
-                    onSettingChanged();
-                    return;
-                }
-                var flagJson;
-                try {
-                    flagJson = await bridge.getUiFlag('listen_warning_dismissed');
-                } catch (e) {
-                    flagJson = 'null';
-                }
-                var dismissed = false;
-                try { dismissed = JSON.parse(flagJson) === true; } catch (e) {}
-                if (dismissed) {
-                    _syncListenControls();
-                    onSettingChanged();
-                    return;
-                }
-                // Revert until user confirms
-                ev.target.checked = false;
-                _showListenConfirm(function(ok, dontAsk) {
-                    if (!ok) {
-                        _syncListenControls();
-                        onSettingChanged();
-                        return;
-                    }
-                    ev.target.checked = true;
-                    if (dontAsk) {
-                        bridge.setUiFlag('listen_warning_dismissed', true);
-                    }
-                    _syncListenControls();
-                    onSettingChanged();
-                });
-            });
-        }
-
-        // Arg chip click handlers
-        document.querySelectorAll('.ls-chip').forEach(function(chip) {
-            chip.addEventListener('click', function() {
-                var textarea = document.getElementById('ls-custom-args');
-                if (!textarea) return;
-                var arg = this.dataset.arg;
-                var current = textarea.value.trim();
-                if (current.indexOf(arg) === -1) {
-                    textarea.value = current ? current + ' ' + arg : arg;
-                    onSettingChanged();
-                }
-            });
-        });
-
-        // Auto-diagnostics toggle
-        var autoDiagEl = document.getElementById('ls-auto-diagnostics');
-        if (autoDiagEl) {
-            autoDiagEl.addEventListener('change', onSettingChanged);
-        }
-
-        // Diagnostic run buttons
-        document.querySelectorAll('.diag-run-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                runDiagnostic(this.dataset.diag);
-            });
-        });
-
-        // Expose toggleCollapsible globally for onclick handlers
-        window.__launcherToggleCollapsible = toggleCollapsible;
+        // Port input lives outside the advanced controls list
+        var portEl = document.getElementById('launch-port');
+        if (portEl) portEl.addEventListener('input', onSettingChanged);
 
         // Load data
         loadEnvs().then(function() {
@@ -604,9 +391,16 @@
     }
 
     function _doStartAfterFlush(envName, port) {
+        // auto_diagnostics now lives on the Settings page — re-read settings
+        // from backend so we always see the user's latest toggle, even if they
+        // flipped it in Settings just before clicking start.
+        BridgeAPI.getLaunchSettings(envName).then(function(settings) {
+            currentLaunchSettings = settings || {};
+            if (!settings || !settings.auto_diagnostics) {
+                doStartActual(envName, port);
+                return;
+            }
 
-        // Check auto_diagnostics setting
-        if (currentLaunchSettings && currentLaunchSettings.auto_diagnostics) {
             document.getElementById('launch-btn-start').disabled = true;
             appendLog(t('launch_diagnostics') + '...');
 
@@ -615,10 +409,6 @@
                 BridgeAPI.checkConflicts(envName).catch(function(e) { return { status: 'error', error: String(e) }; }),
                 BridgeAPI.checkDuplicateNodes(envName).catch(function(e) { return { status: 'error', error: String(e) }; })
             ]).then(function(results) {
-                diagnosticResults.deps = results[0];
-                diagnosticResults.conflicts = results[1];
-                diagnosticResults.duplicates = results[2];
-
                 var issues = [];
                 var depItems = (results[0] && Array.isArray(results[0].items)) ? results[0].items : [];
                 var missingDepItems = depItems.filter(function(item) {
@@ -664,10 +454,10 @@
                     doStartActual(envName, port);
                 }
             });
-            return;
-        }
-
-        doStartActual(envName, port);
+        }).catch(function() {
+            // If we can't read settings, fall back to launching directly.
+            doStartActual(envName, port);
+        });
     }
 
     function doStartActual(envName, port) {
@@ -851,136 +641,50 @@
         if (!envName) return;
         BridgeAPI.getLaunchSettings(envName).then(function(settings) {
             currentLaunchSettings = settings || {};
-            // Populate controls
+            // Populate only the controls that live on the launcher page.
+            // Advanced fields (reserve_vram, async_offload, smart_memory,
+            // listen_enabled, CORS/TLS, custom_args, auto_diagnostics) are
+            // owned by the Settings page now.
             var el;
             el = document.getElementById('ls-cross-attention');
             if (el) el.value = settings.cross_attention || 'auto';
             el = document.getElementById('ls-vram-mode');
             if (el) el.value = settings.vram_mode || 'normal';
-            el = document.getElementById('ls-reserve-vram');
-            if (el) el.value = (settings.reserve_vram != null && settings.reserve_vram !== '') ? settings.reserve_vram : '';
-            el = document.getElementById('ls-async-offload');
-            if (el) el.value = settings.async_offload || 'auto';
-            el = document.getElementById('ls-smart-memory');
-            if (el) el.checked = !!settings.smart_memory;
             el = document.getElementById('ls-listen');
-            if (el) el.value = settings.listen || '';
-            el = document.getElementById('ls-listen-enable');
-            if (el) el.checked = !!settings.listen_enabled;
-            _syncListenControls();
+            if (el) {
+                el.value = settings.listen || '';
+                // Read-only on launcher — LAN listen config lives in Settings.
+                el.disabled = true;
+            }
             // Update the top port input from launch_settings
             el = document.getElementById('launch-port');
             if (el && settings.port) el.value = settings.port;
-            el = document.getElementById('ls-auto-launch');
-            if (el) el.checked = !!settings.auto_launch;
-            el = document.getElementById('ls-cors-origin');
-            if (el) el.value = settings.cors_origin || '';
-            el = document.getElementById('ls-tls-keyfile');
-            if (el) el.value = settings.tls_keyfile || '';
-            el = document.getElementById('ls-tls-certfile');
-            if (el) el.value = settings.tls_certfile || '';
-            el = document.getElementById('ls-custom-args');
-            if (el) el.value = settings.custom_args || '';
-            el = document.getElementById('ls-auto-diagnostics');
-            if (el) el.checked = !!settings.auto_diagnostics;
-
         }).catch(function(e) {
             currentLaunchSettings = {};
         });
     }
 
-    function _isLoopbackIp(ip) {
-        if (!ip) return false;
-        var v = String(ip).trim().toLowerCase();
-        return v === '127.0.0.1' || v === 'localhost' || v === '::1' || v.indexOf('127.') === 0;
-    }
-
-    function _showListenConfirm(onConfirm) {
-        var overlay = document.createElement('div');
-        overlay.className = 'modal-overlay';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999';
-        overlay.innerHTML = (
-            '<div class="modal" style="background:#222;color:#eee;padding:20px;border-radius:8px;max-width:420px;box-shadow:0 4px 24px rgba(0,0,0,.5)">' +
-            '  <h3 style="margin-top:0">' + t('launch_listen_confirm_title') + '</h3>' +
-            '  <p>' + t('launch_listen_confirm_body') + '</p>' +
-            '  <label style="display:flex;gap:6px;align-items:center;margin:12px 0">' +
-            '    <input type="checkbox" id="listen-confirm-dontask"><span>' + t('launch_listen_confirm_dont_ask') + '</span>' +
-            '  </label>' +
-            '  <div style="display:flex;gap:8px;justify-content:flex-end">' +
-            '    <button id="listen-confirm-cancel" class="btn">' + t('launch_listen_confirm_cancel') + '</button>' +
-            '    <button id="listen-confirm-ok" class="btn btn-primary">' + t('launch_listen_confirm_ok') + '</button>' +
-            '  </div>' +
-            '</div>'
-        );
-        document.body.appendChild(overlay);
-        document.getElementById('listen-confirm-cancel').addEventListener('click', function() {
-            document.body.removeChild(overlay);
-            onConfirm(false, false);
-        });
-        document.getElementById('listen-confirm-ok').addEventListener('click', function() {
-            var dontAsk = document.getElementById('listen-confirm-dontask').checked;
-            document.body.removeChild(overlay);
-            onConfirm(true, dontAsk);
-        });
-    }
-
     function _syncListenControls() {
-        var cb = document.getElementById('ls-listen-enable');
+        // Listen-enable checkbox lives in Settings page now. Just keep the
+        // read-only listen input disabled so users edit it from Settings.
         var ipEl = document.getElementById('ls-listen');
-        var errEl = document.getElementById('ls-listen-error');
-        if (!cb || !ipEl) return true;
-        var enabled = cb.checked;
-        ipEl.disabled = !enabled;
-        if (!enabled) {
-            if (errEl) errEl.style.display = 'none';
-            return true;
-        }
-        if (_isLoopbackIp(ipEl.value)) {
-            if (errEl) {
-                errEl.textContent = t('launch_listen_invalid_loopback');
-                errEl.style.display = 'block';
-            }
-            return false;
-        }
-        if (errEl) errEl.style.display = 'none';
+        if (ipEl) ipEl.disabled = true;
         return true;
     }
 
     function onSettingChanged() {
-        _syncListenControls();
-        var settings = {};
+        // Merge just the launcher-owned fields into currentLaunchSettings so
+        // we don't clobber advanced settings saved from the Settings page.
+        var patch = {};
         var el;
         el = document.getElementById('ls-cross-attention');
-        if (el) settings.cross_attention = el.value;
+        if (el) patch.cross_attention = el.value;
         el = document.getElementById('ls-vram-mode');
-        if (el) settings.vram_mode = el.value;
-        el = document.getElementById('ls-reserve-vram');
-        if (el) settings.reserve_vram = el.value !== '' ? parseFloat(el.value) : null;
-        el = document.getElementById('ls-async-offload');
-        if (el) settings.async_offload = el.value;
-        el = document.getElementById('ls-smart-memory');
-        if (el) settings.smart_memory = el.checked;
-        el = document.getElementById('ls-listen');
-        if (el) settings.listen = el.value;
-        el = document.getElementById('ls-listen-enable');
-        if (el) settings.listen_enabled = el.checked;
-        // Read port from the top input (single source of truth)
+        if (el) patch.vram_mode = el.value;
         el = document.getElementById('launch-port');
-        if (el) settings.port = el.value ? parseInt(el.value) : 8188;
-        el = document.getElementById('ls-auto-launch');
-        if (el) settings.auto_launch = el.checked;
-        el = document.getElementById('ls-cors-origin');
-        if (el) settings.cors_origin = el.value;
-        el = document.getElementById('ls-tls-keyfile');
-        if (el) settings.tls_keyfile = el.value;
-        el = document.getElementById('ls-tls-certfile');
-        if (el) settings.tls_certfile = el.value;
-        el = document.getElementById('ls-custom-args');
-        if (el) settings.custom_args = el.value;
-        el = document.getElementById('ls-auto-diagnostics');
-        if (el) settings.auto_diagnostics = el.checked;
+        if (el) patch.port = el.value ? parseInt(el.value) : 8188;
 
-        currentLaunchSettings = settings;
+        currentLaunchSettings = Object.assign({}, currentLaunchSettings || {}, patch);
         debounceSave();
     }
 
@@ -988,139 +692,10 @@
         if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
         saveDebounceTimer = setTimeout(function() {
             if (!selectedEnv || !currentLaunchSettings) return;
-            BridgeAPI.saveLaunchSettings(selectedEnv, currentLaunchSettings).then(function() {
-                var statusEl = document.getElementById('ls-save-status');
-                if (statusEl) {
-                    statusEl.textContent = '\u2713 ' + t('launch_settings_saved');
-                    statusEl.style.opacity = '1';
-                    setTimeout(function() { statusEl.style.opacity = '0'; }, 2000);
-                }
-            }).catch(function(e) {
+            BridgeAPI.saveLaunchSettings(selectedEnv, currentLaunchSettings).catch(function(e) {
                 App.showToast(String(e), 'error');
             });
         }, 500);
-    }
-
-    function toggleCollapsible(sectionId) {
-        var section = document.getElementById('section-' + sectionId);
-        var chevron = document.getElementById('chevron-' + sectionId);
-        if (!section) return;
-        var isHidden = section.style.display === 'none';
-        section.style.display = isHidden ? 'block' : 'none';
-        if (chevron) {
-            chevron.style.transform = isHidden ? 'rotate(180deg)' : '';
-        }
-    }
-
-    function runDiagnostic(type) {
-        if (!selectedEnv) return;
-        var resultEl = document.getElementById('diag-result-' + type);
-        var btn = document.querySelector('.diag-run-btn[data-diag="' + type + '"]');
-        if (btn) { btn.disabled = true; btn.textContent = '...'; }
-
-        var promise;
-        if (type === 'deps') {
-            promise = BridgeAPI.checkDependencies(selectedEnv);
-        } else if (type === 'conflicts') {
-            promise = BridgeAPI.checkConflicts(selectedEnv);
-        } else if (type === 'duplicates') {
-            promise = BridgeAPI.checkDuplicateNodes(selectedEnv);
-        } else {
-            return;
-        }
-
-        promise.then(function(result) {
-            diagnosticResults[type] = result;
-            if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">play_arrow</span> ' + t('launch_diag_run'); }
-            if (!resultEl) return;
-            resultEl.style.display = 'block';
-
-            if (type === 'deps') {
-                var depItems = Array.isArray(result.items) ? result.items : [];
-                var missingItems = depItems.filter(function(item) {
-                    return item && item.status === 'missing';
-                });
-                var pipCheckItems = depItems.filter(function(item) {
-                    return item && item.status === 'pip_check_issue';
-                });
-
-                if (missingItems.length === 0 && pipCheckItems.length === 0) {
-                    resultEl.innerHTML = '<div style="color:#66bb6a">\u2713 ' + t('launch_diag_no_issues') + '</div>';
-                } else {
-                    var issueCount = missingItems.length + pipCheckItems.length;
-                    var html = '<div style="color:#ffb74d">' + t('launch_diag_issue_count', issueCount) + '</div>';
-                    html += '<div style="margin-top:6px;max-height:80px;overflow-y:auto;font-family:monospace;font-size:11px;color:#ccc">';
-                    missingItems.forEach(function(item) {
-                        var pkgSpec = (item.required && item.required !== 'any')
-                            ? (item.package + item.required)
-                            : item.package;
-                        html += '<div>' + t('launch_diag_missing_prefix') + ': ' + pkgSpec + '</div>';
-                    });
-                    pipCheckItems.forEach(function(item) {
-                        html += '<div>' + t('launch_diag_pip_check_prefix') + ': ' + (item.installed || '') + '</div>';
-                    });
-                    html += '</div>';
-                    if (missingItems.length > 0) {
-                        html += '<button class="btn btn-secondary" style="margin-top:8px;padding:4px 10px;font-size:11px" id="diag-fix-deps">';
-                        html += t('launch_diag_fix_btn') + '</button>';
-                    }
-                    resultEl.innerHTML = html;
-                    var fixBtn = document.getElementById('diag-fix-deps');
-                    if (fixBtn) {
-                        var packagesToInstall = missingItems
-                            .map(function(item) {
-                                if (!item || !item.package) return '';
-                                return (item.required && item.required !== 'any')
-                                    ? (item.package + item.required)
-                                    : item.package;
-                            })
-                            .filter(function(spec) { return !!spec; });
-                        fixBtn.addEventListener('click', function() {
-                            this.disabled = true;
-                            this.textContent = '...';
-                            BridgeAPI.fixMissingDeps(selectedEnv, packagesToInstall).then(function() {
-                                App.showToast(t('launch_diag_fix_success'), 'success');
-                                runDiagnostic('deps');
-                            }).catch(function(e) { App.showToast(String(e), 'error'); });
-                        });
-                    }
-                }
-            } else if (type === 'conflicts') {
-                if (!result.conflicts || result.conflicts.length === 0) {
-                    resultEl.innerHTML = '<div style="color:#66bb6a">\u2713 ' + t('launch_diag_no_issues') + '</div>';
-                } else {
-                    var html = '<div style="color:#ffb74d">' + t('launch_diag_conflict_count', result.conflicts.length) + '</div>';
-                    html += '<div style="margin-top:6px;max-height:80px;overflow-y:auto;font-size:11px;color:#ccc">';
-                    result.conflicts.forEach(function(c) { html += '<div>' + (c.description || c.name || JSON.stringify(c)) + '</div>'; });
-                    html += '</div>';
-                    resultEl.innerHTML = html;
-                }
-            } else if (type === 'duplicates') {
-                var hasDups = result.duplicates && result.duplicates.length > 0;
-                var hasUnscannable = result.unscannable && result.unscannable.length > 0;
-                if (!hasDups && !hasUnscannable) {
-                    resultEl.innerHTML = '<div style="color:#66bb6a">\u2713 ' + t('launch_diag_no_issues') + '</div>';
-                } else {
-                    var html = '';
-                    if (hasDups) {
-                        html += '<div style="color:#ffb74d">' + t('launch_diag_duplicate_count', result.duplicates.length) + '</div>';
-                        html += '<div style="margin-top:6px;max-height:80px;overflow-y:auto;font-size:11px;color:#ccc">';
-                        result.duplicates.forEach(function(d) { html += '<div>' + (d.name || JSON.stringify(d)) + '</div>'; });
-                        html += '</div>';
-                    }
-                    if (hasUnscannable) {
-                        html += '<div style="color:rgb(var(--color-on-surface-variant));margin-top:6px">' + t('launch_diag_unscannable_count', result.unscannable.length) + '</div>';
-                    }
-                    resultEl.innerHTML = html;
-                }
-            }
-        }).catch(function(e) {
-            if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">play_arrow</span> ' + t('launch_diag_run'); }
-            if (resultEl) {
-                resultEl.style.display = 'block';
-                resultEl.innerHTML = '<div style="color:rgb(var(--color-error))">' + String(e) + '</div>';
-            }
-        });
     }
 
     App.registerPage('launcher', { render });

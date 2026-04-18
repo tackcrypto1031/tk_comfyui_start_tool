@@ -11,7 +11,6 @@
             '<div class="ti-content fade-in">' +
                 '<div class="ti-page-head">' +
                     '<div>' +
-                        '<h1>' + h(t('sidebar_snapshots')) + '</h1>' +
                         '<p class="ti-page-sub" id="snap-sub">—</p>' +
                     '</div>' +
                     '<div class="ti-page-actions">' +

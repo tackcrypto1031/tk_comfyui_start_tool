@@ -34,6 +34,15 @@
         if (e.key === 'Escape') closeActive();
     });
 
+    // Selector for every <select> that should be upgraded.
+    // `select.select` is the legacy opt-in class; the extra rules pick up the
+    // new Tack-Industrial toolbar dropdowns which live inside `.ti-env-select`
+    // (launcher / plugins / snapshots / versions page headers) and every
+    // `.ls-control` select (launcher advanced settings, settings page). Without
+    // these, the native OS dropdown leaks through even though the wrapper is
+    // styled, breaking the design's custom dropdown look inside cards.
+    var UPGRADE_SELECTOR = 'select.select, .ti-env-select > select, select.ls-control';
+
     // ── CustomSelect class ───────────────────────────────────────────
     function CustomSelect(sel) {
         this.sel = sel;
@@ -196,6 +205,20 @@
         this.sel.addEventListener('change', function () {
             self._updateLabel();
         });
+
+        // If this select lives inside a toolbar pill (.ti-env-select), any
+        // click on the pill — including the "環境" label — should open the
+        // dropdown. Without this, the label area is dead space.
+        var pill = this.sel.closest('.ti-env-select');
+        if (pill && !pill._csPillBound) {
+            pill._csPillBound = true;
+            pill.addEventListener('mousedown', function (e) {
+                if (self.wrap.contains(e.target)) return;  // cs-display handles itself
+                e.preventDefault();
+                if (self.sel.disabled) return;
+                if (self.open) self.close(); else self.toggle();
+            });
+        }
     };
 
     CustomSelect.prototype.toggle = function () {
@@ -264,34 +287,32 @@
     }
 
     /**
-     * Upgrade all <select class="select"> on the page.
+     * Upgrade every <select> matched by UPGRADE_SELECTOR on the page.
      * Call after page content renders or after dynamic content is added.
      */
     function upgradeAll(root) {
         var container = root || document;
-        var selects = container.querySelectorAll('select.select');
+        var selects = container.querySelectorAll(UPGRADE_SELECTOR);
         for (var i = 0; i < selects.length; i++) {
             upgrade(selects[i]);
         }
     }
 
     // ── Auto-upgrade via global MutationObserver ─────────────────
-    // Watches the entire document for newly added <select class="select">
-    // elements and upgrades them automatically. This handles async renders
-    // (e.g. launcher page that renders inside a .then() callback).
+    // Watches the entire document for newly added <select> elements matched
+    // by UPGRADE_SELECTOR and upgrades them automatically. This handles async
+    // renders (e.g. launcher page that renders inside a .then() callback).
     var _autoObserver = new MutationObserver(function (mutations) {
         for (var m = 0; m < mutations.length; m++) {
             var added = mutations[m].addedNodes;
             for (var n = 0; n < added.length; n++) {
                 var node = added[n];
                 if (node.nodeType !== 1) continue; // element nodes only
-                // Check if the added node itself is a select.select
-                if (node.matches && node.matches('select.select')) {
+                if (node.matches && node.matches(UPGRADE_SELECTOR)) {
                     upgrade(node);
                 }
-                // Check descendants
                 if (node.querySelectorAll) {
-                    var inner = node.querySelectorAll('select.select');
+                    var inner = node.querySelectorAll(UPGRADE_SELECTOR);
                     for (var k = 0; k < inner.length; k++) {
                         upgrade(inner[k]);
                     }

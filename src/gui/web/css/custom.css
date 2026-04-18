@@ -237,8 +237,14 @@ html.material-icons-missing .material-symbols-outlined::before {
     display: block;
 }
 
-/* Select styles — hidden native select (data kept for JS compat) */
-.select {
+/* Hidden native select (data kept for JS compat).
+   Applies to:
+   - `.select` — legacy opt-in class
+   - any <select> once CustomSelect has moved it inside a `.cs-wrap`, so
+     toolbar dropdowns styled via `.ti-env-select` no longer leak the OS
+     popup. */
+.select,
+.cs-wrap > select {
     position: absolute !important;
     opacity: 0 !important;
     pointer-events: none !important;

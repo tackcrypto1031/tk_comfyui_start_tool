@@ -1071,6 +1071,7 @@ html[data-theme="tack-industrial"] .toast-success .toast-message::before {
   font-size: 13px; color: var(--text-3);
   margin-top: 4px;
 }
+.ti-page-sub:first-child { margin-top: 0; padding-top: 6px; }
 .ti-page-sub .accent {
   color: var(--accent);
   font-family: var(--font-mono);
@@ -1079,24 +1080,68 @@ html[data-theme="tack-industrial"] .toast-success .toast-message::before {
   margin-left: auto;
   display: flex; align-items: center; gap: 8px;
 }
+/* Uniform 32px toolbar: every direct control in the page header sits on the
+   same baseline, with the same border-radius and vertical rhythm. */
+.ti-page-actions > * {
+  height: 32px;
+  box-sizing: border-box;
+}
+html[data-theme="tack-industrial"] .ti-page-actions > .btn,
+html[data-theme="tack-industrial"] .ti-page-actions > button.btn {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+  line-height: 1;
+}
+html[data-theme="tack-industrial"] .ti-page-actions > .btn .material-symbols-outlined {
+  font-size: 14px;
+}
+/* Square icon-only buttons in the toolbar (refresh, etc.) — match the design's
+   .lt-icon-btn: a 32x32 chip that aligns with the dropdown and tab switcher. */
+html[data-theme="tack-industrial"] .ti-page-actions > .btn:where(:not(.btn-primary)):has(> .material-symbols-outlined:only-child),
+html[data-theme="tack-industrial"] .ti-page-actions > .btn.btn-icon {
+  width: 32px;
+  padding: 0;
+  justify-content: center;
+}
 
-/* Env selector pill-input in page actions */
+/* Env selector pill — custom-styled native <select> so it matches the tab
+   switcher and refresh button pixel for pixel (32px tall, same border, same
+   radius, same chevron). */
 .ti-env-select {
+  position: relative;
   display: inline-flex; align-items: center; gap: 8px;
-  padding: 6px 10px 6px 12px;
+  height: 32px;
+  padding: 0 10px 0 12px;
   background: var(--bg-2);
-  border: 1px solid var(--border-1);
+  border: 1px solid var(--border-2);
   border-radius: var(--radius-sm);
   font-size: 12px;
   color: var(--text-1);
+  box-sizing: border-box;
+  transition: border-color 0.12s, background 0.12s;
 }
-.ti-env-select select {
-  background: transparent; border: 0; padding: 0;
+.ti-env-select:hover { border-color: var(--border-3); }
+.ti-env-select:focus-within { border-color: var(--accent); }
+html[data-theme="tack-industrial"] .ti-env-select select {
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  background: transparent;
+  border: 0; padding: 0 18px 0 0;
+  margin: 0;
+  height: 100%;
   color: var(--text-0);
   font-size: 12px;
   font-family: var(--font-mono);
   cursor: pointer;
-  min-width: 120px;
+  min-width: 140px;
+  line-height: 1;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239e9ea7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0 center;
+}
+html[data-theme="tack-industrial"] .ti-env-select select:focus {
+  outline: none;
+  border-color: transparent;  /* focus ring moves to wrapper via :focus-within */
 }
 .ti-env-select label {
   color: var(--text-3);
@@ -1104,25 +1149,93 @@ html[data-theme="tack-industrial"] .toast-success .toast-message::before {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;  /* whole pill handles clicks */
+}
+html[data-theme="tack-industrial"] .ti-env-select { cursor: pointer; }
+
+/* CustomSelect (cs-*) — when mounted inside the toolbar pill, the wrapper
+   has the border/background, so the inner display is transparent and just
+   holds the value + chevron. The popup list uses the design's .lt-env-menu
+   styling (dark panel, rounded items, accent highlight for active). */
+html[data-theme="tack-industrial"] .ti-env-select .cs-wrap {
+  width: auto;
+  flex: 1;
+  min-width: 140px;
+  height: 100%;
+}
+html[data-theme="tack-industrial"] .ti-env-select .cs-display {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-0);
+  line-height: 1;
+}
+html[data-theme="tack-industrial"] .ti-env-select .cs-display:hover { border: 0; }
+html[data-theme="tack-industrial"] .ti-env-select .cs-focus { border: 0 !important; }
+html[data-theme="tack-industrial"] .ti-env-select .cs-arrow {
+  color: var(--text-3);
+  margin-left: 6px;
+}
+html[data-theme="tack-industrial"] .ti-env-select .cs-list {
+  top: calc(100% + 4px);
+  left: 0;
+  right: auto;
+  min-width: 100%;
+  max-width: 320px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-3);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+html[data-theme="tack-industrial"] .ti-env-select .cs-item {
+  padding: 7px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-1);
+  transition: background 0.1s, color 0.1s;
+}
+html[data-theme="tack-industrial"] .ti-env-select .cs-item:hover {
+  background: var(--bg-3);
+  color: var(--text-0);
+}
+html[data-theme="tack-industrial"] .ti-env-select .cs-item.cs-active {
+  background: var(--accent-glow);
+  color: var(--accent);
 }
 
+/* Search box pill — same 32px rhythm as the env selector. */
 .ti-search-box {
   display: inline-flex; align-items: center; gap: 8px;
-  padding: 6px 12px;
+  height: 32px;
+  padding: 0 12px;
   background: var(--bg-2);
-  border: 1px solid var(--border-1);
+  border: 1px solid var(--border-2);
   border-radius: var(--radius-sm);
+  box-sizing: border-box;
+  transition: border-color 0.12s;
 }
+.ti-search-box:hover { border-color: var(--border-3); }
+.ti-search-box:focus-within { border-color: var(--accent); }
 .ti-search-box .material-symbols-outlined {
   color: var(--text-3);
   font-size: 14px;
 }
-.ti-search-box input {
+html[data-theme="tack-industrial"] .ti-search-box input {
   background: transparent;
   border: 0; padding: 0;
   font-size: 13px;
   color: var(--text-0);
   width: 180px;
+  height: 100%;
+  line-height: 1;
   outline: none;
 }
 .ti-search-box input::placeholder { color: var(--text-3); }
@@ -1439,15 +1552,18 @@ html[data-theme="tack-industrial"] input[type="checkbox"] {
 /* Tabs in page header (Launcher / Running) */
 .ti-launcher-tabs {
   display: inline-flex;
-  padding: 2px;
+  align-items: stretch;
+  padding: 3px;
   gap: 2px;
   background: var(--bg-2);
   border: 1px solid var(--border-1);
   border-radius: var(--radius-sm);
+  min-height: 32px;
+  box-sizing: border-box;
 }
 .ti-launcher-tab {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 12px;
+  padding: 0 14px;
   border: 0;
   background: transparent;
   color: var(--text-2);
@@ -1503,6 +1619,115 @@ html[data-theme="tack-industrial"] #tab-launcher .input-label {
 html[data-theme="tack-industrial"] #tab-launcher #section-diagnostics .card {
   background: var(--bg-2) !important;
   border: 1px solid var(--border-1);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   CustomSelect — default (non-toolbar) styling for Tack Industrial
+   Applies to every .cs-wrap that isn't mounted inside .ti-env-select,
+   so all launcher card / settings card / modal dropdowns match the
+   design's custom dropdown (accent border on open, themed menu with
+   hover/active states, rotating chevron). The .ti-env-select overrides
+   above keep the toolbar variant's compact look.
+   ══════════════════════════════════════════════════════════════════ */
+html[data-theme="tack-industrial"] .cs-wrap {
+  width: 100%;
+}
+html[data-theme="tack-industrial"] .cs-wrap > select {
+  position: absolute !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+html[data-theme="tack-industrial"] :not(.ti-env-select) > .cs-wrap .cs-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-0);
+  cursor: pointer;
+  transition: border-color 0.12s;
+  box-sizing: border-box;
+  line-height: 1.2;
+  min-height: 36px;
+}
+html[data-theme="tack-industrial"] :not(.ti-env-select) > .cs-wrap .cs-display:hover {
+  border-color: var(--border-3);
+}
+html[data-theme="tack-industrial"] :not(.ti-env-select) > .cs-wrap .cs-focus {
+  border-color: var(--accent) !important;
+}
+html[data-theme="tack-industrial"] :not(.ti-env-select) > .cs-wrap .cs-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  color: var(--text-0);
+}
+html[data-theme="tack-industrial"] :not(.ti-env-select) > .cs-wrap .cs-arrow {
+  color: var(--text-3);
+  flex-shrink: 0;
+  margin-left: 6px;
+  transition: transform 0.15s;
+}
+html[data-theme="tack-industrial"] :not(.ti-env-select) > .cs-wrap .cs-focus .cs-arrow {
+  transform: rotate(180deg);
+}
+html[data-theme="tack-industrial"] :not(.ti-env-select) > .cs-wrap .cs-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: var(--bg-2);
+  border: 1px solid var(--border-3);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  max-height: 280px;
+  overflow-y: auto;
+}
+html[data-theme="tack-industrial"] :not(.ti-env-select) > .cs-wrap .cs-item {
+  padding: 9px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color 0.1s, color 0.1s;
+  cursor: pointer;
+}
+html[data-theme="tack-industrial"] :not(.ti-env-select) > .cs-wrap .cs-item:hover {
+  background: var(--bg-3);
+  color: var(--text-0);
+}
+html[data-theme="tack-industrial"] :not(.ti-env-select) > .cs-wrap .cs-item.cs-active {
+  background: var(--accent-glow);
+  color: var(--accent);
+  font-weight: 600;
+}
+html[data-theme="tack-industrial"] :not(.ti-env-select) > .cs-wrap .cs-item.cs-disabled {
+  color: var(--text-4);
+  cursor: default;
+}
+html[data-theme="tack-industrial"] :not(.ti-env-select) > .cs-wrap .cs-item.cs-disabled:hover {
+  background: transparent;
+}
+
+/* Let card-body surfaces stay visible when a dropdown overflows them */
+html[data-theme="tack-industrial"] .ti-card,
+html[data-theme="tack-industrial"] #tab-launcher .card,
+html[data-theme="tack-industrial"] #settings-advanced,
+html[data-theme="tack-industrial"] #settings-diagnostics {
+  overflow: visible;
 }
 
 /* Empty / loading list row */
