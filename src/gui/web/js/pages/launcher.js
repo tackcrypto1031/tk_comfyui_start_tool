@@ -24,66 +24,90 @@
 
     function renderPage(container) {
         container.innerHTML = `
-            <div class="fade-in space-y-6">
-                <!-- Tab Bar -->
-                <div class="tab-bar" id="launcher-tabs">
-                    <button class="tab-item ${activeTab === 'launcher' ? 'active' : ''}" data-tab="launcher">
-                        <span class="material-symbols-outlined text-[16px]">play_arrow</span>
-                        ${t('launch_tab_launcher')}
-                    </button>
-                    <button class="tab-item ${activeTab === 'running' ? 'active' : ''}" data-tab="running">
-                        <span class="material-symbols-outlined text-[16px]">monitor_heart</span>
-                        ${t('launch_tab_running')}
-                        <span class="tab-badge" id="running-count" style="display:none"></span>
-                    </button>
+            <div class="ti-content fade-in">
+                <!-- Page head -->
+                <div class="ti-page-head">
+                    <div>
+                        <h1>${t('sidebar_launch')}</h1>
+                        <p class="ti-page-sub" id="launcher-sub">—</p>
+                    </div>
+                    <div class="ti-page-actions">
+                        <div class="ti-env-select">
+                            <label>${t('launch_environment')}</label>
+                            <select id="launch-env"></select>
+                        </div>
+                        <div class="ti-launcher-tabs" id="launcher-tabs">
+                            <button class="ti-launcher-tab ${activeTab === 'launcher' ? 'active' : ''}" data-tab="launcher">
+                                <span class="material-symbols-outlined" style="font-size:13px">play_arrow</span>
+                                <span>${t('launch_tab_launcher')}</span>
+                            </button>
+                            <button class="ti-launcher-tab ${activeTab === 'running' ? 'active' : ''}" data-tab="running">
+                                <span class="material-symbols-outlined" style="font-size:13px">monitor_heart</span>
+                                <span>${t('launch_tab_running')}</span>
+                                <span class="tab-badge" id="running-count" style="display:none"></span>
+                            </button>
+                        </div>
+                        <button id="launch-btn-refresh" class="btn btn-secondary" title="${t('launch_refresh')}">
+                            <span class="material-symbols-outlined" style="font-size:14px">refresh</span>
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Tab: Launcher -->
-                <div id="tab-launcher" style="display: ${activeTab === 'launcher' ? 'block' : 'none'}">
-                    <!-- Controls -->
-                    <div class="card">
-                        <div class="flex items-end gap-4">
-                            <div class="flex-1">
-                                <label class="input-label">${t('launch_environment')}</label>
-                                <select id="launch-env" class="select"></select>
+                <!-- Tab: Launcher — 2 column grid (left=params, right=launch state + logs) -->
+                <div id="tab-launcher" style="display: ${activeTab === 'launcher' ? 'grid' : 'none'}; grid-template-columns: 1fr 360px; gap: 16px; align-items: start;">
+
+                    <!-- ═══ LEFT: Launch params + Advanced + Diagnostics ═══ -->
+                    <div style="min-width:0; display:flex; flex-direction:column; gap:16px">
+
+                        <!-- Primary launch params card -->
+                        <div class="ti-card">
+                            <div class="ti-card-head">
+                                <span class="material-symbols-outlined">terminal</span>
+                                <span class="ti-card-title">${t('launch_params') || '啟動參數'}</span>
+                                <span class="mono" id="launcher-env-tag" style="margin-left:auto;font-size:11px;color:var(--text-3)"></span>
                             </div>
-                            <div class="w-32">
-                                <label class="input-label">${t('launch_port')}</label>
-                                <input type="number" id="launch-port" class="input" value="8188" min="1024" max="65535">
+                            <div class="ti-card-body">
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                                    <div class="ti-field">
+                                        <label>${t('launch_port')}</label>
+                                        <input type="number" id="launch-port" class="mono" value="8188" min="1024" max="65535" style="width:100%">
+                                    </div>
+                                    <div class="ti-field">
+                                        <label>${t('launch_listen_ip') || '監聽位址'}</label>
+                                        <input type="text" id="ls-listen" class="ls-control mono" placeholder="0.0.0.0" style="width:100%" disabled>
+                                        <div class="input-error" id="ls-listen-error" style="display:none;color:var(--danger);font-size:11px"></div>
+                                    </div>
+                                    <div class="ti-field">
+                                        <label>${t('launch_vram_mode')}</label>
+                                        <select id="ls-vram-mode" class="ls-control" style="width:100%">
+                                            <option value="gpu_only">${t('launch_vram_gpu_only')}</option>
+                                            <option value="high">${t('launch_vram_high')}</option>
+                                            <option value="normal">${t('launch_vram_normal')}</option>
+                                            <option value="low">${t('launch_vram_low')}</option>
+                                            <option value="no">${t('launch_vram_no')}</option>
+                                            <option value="cpu">${t('launch_vram_cpu')}</option>
+                                        </select>
+                                    </div>
+                                    <div class="ti-field">
+                                        <label>${t('launch_cross_attention') || '精度'}</label>
+                                        <select id="ls-cross-attention" class="ls-control" style="width:100%">
+                                            <option value="auto">${t('launch_cross_attn_auto')}</option>
+                                            <option value="pytorch">${t('launch_cross_attn_pytorch')}</option>
+                                            <option value="split">${t('launch_cross_attn_split')}</option>
+                                            <option value="quad">${t('launch_cross_attn_quad')}</option>
+                                            <option value="sage">${t('launch_cross_attn_sage')}</option>
+                                            <option value="flash">${t('launch_cross_attn_flash')}</option>
+                                            <option value="disable_xformers">${t('launch_cross_attn_disable_xformers')}</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div id="ti-cmd-preview" style="margin-top:14px;padding:12px 14px;background:var(--bg-0);border:1px solid var(--border-1);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:11px;color:var(--text-2);line-height:1.6;overflow-x:auto;white-space:nowrap">
+                                    <span style="color:var(--text-4)">$</span> python main.py <span style="color:var(--accent)">--port 8188 --auto-launch</span>
+                                </div>
                             </div>
-                            <button id="launch-btn-start" class="btn btn-primary">
-                                <span class="material-symbols-outlined text-[18px]">play_arrow</span>
-                                ${t('launch_start')}
-                            </button>
-                            <button id="launch-btn-stop" class="btn btn-danger" disabled>
-                                <span class="material-symbols-outlined text-[18px]">stop</span>
-                                ${t('launch_stop')}
-                            </button>
-                            <button id="launch-btn-refresh" class="btn btn-icon" title="${t('launch_refresh')}">
-                                <span class="material-symbols-outlined">refresh</span>
-                            </button>
                         </div>
-                    </div>
 
-                    <!-- Status -->
-                    <div class="flex items-center gap-3 mt-6">
-                        <span class="text-xs font-label uppercase tracking-wider text-on-surface-variant">${t('launch_status')}:</span>
-                        <span id="launch-status" class="badge badge-primary">${t('launch_status_stopped')}</span>
-                    </div>
-
-                    <!-- Log output -->
-                    <div class="mt-6">
-                        <div class="text-xs font-label uppercase tracking-wider text-on-surface-variant mb-2">${t('launch_log')}</div>
-                        <div id="launch-log" class="log-output h-80"></div>
-                        <div class="mt-2 flex justify-end">
-                            <button id="launch-btn-export-log" class="btn btn-secondary">
-                                <span class="material-symbols-outlined text-[18px]">download</span>
-                                ${t('launch_export_log')}
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Section A: Advanced Settings -->
+                        <!-- Section A: Advanced Settings -->
                     <div class="card mt-6">
                         <div class="card-header cursor-pointer flex items-center justify-between" onclick="window.__launcherToggleCollapsible('advanced-settings')">
                             <span>${t('launch_advanced_settings')}</span>
@@ -91,65 +115,35 @@
                         </div>
                         <div id="section-advanced-settings" style="display:none" class="px-4 pb-4">
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 24px;margin-top:12px">
-                                <div>
-                                    <label class="input-label">${t('launch_cross_attention')} <span class="help-tip" data-tooltip="${t('launch_help_cross_attention')}">?</span></label>
-                                    <select id="ls-cross-attention" class="select ls-control">
-                                        <option value="auto">${t('launch_cross_attn_auto')}</option>
-                                        <option value="pytorch">${t('launch_cross_attn_pytorch')}</option>
-                                        <option value="split">${t('launch_cross_attn_split')}</option>
-                                        <option value="quad">${t('launch_cross_attn_quad')}</option>
-                                        <option value="sage">${t('launch_cross_attn_sage')}</option>
-                                        <option value="flash">${t('launch_cross_attn_flash')}</option>
-                                        <option value="disable_xformers">${t('launch_cross_attn_disable_xformers')}</option>
-                                    </select>
+                                <div class="ti-field">
+                                    <label>${t('launch_reserve_vram')}</label>
+                                    <input type="number" id="ls-reserve-vram" class="ls-control" min="0" step="0.1" placeholder="e.g. 1.0">
                                 </div>
-                                <div>
-                                    <label class="input-label">${t('launch_vram_mode')} <span class="help-tip" data-tooltip="${t('launch_help_vram_mode')}">?</span></label>
-                                    <select id="ls-vram-mode" class="select ls-control">
-                                        <option value="gpu_only">${t('launch_vram_gpu_only')}</option>
-                                        <option value="high">${t('launch_vram_high')}</option>
-                                        <option value="normal">${t('launch_vram_normal')}</option>
-                                        <option value="low">${t('launch_vram_low')}</option>
-                                        <option value="no">${t('launch_vram_no')}</option>
-                                        <option value="cpu">${t('launch_vram_cpu')}</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="input-label">${t('launch_reserve_vram')}</label>
-                                    <input type="number" id="ls-reserve-vram" class="input ls-control" min="0" step="0.1" placeholder="e.g. 1.0">
-                                </div>
-                                <div>
-                                    <label class="input-label">${t('launch_async_offload')} <span class="help-tip" data-tooltip="${t('launch_help_async_offload')}">?</span></label>
-                                    <select id="ls-async-offload" class="select ls-control">
+                                <div class="ti-field">
+                                    <label>${t('launch_async_offload')} <span class="help-tip" data-tooltip="${t('launch_help_async_offload')}">?</span></label>
+                                    <select id="ls-async-offload" class="ls-control">
                                         <option value="auto">${t('launch_async_auto')}</option>
                                         <option value="enable">${t('launch_async_enable')}</option>
                                         <option value="disable">${t('launch_async_disable')}</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="input-label">${t('launch_smart_memory')}</label>
-                                    <label style="display:flex;align-items:center;gap:8px;margin-top:4px;cursor:pointer">
-                                        <input type="checkbox" id="ls-smart-memory" class="ls-control" style="width:18px;height:18px;accent-color:rgb(var(--color-primary))">
-                                        <span style="font-size:13px;color:#ccc">${t('launch_smart_memory')}</span>
+                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-family:var(--font-mono);font-size:11px;text-transform:uppercase;color:var(--text-2);letter-spacing:0.05em">
+                                        <input type="checkbox" id="ls-smart-memory" class="ls-control">
+                                        <span>${t('launch_smart_memory')}</span>
                                     </label>
                                 </div>
                                 <div>
-                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-                                        <input type="checkbox" id="ls-listen-enable" class="ls-control" style="width:18px;height:18px;accent-color:rgb(var(--color-primary))">
-                                        <span style="font-size:13px;color:#ccc">${t('launch_listen_enable')}</span>
+                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-family:var(--font-mono);font-size:11px;text-transform:uppercase;color:var(--text-2);letter-spacing:0.05em">
+                                        <input type="checkbox" id="ls-listen-enable" class="ls-control">
+                                        <span>${t('launch_listen_enable')}</span>
                                     </label>
-                                    <div class="input-desc" style="font-size:12px;opacity:0.7;margin-top:4px">${t('launch_listen_enable_desc')}</div>
+                                    <div style="font-size:11px;color:var(--text-3);margin-top:4px">${t('launch_listen_enable_desc')}</div>
                                 </div>
                                 <div>
-                                    <label class="input-label">${t('launch_listen_ip')}</label>
-                                    <input type="text" id="ls-listen" class="input ls-control" placeholder="0.0.0.0" disabled>
-                                    <div class="input-error" id="ls-listen-error" style="display:none;color:#e66;font-size:12px;margin-top:4px"></div>
-                                </div>
-                                <div>
-                                    <label class="input-label">${t('launch_auto_open_browser')}</label>
-                                    <label style="display:flex;align-items:center;gap:8px;margin-top:4px;cursor:pointer">
-                                        <input type="checkbox" id="ls-auto-launch" class="ls-control" style="width:18px;height:18px;accent-color:rgb(var(--color-primary))">
-                                        <span style="font-size:13px;color:#ccc">${t('launch_auto_open_browser')}</span>
+                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-family:var(--font-mono);font-size:11px;text-transform:uppercase;color:var(--text-2);letter-spacing:0.05em">
+                                        <input type="checkbox" id="ls-auto-launch" class="ls-control">
+                                        <span>${t('launch_auto_open_browser')}</span>
                                     </label>
                                 </div>
                             </div>
@@ -247,12 +241,50 @@
 
                     <style>
                         .ls-chip {
-                            display:inline-block;padding:4px 10px;font-size:11px;font-family:monospace;
-                            background:rgb(var(--color-primary) / 0.1);color:rgb(var(--color-primary));border:1px solid rgb(var(--color-primary) / 0.25);
+                            display:inline-block;padding:4px 10px;font-size:11px;font-family:var(--font-mono);
+                            background:var(--accent-glow);color:var(--accent);border:1px solid var(--accent-dim);
                             border-radius:12px;cursor:pointer;transition:background 0.2s;user-select:none;
                         }
-                        .ls-chip:hover { background:rgb(var(--color-primary) / 0.25); }
+                        .ls-chip:hover { background:oklch(0.82 0.17 128 / 0.25); }
                     </style>
+                    </div><!-- /LEFT column -->
+
+                    <!-- ═══ RIGHT: Launch state + Logs ═══ -->
+                    <div style="display:flex;flex-direction:column;gap:12px">
+                        <div class="ti-card">
+                            <div class="ti-card-body" style="padding:18px;display:flex;flex-direction:column;gap:12px">
+                                <div class="ti-launch-state" id="launch-state-pill">
+                                    <span class="led"></span>
+                                    <span id="launch-status">${t('launch_status_stopped')}</span>
+                                    <span class="port" id="launch-state-port" style="display:none"></span>
+                                </div>
+                                <button id="launch-btn-start" class="ti-launch-btn go">
+                                    <span class="material-symbols-outlined" style="font-size:20px">play_arrow</span>
+                                    <span>${t('launch_start')}</span>
+                                </button>
+                                <button id="launch-btn-stop" class="ti-launch-btn stop" style="display:none">
+                                    <span class="material-symbols-outlined" style="font-size:16px">stop</span>
+                                    <span>${t('launch_stop')}</span>
+                                </button>
+                                <div class="ti-launch-url" id="launch-url-row" style="display:none">
+                                    <span class="label">URL</span>
+                                    <span class="val" id="launch-url-val">—</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="ti-log-panel">
+                            <div class="ti-log-head">
+                                <span>comfyui.log</span>
+                                <span style="color:var(--text-4);margin-left:6px">·</span>
+                                <span id="launch-log-live" style="color:var(--text-3);font-size:10px">idle</span>
+                                <button id="launch-btn-export-log" class="btn btn-ghost btn-sm" style="margin-left:auto">
+                                    <span class="material-symbols-outlined" style="font-size:13px">download</span>
+                                </button>
+                            </div>
+                            <div id="launch-log" class="ti-log-body" style="max-height:340px"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Tab: Running List -->
@@ -388,12 +420,13 @@
 
     function switchTab(tabName) {
         activeTab = tabName;
-        // Update tab buttons
-        document.querySelectorAll('#launcher-tabs .tab-item').forEach(function(tab) {
+        // Update tab buttons — support both legacy .tab-item and industrial .ti-launcher-tab
+        document.querySelectorAll('#launcher-tabs .tab-item, #launcher-tabs .ti-launcher-tab').forEach(function(tab) {
             tab.classList.toggle('active', tab.dataset.tab === tabName);
         });
-        // Show/hide tab content
-        document.getElementById('tab-launcher').style.display = tabName === 'launcher' ? 'block' : 'none';
+        // Show/hide tab content. tab-launcher uses a 2-col grid in the industrial
+        // redesign, so pick the right display mode.
+        document.getElementById('tab-launcher').style.display = tabName === 'launcher' ? 'grid' : 'none';
         document.getElementById('tab-running').style.display = tabName === 'running' ? 'block' : 'none';
 
         // Refresh running list when switching to it
@@ -692,26 +725,55 @@
         const statusEl = document.getElementById('launch-status');
         const startBtn = document.getElementById('launch-btn-start');
         const stopBtn = document.getElementById('launch-btn-stop');
+        const statePill = document.getElementById('launch-state-pill');
+        const statePort = document.getElementById('launch-state-port');
+        const urlRow = document.getElementById('launch-url-row');
+        const urlVal = document.getElementById('launch-url-val');
+        const liveTag = document.getElementById('launch-log-live');
         if (!statusEl) return;
 
+        // Update state pill class — reuses design's .ti-launch-state with LED
+        if (statePill) {
+            statePill.classList.remove('stopped', 'starting', 'running');
+            statePill.classList.add(state === 'running' ? 'running' : state === 'starting' ? 'starting' : 'stopped');
+        }
+
         if (state === 'running') {
-            statusEl.className = 'badge badge-success';
-            statusEl.textContent = t('launch_status_running', pid, port);
-            if (startBtn) startBtn.disabled = true;
-            if (stopBtn) stopBtn.disabled = false;
+            statusEl.textContent = t('launch_state_running') || '運行中';
+            if (statePort) { statePort.textContent = ':' + (port || ''); statePort.style.display = ''; }
+            if (startBtn) { startBtn.style.display = 'none'; startBtn.disabled = true; }
+            if (stopBtn)  { stopBtn.style.display = ''; stopBtn.disabled = false; }
+            if (urlRow)   { urlRow.style.display = ''; }
+            if (urlVal)   { urlVal.textContent = '127.0.0.1:' + (port || ''); }
+            if (liveTag)  { liveTag.textContent = '● live'; liveTag.style.color = 'var(--accent)'; }
         } else if (state === 'starting') {
-            // Reservation window between Popen and socket bind. Keep the
-            // start button disabled so the user can't double-launch and
-            // trigger the port-reuse race we just fixed.
-            statusEl.className = 'badge badge-warning';
-            statusEl.textContent = t('launch_status_starting', pid || '-');
-            if (startBtn) startBtn.disabled = true;
-            if (stopBtn) stopBtn.disabled = false;
+            statusEl.textContent = t('launch_state_starting') || '啟動中';
+            if (statePort) statePort.style.display = 'none';
+            // Swap to a "starting" look: dim-sweep animation via .starting class
+            if (startBtn) {
+                startBtn.style.display = '';
+                startBtn.disabled = true;
+                startBtn.classList.remove('go');
+                startBtn.classList.add('starting');
+                startBtn.innerHTML = '<span>' + (t('home_launch_starting') || '啟動中...') + '</span>';
+            }
+            if (stopBtn) stopBtn.style.display = 'none';
+            if (urlRow)  urlRow.style.display = 'none';
+            if (liveTag) { liveTag.textContent = '● starting'; liveTag.style.color = 'var(--warn)'; }
         } else {
-            statusEl.className = 'badge badge-primary';
-            statusEl.textContent = t('launch_status_stopped');
-            if (startBtn) startBtn.disabled = false;
-            if (stopBtn) stopBtn.disabled = true;
+            // stopped
+            statusEl.textContent = t('launch_state_stopped') || '已停止';
+            if (statePort) statePort.style.display = 'none';
+            if (startBtn) {
+                startBtn.style.display = '';
+                startBtn.disabled = false;
+                startBtn.classList.remove('starting');
+                startBtn.classList.add('go');
+                startBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:20px">play_arrow</span><span>' + (t('launch_start') || '啟動') + '</span>';
+            }
+            if (stopBtn) stopBtn.style.display = 'none';
+            if (urlRow)  urlRow.style.display = 'none';
+            if (liveTag) { liveTag.textContent = 'idle'; liveTag.style.color = 'var(--text-3)'; }
         }
     }
 

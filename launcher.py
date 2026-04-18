@@ -40,7 +40,9 @@ def main():
         window = QMainWindow()
         window.setWindowTitle("塔克ComfyUI啟動器")
         window.setWindowIcon(app_icon)
-        window.setMinimumSize(1200, 800)
+        # Fixed window size per design spec — disables user resizing so the
+        # embedded HTML SPA can rely on a known viewport (no layout jumps).
+        window.setFixedSize(1500, 930)
 
         # Web view with JS console logging
         view = QWebEngineView()

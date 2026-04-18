@@ -606,10 +606,166 @@ const App = (function() {
         });
     }
 
+    // ── Command Palette (Tack Industrial) ──
+
+    var _cmdActiveIdx = 0;
+    var _cmdFiltered = [];
+
+    function _cmdItems() {
+        var home = window.HomePageAPI;
+        var activeEnvName = (home && home.getActiveEnv && home.getActiveEnv()) ? home.getActiveEnv().name : null;
+        var running = !!(home && home.getRunningEnv && home.getRunningEnv());
+        var items = [];
+
+        if (activeEnvName) {
+            if (!running) {
+                items.push({ group: t('cmd_group_actions'), icon: 'play_arrow', label: t('cmd_action_start'), shortcut: 'Ctrl ⏎', fn: function() { if (home) home.launch(); } });
+            } else {
+                items.push({ group: t('cmd_group_actions'), icon: 'stop', label: t('cmd_action_stop'), shortcut: 'Ctrl .', fn: function() { if (home) home.stop(); } });
+                items.push({ group: t('cmd_group_actions'), icon: 'open_in_new', label: t('cmd_action_open_browser'), fn: function() { if (home) home.openBrowser(); } });
+            }
+            items.push({ group: t('cmd_group_actions'), icon: 'image', label: t('cmd_action_open_output'), fn: function() { if (home) home.openFolder('output'); } });
+            items.push({ group: t('cmd_group_actions'), icon: 'deployed_code', label: t('cmd_action_open_models'), fn: function() { if (home) home.openFolder('models'); } });
+        }
+
+        items.push({ group: t('cmd_group_nav'), icon: 'home', label: t('cmd_nav_home'), fn: function() { navigate('home'); } });
+        items.push({ group: t('cmd_group_nav'), icon: 'rocket_launch', label: t('cmd_nav_launcher'), fn: function() { navigate('launcher'); } });
+        items.push({ group: t('cmd_group_nav'), icon: 'dns', label: t('cmd_nav_environments'), fn: function() { navigate('environments'); } });
+        items.push({ group: t('cmd_group_nav'), icon: 'extension', label: t('cmd_nav_plugins'), fn: function() { navigate('plugins'); } });
+        items.push({ group: t('cmd_group_nav'), icon: 'history', label: t('cmd_nav_versions'), fn: function() { navigate('versions'); } });
+        items.push({ group: t('cmd_group_nav'), icon: 'inventory_2', label: t('cmd_nav_snapshots'), fn: function() { navigate('snapshots'); } });
+
+        items.push({ group: t('cmd_group_ops'), icon: 'add', label: t('cmd_op_new_env'), fn: function() { navigate('environments'); } });
+        items.push({ group: t('cmd_group_ops'), icon: 'add_a_photo', label: t('cmd_op_new_snapshot'), fn: function() { navigate('snapshots'); } });
+        items.push({ group: t('cmd_group_ops'), icon: 'refresh', label: t('cmd_op_check_update'), fn: function() { _checkUpdate(); _showUpdateModal(); } });
+
+        // Include every env by name — quick env switch
+        if (home && home.getEnvs) {
+            home.getEnvs().forEach(function(e) {
+                items.push({ group: 'Envs', icon: e.status === 'running' ? 'radio_button_checked' : 'radio_button_unchecked', label: e.name, fn: function() {
+                    if (home._switch) { home._switch(e.name); return; }
+                    // fallback: navigate to environments
+                    navigate('environments');
+                }});
+            });
+        }
+        return items;
+    }
+
+    function _renderCmdList(query) {
+        var items = _cmdItems();
+        var q = (query || '').trim().toLowerCase();
+        _cmdFiltered = q ? items.filter(function(i) { return i.label.toLowerCase().indexOf(q) !== -1; }) : items;
+        if (_cmdActiveIdx >= _cmdFiltered.length) _cmdActiveIdx = 0;
+
+        var list = document.getElementById('ti-cmd-list');
+        if (!list) return;
+        if (_cmdFiltered.length === 0) {
+            list.innerHTML = '<div class="ti-cmd-empty">' + _h(t('cmd_empty')) + '</div>';
+            return;
+        }
+
+        var grouped = [];
+        var groupMap = {};
+        _cmdFiltered.forEach(function(it, i) {
+            if (!groupMap[it.group]) { groupMap[it.group] = { name: it.group, items: [] }; grouped.push(groupMap[it.group]); }
+            groupMap[it.group].items.push({ it: it, idx: i });
+        });
+
+        var html = '';
+        grouped.forEach(function(g) {
+            html += '<div class="ti-cmd-group-head">' + _h(g.name) + '</div>';
+            g.items.forEach(function(entry) {
+                html += '<div class="ti-cmd-item ' + (entry.idx === _cmdActiveIdx ? 'active' : '') + '" data-cmd-idx="' + entry.idx + '">' +
+                    '<span class="material-symbols-outlined">' + _h(entry.it.icon) + '</span>' +
+                    '<span class="label">' + _h(entry.it.label) + '</span>' +
+                    (entry.it.shortcut ? '<span class="shortcut">' + _h(entry.it.shortcut) + '</span>' : '') +
+                '</div>';
+            });
+        });
+        list.innerHTML = html;
+
+        list.querySelectorAll('.ti-cmd-item').forEach(function(el) {
+            el.addEventListener('mouseenter', function() {
+                _cmdActiveIdx = parseInt(el.getAttribute('data-cmd-idx'), 10) || 0;
+                list.querySelectorAll('.ti-cmd-item').forEach(function(n) { n.classList.remove('active'); });
+                el.classList.add('active');
+            });
+            el.addEventListener('click', function() {
+                var idx = parseInt(el.getAttribute('data-cmd-idx'), 10) || 0;
+                var item = _cmdFiltered[idx];
+                if (item) item.fn();
+                closeCommandPalette();
+            });
+        });
+    }
+
+    function openCommandPalette() {
+        var overlay = document.getElementById('ti-cmd-overlay');
+        if (!overlay) return;
+        overlay.classList.add('open');
+        var input = document.getElementById('ti-cmd-input');
+        if (input) { input.value = ''; setTimeout(function() { input.focus(); }, 30); }
+        _cmdActiveIdx = 0;
+        _renderCmdList('');
+    }
+
+    function closeCommandPalette() {
+        var overlay = document.getElementById('ti-cmd-overlay');
+        if (overlay) overlay.classList.remove('open');
+    }
+
+    function _h(s) {
+        return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function _wireCommandPalette() {
+        var overlay = document.getElementById('ti-cmd-overlay');
+        var input = document.getElementById('ti-cmd-input');
+        var trigger = document.getElementById('ti-cmd-trigger');
+        if (trigger) trigger.addEventListener('click', openCommandPalette);
+        if (overlay) {
+            overlay.addEventListener('click', function(e) { if (e.target === overlay) closeCommandPalette(); });
+        }
+        if (input) {
+            input.addEventListener('input', function() {
+                _cmdActiveIdx = 0;
+                _renderCmdList(input.value);
+            });
+        }
+
+        window.addEventListener('keydown', function(e) {
+            // Ctrl+K (or Cmd+K on mac) opens the palette
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+                e.preventDefault();
+                if (overlay && overlay.classList.contains('open')) closeCommandPalette();
+                else openCommandPalette();
+                return;
+            }
+            if (!overlay || !overlay.classList.contains('open')) return;
+            if (e.key === 'Escape') { e.preventDefault(); closeCommandPalette(); }
+            else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                _cmdActiveIdx = Math.min(_cmdFiltered.length - 1, _cmdActiveIdx + 1);
+                _renderCmdList(input ? input.value : '');
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                _cmdActiveIdx = Math.max(0, _cmdActiveIdx - 1);
+                _renderCmdList(input ? input.value : '');
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                var item = _cmdFiltered[_cmdActiveIdx];
+                if (item) item.fn();
+                closeCommandPalette();
+            }
+        });
+    }
+
     // ── Initialization ──
 
     function init() {
         _setupMaterialIconFallback();
+        _wireCommandPalette();
 
         // Init bridge FIRST, then do everything else
         BridgeAPI.init().then(function() {
@@ -716,5 +872,7 @@ const App = (function() {
         clearBugs: clearBugs,
         clearBugUnread: clearBugUnread,
         applyFallbackIcons: _applyFallbackIcons,
+        openCommandPalette: openCommandPalette,
+        closeCommandPalette: closeCommandPalette,
     };
 })();

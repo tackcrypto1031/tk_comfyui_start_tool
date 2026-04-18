@@ -1,19 +1,28 @@
 {
-  "version": "0.2.11",
+  "version": "0.3.0",
   "min_python": "3.10",
-  "release_notes": "修復:安裝插件時,若遠端預設分支不是 master 會失敗的問題",
+  "release_notes": "全新「塔克 工業風」深色 UI 改版",
   "changes": [
-    "修復安裝自訂節點時硬寫死 master 分支導致 clone 失敗的問題",
-    "安裝插件現在會跟隨遠端預設分支(main/master/其他皆可),不再需要手動指定"
+    "全新「塔克 工業風」深色 UI 改版,參考 Linear/Warp 設計語言重製所有頁面",
+    "啟動器固定 1500×930 視窗尺寸,避免畫面跳動與排版錯位",
+    "修復首頁 banner 無法正確顯示 Python / CUDA / PyTorch / 插件數量的問題",
+    "新增共用模型資料夾支援:llm、ultralytics、yolo、onnx、sams",
+    "設置頁配色切換功能暫時下架,顯示「功能開發中」,後續版本重新開放"
   ],
   "changes_i18n": {
     "en": [
-      "Fix custom node install failing when the remote's default branch isn't 'master' (e.g. repos using 'main')",
-      "Plugin install now follows the remote's default branch automatically — no manual branch override needed"
+      "Brand-new 'Tack Industrial' dark UI redesign — all pages reworked in a Linear/Warp-inspired style",
+      "Launcher window is now fixed at 1500x930 to prevent layout jumps and sizing glitches",
+      "Fixed the home banner so Python / CUDA / PyTorch / plugin count display correctly",
+      "Added shared-model subfolders: llm, ultralytics, yolo, onnx, sams",
+      "Color-scheme switcher on the Settings page is temporarily disabled ('under development') and will return in a later release"
     ],
     "zh-TW": [
-      "修復安裝自訂節點時硬寫死 master 分支導致 clone 失敗的問題",
-      "安裝插件現在會跟隨遠端預設分支(main/master/其他皆可),不再需要手動指定"
+      "全新「塔克 工業風」深色 UI 改版,參考 Linear/Warp 設計語言重製所有頁面",
+      "啟動器固定 1500×930 視窗尺寸,避免畫面跳動與排版錯位",
+      "修復首頁 banner 無法正確顯示 Python / CUDA / PyTorch / 插件數量的問題",
+      "新增共用模型資料夾支援:llm、ultralytics、yolo、onnx、sams",
+      "設置頁配色切換功能暫時下架,顯示「功能開發中」,後續版本重新開放"
     ]
   }
 }

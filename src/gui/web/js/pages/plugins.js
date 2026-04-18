@@ -1,248 +1,243 @@
 /**
- * plugins.js — Plugin management page (installed list + analyze + install)
+ * plugins.js — Plugin management (Tack Industrial redesign)
+ * Features kept: list + enable/disable/delete/update + update-all + analyze + install
  */
 (function() {
 
-    var lastRiskLevel = null;
+    var _plugins = [];
+    var _filter = '';
+    var _lastRiskLevel = null;
+    var _installOpen = false;
 
     function render(container) {
-        container.innerHTML = `
-            <div class="fade-in space-y-6">
+        container.innerHTML =
+            '<div class="ti-content fade-in">' +
+                '<div class="ti-page-head">' +
+                    '<div>' +
+                        '<h1>' + h(t('sidebar_plugins')) + '</h1>' +
+                        '<p class="ti-page-sub" id="plug-sub">—</p>' +
+                    '</div>' +
+                    '<div class="ti-page-actions">' +
+                        '<div class="ti-env-select">' +
+                            '<label>' + h(t('plugin_environment')) + '</label>' +
+                            '<select id="plug-env"></select>' +
+                        '</div>' +
+                        '<div class="ti-search-box">' +
+                            '<span class="material-symbols-outlined">search</span>' +
+                            '<input id="plug-search" type="text" placeholder="' + h(t('search') || '搜尋插件...') + '">' +
+                        '</div>' +
+                        '<button id="plug-btn-update-all" class="btn btn-secondary" title="' + h(t('plugin_update_all')) + '">' +
+                            '<span class="material-symbols-outlined" style="font-size:14px">update</span>' +
+                            '<span>' + h(t('plugin_update_all')) + '</span>' +
+                        '</button>' +
+                        '<button id="plug-btn-refresh" class="btn btn-secondary" title="' + h(t('env_refresh')) + '">' +
+                            '<span class="material-symbols-outlined" style="font-size:14px">refresh</span>' +
+                        '</button>' +
+                        '<button id="plug-btn-new" class="btn btn-primary">' +
+                            '<span class="material-symbols-outlined" style="font-size:14px">add</span>' +
+                            '<span>' + h(t('plugin_install')) + '</span>' +
+                        '</button>' +
+                    '</div>' +
+                '</div>' +
 
-                <!-- Analyze + Install -->
-                <div class="card">
-                    <div class="card-header">${t('plugin_conflict_report')}</div>
-                    <div class="flex items-end gap-4 mt-4">
-                        <div>
-                            <label class="input-label">${t('plugin_environment')}</label>
-                            <select id="plug-env" class="select w-64"></select>
-                        </div>
-                        <div class="flex-1">
-                            <label class="input-label">Plugin Path</label>
-                            <input type="text" id="plug-path" class="input" placeholder="${t('plugin_url_placeholder')}">
-                        </div>
-                        <button id="plug-btn-analyze" class="btn btn-secondary">
-                            <span class="material-symbols-outlined text-[16px]">search</span>
-                            ${t('plugin_analyze')}
-                        </button>
-                        <button id="plug-btn-install" class="btn btn-primary" disabled>
-                            <span class="material-symbols-outlined text-[16px]">download</span>
-                            ${t('plugin_install')}
-                        </button>
-                    </div>
-                </div>
+                // Install / analyze card — hidden by default, toggled by the "Install" button
+                '<div id="plug-install-card" class="ti-card" style="display:none;margin-bottom:20px">' +
+                    '<div class="ti-card-head">' +
+                        '<span class="material-symbols-outlined">download</span>' +
+                        '<span class="ti-card-title">' + h(t('plugin_conflict_report')) + '</span>' +
+                        '<button id="plug-btn-install-close" class="btn btn-ghost btn-sm" style="margin-left:auto">' +
+                            '<span class="material-symbols-outlined" style="font-size:14px">close</span>' +
+                        '</button>' +
+                    '</div>' +
+                    '<div class="ti-card-body">' +
+                        '<div class="ti-field">' +
+                            '<label>Plugin URL / path</label>' +
+                            '<input id="plug-path" type="text" placeholder="' + h(t('plugin_url_placeholder')) + '" style="width:100%">' +
+                        '</div>' +
+                        '<div style="display:flex;gap:8px">' +
+                            '<button id="plug-btn-analyze" class="btn btn-secondary">' +
+                                '<span class="material-symbols-outlined" style="font-size:14px">search</span>' +
+                                '<span>' + h(t('plugin_analyze')) + '</span>' +
+                            '</button>' +
+                            '<button id="plug-btn-install" class="btn btn-primary" disabled>' +
+                                '<span class="material-symbols-outlined" style="font-size:14px">download</span>' +
+                                '<span>' + h(t('plugin_install')) + '</span>' +
+                            '</button>' +
+                        '</div>' +
+                        '<div id="plug-results" style="display:none;margin-top:14px">' +
+                            '<div id="plug-risk-banner" style="padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-2);display:flex;align-items:center;gap:10px;margin-bottom:10px"></div>' +
+                            '<div id="plug-summary" style="font-size:13px;color:var(--text-2);margin-bottom:10px"></div>' +
+                            '<div id="plug-recommendations" style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px"></div>' +
+                            '<div id="plug-conflicts-wrap"></div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
 
-                <!-- Results -->
-                <div id="plug-results" class="hidden space-y-4">
-                    <!-- Risk level banner -->
-                    <div id="plug-risk-banner" class="card border-l-4 p-4"></div>
+                // Installed plugin list
+                '<div id="plug-list-wrap"></div>' +
+                '<div id="plug-restart-hint" style="display:none;margin-top:10px;font-size:12px;color:var(--warn);font-family:var(--font-mono)"></div>' +
+                '<div id="plug-status" style="margin-top:10px;font-family:var(--font-mono);font-size:11px;color:var(--text-4);text-transform:uppercase;letter-spacing:0.1em"></div>' +
+            '</div>';
 
-                    <!-- Summary -->
-                    <div id="plug-summary" class="text-on-surface-variant text-sm"></div>
+        document.getElementById('plug-btn-refresh').addEventListener('click', loadPlugins);
+        document.getElementById('plug-btn-update-all').addEventListener('click', doUpdateAll);
+        document.getElementById('plug-env').addEventListener('change', loadPlugins);
 
-                    <!-- Recommendations -->
-                    <div id="plug-recommendations" class="space-y-2"></div>
-
-                    <!-- Conflicts table -->
-                    <div class="border border-surface-container">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>${t('plugin_col_package')}</th>
-                                    <th>${t('plugin_col_current')}</th>
-                                    <th>${t('plugin_col_new')}</th>
-                                    <th>${t('plugin_col_type')}</th>
-                                    <th>${t('plugin_col_risk')}</th>
-                                </tr>
-                            </thead>
-                            <tbody id="plug-conflicts-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Status -->
-                <div id="plug-status" class="text-xs font-label uppercase tracking-wider text-on-surface-variant"></div>
-
-                <!-- Installed Plugins -->
-                <div class="card">
-                    <div class="card-header flex items-center justify-between">
-                        <span>${t('plugin_installed_title')}</span>
-                        <div class="flex items-center gap-2">
-                            <button id="plug-btn-update-all" class="btn btn-primary btn-sm inline-flex items-center gap-1">
-                                <span class="material-symbols-outlined text-[16px]">update</span>
-                                ${t('plugin_update_all')}
-                            </button>
-                            <button id="plug-btn-refresh" class="btn btn-secondary btn-sm">
-                                <span class="material-symbols-outlined text-[16px]">refresh</span>
-                                ${t('env_refresh')}
-                            </button>
-                        </div>
-                    </div>
-                    <div class="mt-4 border border-surface-container">
-                        <table class="data-table" style="table-layout:fixed;width:100%">
-                            <colgroup>
-                                <col>
-                                <col style="width:100px">
-                                <col style="width:320px">
-                            </colgroup>
-                            <thead>
-                                <tr>
-                                    <th>${t('plugin_col_name')}</th>
-                                    <th style="text-align:center">${t('plugin_col_status')}</th>
-                                    <th style="text-align:center">${t('plugin_col_actions')}</th>
-                                </tr>
-                            </thead>
-                            <tbody id="plug-installed-body">
-                                <tr><td colspan="3" class="text-center text-on-surface-variant py-4">${t('loading')}</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div id="plug-restart-hint" class="hidden mt-2 text-xs text-yellow-400"></div>
-                </div>
-            </div>
-        `;
-
+        document.getElementById('plug-btn-new').addEventListener('click', toggleInstallCard);
+        document.getElementById('plug-btn-install-close').addEventListener('click', function() { setInstallCardOpen(false); });
         document.getElementById('plug-btn-analyze').addEventListener('click', doAnalyze);
         document.getElementById('plug-btn-install').addEventListener('click', doInstall);
-        document.getElementById('plug-btn-refresh').addEventListener('click', function() {
-            loadPlugins();
-        });
-        document.getElementById('plug-btn-update-all').addEventListener('click', doUpdateAll);
         document.getElementById('plug-path').addEventListener('input', function() {
             document.getElementById('plug-btn-install').disabled = true;
-            lastRiskLevel = null;
+            _lastRiskLevel = null;
         });
-        document.getElementById('plug-env').addEventListener('change', function() {
-            loadPlugins();
+
+        var search = document.getElementById('plug-search');
+        search.addEventListener('input', function() {
+            _filter = search.value.trim().toLowerCase();
+            renderList();
         });
 
         loadEnvs();
     }
 
+    function toggleInstallCard() { setInstallCardOpen(!_installOpen); }
+    function setInstallCardOpen(open) {
+        _installOpen = !!open;
+        document.getElementById('plug-install-card').style.display = _installOpen ? '' : 'none';
+        if (_installOpen) {
+            setTimeout(function() {
+                var i = document.getElementById('plug-path');
+                if (i) i.focus();
+            }, 50);
+        }
+    }
+
     function loadEnvs() {
         BridgeAPI.listEnvironments().then(function(envs) {
             var select = document.getElementById('plug-env');
-            select.innerHTML = '';
-            envs.forEach(function(env) {
-                var opt = document.createElement('option');
-                opt.value = env.name;
-                opt.textContent = env.name;
-                select.appendChild(opt);
-            });
+            select.innerHTML = (envs || []).map(function(e) {
+                return '<option value="' + h(e.name) + '">' + h(e.name) + '</option>';
+            }).join('');
             loadPlugins();
         }).catch(function(e) { App.showToast(e.toString(), 'error'); });
     }
 
     function loadPlugins() {
         var envName = document.getElementById('plug-env').value;
-        if (!envName) return;
-        var tbody = document.getElementById('plug-installed-body');
-        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-on-surface-variant py-4">' + t('loading') + '</td></tr>';
-
+        if (!envName) { renderList(); return; }
+        document.getElementById('plug-status').textContent = t('loading');
         BridgeAPI.listPlugins(envName).then(function(plugins) {
-            renderInstalledPlugins(plugins, envName);
+            _plugins = plugins || [];
+            document.getElementById('plug-status').textContent = '';
+            renderList();
         }).catch(function(e) {
-            tbody.innerHTML = '<tr><td colspan="3" class="text-center text-on-surface-variant py-4">' + escapeHtml(e.toString()) + '</td></tr>';
+            document.getElementById('plug-status').textContent = t('error') + ': ' + e;
         });
     }
 
-    function renderInstalledPlugins(plugins, envName) {
-        var tbody = document.getElementById('plug-installed-body');
-        tbody.innerHTML = '';
+    function renderList() {
+        var wrap = document.getElementById('plug-list-wrap');
+        var envName = document.getElementById('plug-env').value;
+        var filtered = _plugins.filter(function(p) {
+            if (!_filter) return true;
+            return (p.name || '').toLowerCase().indexOf(_filter) !== -1
+                || (p.author || '').toLowerCase().indexOf(_filter) !== -1;
+        });
 
-        if (!plugins || plugins.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" class="text-center text-on-surface-variant py-4">' + t('plugin_no_plugins') + '</td></tr>';
+        var sub = document.getElementById('plug-sub');
+        var total = _plugins.length;
+        var enabled = _plugins.filter(function(p) { return p.status === 'enabled'; }).length;
+        sub.innerHTML = '<span class="accent">' + h(envName || '—') + '</span> · ' + enabled + '/' + total + ' 啟用中';
+
+        if (!filtered.length) {
+            wrap.innerHTML =
+                '<div class="ti-list-empty">' +
+                    '<span class="material-symbols-outlined">extension</span>' +
+                    '<div>' + h(t('plugin_no_plugins')) + '</div>' +
+                '</div>';
             return;
         }
 
-        plugins.forEach(function(plugin) {
-            var nodeName = plugin.name || plugin.node_name || '';
-            var status = plugin.status || 'untracked';
+        var rowsHtml = '<div class="ti-plugin-list">' +
+            '<div class="ti-plugin-list-head">' +
+                '<span></span>' +
+                '<span>' + h(t('plugin_col_name')) + '</span>' +
+                '<span>' + h(t('plugin_col_status')) + '</span>' +
+                '<span></span>' +
+                '<span style="text-align:right">' + h(t('plugin_col_actions')) + '</span>' +
+            '</div>';
 
-            var badgeHtml;
-            if (status === 'enabled') {
-                badgeHtml = '<span class="badge badge-success">' + t('plugin_status_enabled') + '</span>';
-            } else if (status === 'disabled') {
-                badgeHtml = '<span class="badge badge-warning">' + t('plugin_status_disabled') + '</span>';
-            } else {
-                badgeHtml = '<span class="badge badge-primary">' + t('plugin_status_untracked') + '</span>';
-            }
-
-            var toggleLabel, toggleIcon;
-            if (status === 'disabled') {
-                toggleLabel = t('plugin_enable');
-                toggleIcon = 'check_circle';
-            } else {
-                toggleLabel = t('plugin_disable');
-                toggleIcon = 'block';
-            }
-
-            var canUpdate = status === 'enabled' && plugin.repo_url && plugin.has_update === true;
-            var updateBtnHtml = canUpdate
-                ? '<button class="btn btn-sm plug-update-btn" data-name="' + escapeHtml(nodeName) + '" title="' + t('plugin_update') + '" style="width:32px;padding:4px 6px;background:transparent;border:1px solid #4ade80;color:#4ade80"><span class="material-symbols-outlined text-[16px]">arrow_upward</span></button>'
-                : '<span style="display:inline-block;width:32px"></span>';
-
-            var tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(nodeName)}">${escapeHtml(nodeName)}</td>
-                <td style="text-align:center">${badgeHtml}</td>
-                <td class="whitespace-nowrap">
-                    <div class="flex items-center justify-center gap-2">
-                        ${updateBtnHtml}
-                        <button class="btn btn-secondary btn-sm plug-toggle-btn inline-flex items-center gap-1" data-name="${escapeHtml(nodeName)}" data-status="${escapeHtml(status)}">
-                            <span class="material-symbols-outlined text-[16px]">${toggleIcon}</span>
-                            ${toggleLabel}
-                        </button>
-                        <button class="btn btn-danger btn-sm plug-delete-btn inline-flex items-center gap-1" data-name="${escapeHtml(nodeName)}">
-                            <span class="material-symbols-outlined text-[16px]">delete</span>
-                            ${t('plugin_delete')}
-                        </button>
-                    </div>
-                </td>
-            `;
-            tbody.appendChild(tr);
+        filtered.forEach(function(p) {
+            var name = p.name || p.node_name || '';
+            var status = p.status || 'untracked';
+            var isEnabled = status === 'enabled';
+            var canUpdate = isEnabled && p.repo_url && p.has_update === true;
+            var statusChip = isEnabled
+                ? '<span class="chip accent">● 啟用</span>'
+                : (status === 'disabled' ? '<span class="chip" style="color:var(--warn);border-color:var(--warn);background:transparent">○ 停用</span>'
+                                         : '<span class="chip">· ' + h(t('plugin_status_untracked')) + '</span>');
+            var updateChip = canUpdate ? '<span class="chip accent">● 更新</span>' : '';
+            rowsHtml +=
+                '<div class="ti-plugin-row" data-name="' + h(name) + '">' +
+                    '<div class="ti-plugin-check ' + (isEnabled ? 'on' : '') + '" data-toggle="' + h(name) + '" data-status="' + h(status) + '">' +
+                        (isEnabled ? '<span class="material-symbols-outlined">check</span>' : '') +
+                    '</div>' +
+                    '<div>' +
+                        '<div class="ti-plugin-name" title="' + h(name) + '">' + h(name) + '</div>' +
+                        (p.author ? '<div class="ti-plugin-author">by ' + h(p.author) + '</div>' : '') +
+                    '</div>' +
+                    '<div class="ti-plugin-version">' + statusChip + '</div>' +
+                    '<div>' + updateChip + '</div>' +
+                    '<div class="ti-plugin-actions">' +
+                        (canUpdate ?
+                            '<button class="btn btn-secondary btn-sm" data-update="' + h(name) + '" title="' + h(t('plugin_update')) + '">' +
+                                '<span class="material-symbols-outlined" style="font-size:13px">arrow_upward</span>' +
+                            '</button>' : '') +
+                        (p.repo_url ?
+                            '<button class="btn btn-ghost btn-sm" data-open="' + h(p.repo_url) + '" title="Open repo">' +
+                                '<span class="material-symbols-outlined" style="font-size:13px">open_in_new</span>' +
+                            '</button>' : '') +
+                        '<button class="btn btn-danger btn-sm" data-delete="' + h(name) + '" title="' + h(t('plugin_delete')) + '">' +
+                            '<span class="material-symbols-outlined" style="font-size:13px">delete</span>' +
+                        '</button>' +
+                    '</div>' +
+                '</div>';
         });
+        rowsHtml += '</div>';
+        wrap.innerHTML = rowsHtml;
 
-        App.applyFallbackIcons();
-
-        tbody.querySelectorAll('.plug-toggle-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var name = btn.getAttribute('data-name');
-                var status = btn.getAttribute('data-status');
-                doTogglePlugin(envName, name, status);
+        // Bind
+        wrap.querySelectorAll('[data-toggle]').forEach(function(el) {
+            el.addEventListener('click', function() {
+                doTogglePlugin(envName, el.getAttribute('data-toggle'), el.getAttribute('data-status'));
             });
         });
-
-        tbody.querySelectorAll('.plug-delete-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var name = btn.getAttribute('data-name');
-                doDeletePlugin(envName, name);
-            });
+        wrap.querySelectorAll('[data-delete]').forEach(function(el) {
+            el.addEventListener('click', function() { doDeletePlugin(envName, el.getAttribute('data-delete')); });
         });
-
-        tbody.querySelectorAll('.plug-update-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var name = btn.getAttribute('data-name');
-                doUpdatePlugin(envName, name);
+        wrap.querySelectorAll('[data-update]').forEach(function(el) {
+            el.addEventListener('click', function() { doUpdatePlugin(envName, el.getAttribute('data-update')); });
+        });
+        wrap.querySelectorAll('[data-open]').forEach(function(el) {
+            el.addEventListener('click', function() {
+                if (BridgeAPI.openUrl) BridgeAPI.openUrl(el.getAttribute('data-open'));
             });
         });
     }
+
+    // ── Enable / disable / delete / update (same logic as before) ────────
 
     function doTogglePlugin(envName, nodeName, currentStatus) {
         var isManager = nodeName === 'ComfyUI-Manager';
         var isDisabling = currentStatus !== 'disabled';
-
         if (isManager) {
-            var confirmMsg = isDisabling
-                ? t('plugin_confirm_manager_disable')
-                : t('plugin_confirm_manager_disable');
+            var confirmMsg = isDisabling ? t('plugin_confirm_manager_disable') : t('plugin_confirm_manager_disable');
             if (!confirm(confirmMsg)) return;
         }
-
         var action = isDisabling
             ? BridgeAPI.disablePlugin(envName, nodeName)
             : BridgeAPI.enablePlugin(envName, nodeName);
-
         action.then(function() {
             var msg = isDisabling
                 ? t('plugin_disabled_success', nodeName)
@@ -250,41 +245,29 @@
             App.showToast(msg, 'info');
             showRestartHint();
             loadPlugins();
-        }).catch(function(e) {
-            App.showToast(e.toString(), 'error');
-        });
+        }).catch(function(e) { App.showToast(e.toString(), 'error'); });
     }
 
     function doDeletePlugin(envName, nodeName) {
         var isManager = nodeName === 'ComfyUI-Manager';
         var confirmMsg = t('plugin_confirm_delete', nodeName);
-        if (isManager) {
-            confirmMsg += '\n\n' + t('plugin_confirm_manager_delete');
-        }
+        if (isManager) confirmMsg += '\n\n' + t('plugin_confirm_manager_delete');
         if (!confirm(confirmMsg)) return;
-
         BridgeAPI.deletePlugin(envName, nodeName).then(function() {
             App.showToast(t('plugin_deleted_success', nodeName), 'info');
             showRestartHint();
             loadPlugins();
-        }).catch(function(e) {
-            App.showToast(e.toString(), 'error');
-        });
+        }).catch(function(e) { App.showToast(e.toString(), 'error'); });
     }
 
     function doUpdatePlugin(envName, nodeName) {
         var statusEl = document.getElementById('plug-status');
         statusEl.textContent = t('plugin_update') + ': ' + nodeName + '...';
-
         BridgeAPI.updatePlugin(envName, nodeName, function(msg) {
             statusEl.textContent = msg;
         }).then(function(result) {
-            if (result && result.updated) {
-                App.showToast(t('plugin_updated_success', nodeName), 'success');
-                showRestartHint();
-            } else {
-                App.showToast(t('plugin_already_latest', nodeName), 'info');
-            }
+            if (result && result.updated) { App.showToast(t('plugin_updated_success', nodeName), 'success'); showRestartHint(); }
+            else { App.showToast(t('plugin_already_latest', nodeName), 'info'); }
             loadPlugins();
             statusEl.textContent = '';
         }).catch(function(e) {
@@ -296,25 +279,16 @@
     function doUpdateAll() {
         var envName = document.getElementById('plug-env').value;
         if (!envName) return;
-
         var statusEl = document.getElementById('plug-status');
         var btn = document.getElementById('plug-btn-update-all');
         btn.disabled = true;
         statusEl.textContent = t('plugin_update_all') + '...';
-
-        BridgeAPI.updateAllPlugins(envName, function(msg) {
-            statusEl.textContent = msg;
-        }).then(function(result) {
-            if (!result || result.total === 0) {
-                App.showToast(t('plugin_update_all_no_targets'), 'info');
-            } else {
-                App.showToast(
-                    t('plugin_update_all_result', result.updated, result.skipped, result.failed),
-                    result.failed > 0 ? 'warning' : 'success'
-                );
-                if (result.updated > 0) {
-                    showRestartHint();
-                }
+        BridgeAPI.updateAllPlugins(envName, function(msg) { statusEl.textContent = msg; }).then(function(result) {
+            if (!result || result.total === 0) App.showToast(t('plugin_update_all_no_targets'), 'info');
+            else {
+                App.showToast(t('plugin_update_all_result', result.updated, result.skipped, result.failed),
+                    result.failed > 0 ? 'warning' : 'success');
+                if (result.updated > 0) showRestartHint();
             }
             loadPlugins();
             statusEl.textContent = '';
@@ -329,36 +303,27 @@
     function showRestartHint() {
         var hint = document.getElementById('plug-restart-hint');
         hint.textContent = t('plugin_restart_hint');
-        hint.classList.remove('hidden');
+        hint.style.display = '';
     }
 
-    function isGitUrl(url) {
-        return url.startsWith('http') || url.startsWith('git@');
-    }
+    function isGitUrl(url) { return url.startsWith('http') || url.startsWith('git@'); }
 
     function doAnalyze() {
         var envName = document.getElementById('plug-env').value;
         var pluginPath = document.getElementById('plug-path').value.trim();
-        if (!envName || !pluginPath) {
-            App.showToast(t('plugin_select_env_and_path'), 'info');
-            return;
-        }
-
+        if (!envName || !pluginPath) { App.showToast(t('plugin_select_env_and_path'), 'info'); return; }
         var statusEl = document.getElementById('plug-status');
         statusEl.textContent = t('plugin_analyzing');
         document.getElementById('plug-btn-analyze').disabled = true;
         document.getElementById('plug-btn-install').disabled = true;
-        document.getElementById('plug-results').classList.add('hidden');
-        lastRiskLevel = null;
-
+        document.getElementById('plug-results').style.display = 'none';
+        _lastRiskLevel = null;
         BridgeAPI.analyzePlugin(envName, pluginPath).then(function(report) {
             renderReport(report);
             statusEl.textContent = t('plugin_analysis_complete');
             document.getElementById('plug-btn-analyze').disabled = false;
-            lastRiskLevel = report.risk_level;
-            if (isGitUrl(pluginPath)) {
-                document.getElementById('plug-btn-install').disabled = false;
-            }
+            _lastRiskLevel = report.risk_level;
+            if (isGitUrl(pluginPath)) document.getElementById('plug-btn-install').disabled = false;
         }).catch(function(e) {
             statusEl.textContent = t('error') + ': ' + e;
             document.getElementById('plug-btn-analyze').disabled = false;
@@ -371,21 +336,17 @@
         var gitUrl = document.getElementById('plug-path').value.trim();
         var statusEl = document.getElementById('plug-status');
         var installBtn = document.getElementById('plug-btn-install');
-
-        if (lastRiskLevel === 'HIGH' || lastRiskLevel === 'CRITICAL') {
-            if (!confirm(t('plugin_confirm_high_risk', lastRiskLevel))) return;
+        if (_lastRiskLevel === 'HIGH' || _lastRiskLevel === 'CRITICAL') {
+            if (!confirm(t('plugin_confirm_high_risk', _lastRiskLevel))) return;
         }
-
         installBtn.disabled = true;
         statusEl.textContent = t('plugin_cloning');
-
-        BridgeAPI.installPlugin(envName, gitUrl, function(msg) {
-            statusEl.textContent = msg;
-        }).then(function() {
+        BridgeAPI.installPlugin(envName, gitUrl, function(msg) { statusEl.textContent = msg; }).then(function() {
             App.showToast(t('plugin_install_done'), 'success');
             showRestartHint();
             loadPlugins();
             statusEl.textContent = '';
+            setInstallCardOpen(false);
         }).catch(function(e) {
             App.showToast(e.toString(), 'error');
             installBtn.disabled = false;
@@ -393,73 +354,70 @@
     }
 
     function renderReport(report) {
-        document.getElementById('plug-results').classList.remove('hidden');
-
-        // Risk banner
+        document.getElementById('plug-results').style.display = '';
         var banner = document.getElementById('plug-risk-banner');
         var riskColors = {
-            GREEN: { border: 'border-green-500', bg: 'bg-green-500/10', text: 'text-green-400', icon: 'check_circle' },
-            YELLOW: { border: 'border-yellow-500', bg: 'bg-yellow-500/10', text: 'text-yellow-400', icon: 'warning' },
-            HIGH: { border: 'border-orange-500', bg: 'bg-orange-500/10', text: 'text-orange-400', icon: 'error' },
-            CRITICAL: { border: 'border-red-500', bg: 'bg-red-500/10', text: 'text-red-400', icon: 'dangerous' },
+            GREEN:   { bg: 'oklch(0.82 0.17 128 / 0.12)', border: 'var(--accent-dim)', color: 'var(--accent)', icon: 'check_circle' },
+            YELLOW:  { bg: 'oklch(0.82 0.14 75 / 0.12)',  border: 'var(--warn)',       color: 'var(--warn)',   icon: 'warning' },
+            HIGH:    { bg: 'oklch(0.78 0.16 55 / 0.12)',  border: 'var(--warn)',       color: 'var(--warn)',   icon: 'error' },
+            CRITICAL:{ bg: 'oklch(0.70 0.18 25 / 0.12)',  border: 'var(--danger)',     color: 'var(--danger)', icon: 'dangerous' },
         };
         var rc = riskColors[report.risk_level] || riskColors.GREEN;
-        banner.className = 'card ' + rc.border + ' ' + rc.bg + ' border-l-4 p-4 flex items-center gap-3';
-        banner.innerHTML = `
-            <span class="material-symbols-outlined text-2xl ${rc.text}">${rc.icon}</span>
-            <div>
-                <div class="font-label text-sm font-bold uppercase ${rc.text}">${t('plugin_risk_level')}: ${report.risk_level}</div>
-                <div class="text-sm text-on-surface-variant mt-1">${escapeHtml(report.plugin_name || '')}</div>
-            </div>
-        `;
+        banner.style.background = rc.bg;
+        banner.style.borderColor = rc.border;
+        banner.innerHTML =
+            '<span class="material-symbols-outlined" style="font-size:20px;color:' + rc.color + '">' + rc.icon + '</span>' +
+            '<div>' +
+                '<div style="font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:' + rc.color + '">' +
+                    h(t('plugin_risk_level')) + ': ' + h(report.risk_level) +
+                '</div>' +
+                '<div style="font-size:13px;color:var(--text-1);margin-top:2px">' + h(report.plugin_name || '') + '</div>' +
+            '</div>';
 
-        // Summary
         document.getElementById('plug-summary').textContent = report.summary || '';
 
-        // Recommendations
-        var recsContainer = document.getElementById('plug-recommendations');
-        recsContainer.innerHTML = '';
-        if (report.recommendations && report.recommendations.length > 0) {
-            report.recommendations.forEach(function(rec) {
+        var recs = document.getElementById('plug-recommendations');
+        recs.innerHTML = '';
+        if (report.recommendations && report.recommendations.length) {
+            report.recommendations.forEach(function(r) {
                 var div = document.createElement('div');
-                div.className = 'flex items-start gap-2 text-sm text-on-surface-variant';
-                div.innerHTML = '<span class="material-symbols-outlined text-[16px] text-primary mt-0.5">arrow_right</span><span>' + escapeHtml(rec) + '</span>';
-                recsContainer.appendChild(div);
+                div.style.cssText = 'display:flex;align-items:flex-start;gap:6px;font-size:13px;color:var(--text-2)';
+                div.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px;color:var(--accent);margin-top:1px">arrow_right</span><span>' + h(r) + '</span>';
+                recs.appendChild(div);
             });
         }
 
-        // Conflicts table
-        var tbody = document.getElementById('plug-conflicts-body');
-        tbody.innerHTML = '';
-        if (report.conflicts && report.conflicts.length > 0) {
-            report.conflicts.forEach(function(conflict) {
-                var riskBadgeClass = {
-                    GREEN: 'badge-success',
-                    YELLOW: 'badge-warning',
-                    HIGH: 'badge-warning',
-                    CRITICAL: 'badge-danger',
-                }[conflict.risk_level] || 'badge-primary';
-
-                var tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="${conflict.is_critical ? 'text-primary font-bold' : ''}">${escapeHtml(conflict.package)}</td>
-                    <td class="font-mono text-xs text-on-surface-variant">${escapeHtml(conflict.current_version || '—')}</td>
-                    <td class="font-mono text-xs">${escapeHtml(conflict.required_version || '—')}</td>
-                    <td><span class="badge badge-primary">${conflict.change_type}</span></td>
-                    <td><span class="badge ${riskBadgeClass}">${conflict.risk_level}</span></td>
-                `;
-                tbody.appendChild(tr);
+        var cwrap = document.getElementById('plug-conflicts-wrap');
+        if (report.conflicts && report.conflicts.length) {
+            var rowsHtml = '<div class="ti-plugin-list" style="margin-top:8px">' +
+                '<div class="ti-plugin-list-head" style="grid-template-columns: minmax(180px, 1.4fr) 100px 100px 110px 110px">' +
+                    '<span>' + h(t('plugin_col_package')) + '</span>' +
+                    '<span>' + h(t('plugin_col_current')) + '</span>' +
+                    '<span>' + h(t('plugin_col_new')) + '</span>' +
+                    '<span>' + h(t('plugin_col_type')) + '</span>' +
+                    '<span style="text-align:right">' + h(t('plugin_col_risk')) + '</span>' +
+                '</div>';
+            report.conflicts.forEach(function(c) {
+                rowsHtml += '<div class="ti-plugin-row" style="grid-template-columns: minmax(180px, 1.4fr) 100px 100px 110px 110px">' +
+                    '<div class="ti-plugin-name ' + (c.is_critical ? '' : '') + '" style="' + (c.is_critical ? 'color:var(--accent)' : '') + '">' + h(c.package) + '</div>' +
+                    '<div class="ti-plugin-version">' + h(c.current_version || '—') + '</div>' +
+                    '<div class="ti-plugin-version">' + h(c.required_version || '—') + '</div>' +
+                    '<div><span class="chip">' + h(c.change_type || '') + '</span></div>' +
+                    '<div style="text-align:right"><span class="chip" style="color:' + (riskColors[c.risk_level] || riskColors.GREEN).color + '">' + h(c.risk_level || '') + '</span></div>' +
+                '</div>';
             });
+            rowsHtml += '</div>';
+            cwrap.innerHTML = rowsHtml;
         } else {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-on-surface-variant py-4">No conflicts detected</td></tr>';
+            cwrap.innerHTML = '<div class="ti-list-empty" style="padding:20px"><span class="material-symbols-outlined">check_circle</span><div>No conflicts detected</div></div>';
         }
     }
 
-    function escapeHtml(str) {
-        var div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
+    function h(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    App.registerPage('plugins', { render });
+    App.registerPage('plugins', { render: render });
 })();

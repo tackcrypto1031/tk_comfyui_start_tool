@@ -1,34 +1,36 @@
 /**
- * snapshots.js — Snapshot management page
+ * snapshots.js — Snapshot management page (Tack Industrial redesign)
  */
 (function() {
 
+    var _envs = [];
+    var _snaps = [];
+
     function render(container) {
-        container.innerHTML = `
-            <div class="fade-in space-y-6">
-                <!-- Controls -->
-                <div class="flex items-center gap-4">
-                    <label class="input-label">${t('snapshot_environment')}</label>
-                    <select id="snap-env" class="select w-64"></select>
-                    <button id="snap-btn-create" class="btn btn-primary">
-                        <span class="material-symbols-outlined text-[16px]">add_a_photo</span>
-                        ${t('snapshot_create')}
-                    </button>
-                    <div class="flex-1"></div>
-                    <button id="snap-btn-refresh" class="btn btn-icon" title="${t('snapshot_refresh')}">
-                        <span class="material-symbols-outlined">refresh</span>
-                    </button>
-                </div>
-
-                <!-- Snapshot cards -->
-                <div id="snap-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <!-- Populated by JS -->
-                </div>
-
-                <!-- Status -->
-                <div id="snap-status" class="text-xs font-label uppercase tracking-wider text-on-surface-variant"></div>
-            </div>
-        `;
+        container.innerHTML =
+            '<div class="ti-content fade-in">' +
+                '<div class="ti-page-head">' +
+                    '<div>' +
+                        '<h1>' + h(t('sidebar_snapshots')) + '</h1>' +
+                        '<p class="ti-page-sub" id="snap-sub">—</p>' +
+                    '</div>' +
+                    '<div class="ti-page-actions">' +
+                        '<div class="ti-env-select">' +
+                            '<label>' + h(t('snapshot_environment')) + '</label>' +
+                            '<select id="snap-env"></select>' +
+                        '</div>' +
+                        '<button id="snap-btn-refresh" class="btn btn-secondary" title="' + h(t('snapshot_refresh')) + '">' +
+                            '<span class="material-symbols-outlined" style="font-size:14px">refresh</span>' +
+                        '</button>' +
+                        '<button id="snap-btn-create" class="btn btn-primary">' +
+                            '<span class="material-symbols-outlined" style="font-size:14px">add_a_photo</span>' +
+                            '<span>' + h(t('snapshot_create')) + '</span>' +
+                        '</button>' +
+                    '</div>' +
+                '</div>' +
+                '<div id="snap-list-wrap"></div>' +
+                '<div id="snap-status" style="margin-top:10px;font-family:var(--font-mono);font-size:11px;color:var(--text-4);text-transform:uppercase;letter-spacing:0.1em"></div>' +
+            '</div>';
 
         document.getElementById('snap-btn-create').addEventListener('click', createSnapshot);
         document.getElementById('snap-btn-refresh').addEventListener('click', loadSnapshots);
@@ -39,93 +41,84 @@
 
     function loadEnvs() {
         BridgeAPI.listEnvironments().then(function(envs) {
-            const select = document.getElementById('snap-env');
-            select.innerHTML = '';
-            envs.forEach(env => {
-                const opt = document.createElement('option');
-                opt.value = env.name;
-                opt.textContent = env.name;
-                select.appendChild(opt);
-            });
-            if (envs.length > 0) loadSnapshots();
+            _envs = envs || [];
+            var select = document.getElementById('snap-env');
+            select.innerHTML = _envs.map(function(e) {
+                return '<option value="' + h(e.name) + '">' + h(e.name) + '</option>';
+            }).join('');
+            if (_envs.length > 0) loadSnapshots();
+            else renderEmpty();
         }).catch(function(e) { App.showToast(e.toString(), 'error'); });
     }
 
     function loadSnapshots() {
-        const envName = document.getElementById('snap-env').value;
+        var envName = document.getElementById('snap-env').value;
         if (!envName) return;
 
-        const statusEl = document.getElementById('snap-status');
+        var statusEl = document.getElementById('snap-status');
         statusEl.textContent = t('loading');
 
         BridgeAPI.listSnapshots(envName).then(function(snaps) {
-            const list = document.getElementById('snap-list');
-            list.innerHTML = '';
-
-            if (snaps.length === 0) {
-                list.innerHTML = '<div class="col-span-full text-center text-on-surface-variant py-8">' + t('snapshot_count', 0) + '</div>';
-            } else {
-                snaps.forEach(snap => {
-                    const card = document.createElement('div');
-                    card.className = 'card border-glow group';
-
-                    const triggerBadge = getTriggerBadge(snap.trigger);
-                    const dateStr = snap.created_at ? new Date(snap.created_at).toLocaleString() : '';
-                    const pyVer = snap.python_version || 'N/A';
-                    const cudaVer = snap.cuda_version || 'N/A';
-
-                    card.innerHTML = `
-                        <div class="flex items-start justify-between">
-                            <div>
-                                <div class="font-label text-xs font-bold uppercase tracking-wider text-on-surface">${escapeHtml(snap.env_name)}</div>
-                                <div class="text-xs text-on-surface-variant mt-1">${dateStr}</div>
-                            </div>
-                            ${triggerBadge}
-                        </div>
-                        <div class="mt-3 flex items-center gap-2 text-xs text-on-surface-variant">
-                            <span class="material-symbols-outlined text-[14px]">memory</span>
-                            <span>Python ${pyVer} | CUDA ${cudaVer}</span>
-                        </div>
-                        <div class="mt-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button class="btn btn-secondary text-[10px] py-1 px-3 snap-restore" data-id="${snap.id}">
-                                <span class="material-symbols-outlined text-[14px]">restore</span>
-                                ${t('snapshot_restore')}
-                            </button>
-                            <button class="btn btn-danger text-[10px] py-1 px-3 snap-delete" data-id="${snap.id}">
-                                <span class="material-symbols-outlined text-[14px]">delete</span>
-                                ${t('snapshot_delete')}
-                            </button>
-                        </div>
-                    `;
-
-                    card.querySelector('.snap-restore').addEventListener('click', () => restoreSnapshot(snap.id));
-                    card.querySelector('.snap-delete').addEventListener('click', () => deleteSnapshot(snap.id));
-
-                    list.appendChild(card);
-                });
-            }
-            App.applyFallbackIcons();
-            statusEl.textContent = t('snapshot_count', snaps.length);
+            _snaps = snaps || [];
+            renderList();
+            statusEl.textContent = t('snapshot_count', _snaps.length);
+            document.getElementById('snap-sub').innerHTML =
+                _snaps.length + ' 個快照 · <span class="accent">' + h(envName) + '</span>';
         }).catch(function(e) {
             statusEl.textContent = t('error') + ': ' + e;
             App.showToast(e.toString(), 'error');
         });
     }
 
-    function getTriggerBadge(trigger) {
-        const map = {
-            manual: 'badge-primary',
-            clone: 'badge-success',
-            merge: 'badge-warning',
-            version_switch: 'badge-primary',
-            update: 'badge-success',
-        };
-        const cls = map[trigger] || 'badge-primary';
-        return `<span class="badge ${cls}">${escapeHtml(trigger.toUpperCase())}</span>`;
+    function renderList() {
+        var wrap = document.getElementById('snap-list-wrap');
+        if (!wrap) return;
+        if (!_snaps.length) { renderEmpty(); return; }
+
+        wrap.innerHTML = '<div class="ti-snap-list">' + _snaps.map(function(s) {
+            var dateStr = s.created_at ? new Date(s.created_at).toLocaleString() : '—';
+            var trigger = (s.trigger || '').toUpperCase();
+            var py = s.python_version || 'N/A';
+            var cuda = s.cuda_version || 'N/A';
+            return '<div class="ti-snap-row">' +
+                '<div class="ti-snap-icon"><span class="material-symbols-outlined">inventory_2</span></div>' +
+                '<div>' +
+                    '<div class="ti-snap-label">' + h(s.env_name || s.id) + ' <span class="chip" style="margin-left:6px">' + h(trigger) + '</span></div>' +
+                    '<div class="ti-snap-meta">' + h(s.id) + ' · py ' + h(py) + ' · ' + h(cuda) + '</div>' +
+                '</div>' +
+                '<span class="ti-snap-date">' + h(dateStr) + '</span>' +
+                '<div class="ti-snap-actions">' +
+                    '<button class="btn btn-secondary btn-sm" data-snap-restore="' + h(s.id) + '">' +
+                        '<span class="material-symbols-outlined" style="font-size:13px">restore</span>' +
+                        '<span>' + h(t('snapshot_restore')) + '</span>' +
+                    '</button>' +
+                    '<button class="btn btn-danger btn-sm" data-snap-delete="' + h(s.id) + '">' +
+                        '<span class="material-symbols-outlined" style="font-size:13px">delete</span>' +
+                    '</button>' +
+                '</div>' +
+            '</div>';
+        }).join('') + '</div>';
+
+        wrap.querySelectorAll('[data-snap-restore]').forEach(function(b) {
+            b.addEventListener('click', function() { restoreSnapshot(b.getAttribute('data-snap-restore')); });
+        });
+        wrap.querySelectorAll('[data-snap-delete]').forEach(function(b) {
+            b.addEventListener('click', function() { deleteSnapshot(b.getAttribute('data-snap-delete')); });
+        });
+    }
+
+    function renderEmpty() {
+        var wrap = document.getElementById('snap-list-wrap');
+        if (!wrap) return;
+        wrap.innerHTML =
+            '<div class="ti-list-empty">' +
+                '<span class="material-symbols-outlined">inventory_2</span>' +
+                '<div>' + h(t('snapshot_count', 0)) + '</div>' +
+            '</div>';
     }
 
     function createSnapshot() {
-        const envName = document.getElementById('snap-env').value;
+        var envName = document.getElementById('snap-env').value;
         if (!envName) { App.showToast(t('launch_select_env'), 'info'); return; }
 
         BridgeAPI.createSnapshot(envName, 'manual').then(function(result) {
@@ -137,8 +130,8 @@
     }
 
     function restoreSnapshot(snapshotId) {
-        const envName = document.getElementById('snap-env').value;
-        App.confirm(t('snapshot_confirm_restore', snapshotId)).then(ok => {
+        var envName = document.getElementById('snap-env').value;
+        App.confirm(t('snapshot_confirm_restore', snapshotId)).then(function(ok) {
             if (!ok) return;
 
             var progressId = 'restore-' + Date.now();
@@ -155,18 +148,13 @@
             App.showProgress(progressId, t('snapshot_restoring'));
 
             BridgeAPI.restoreSnapshot(envName, snapshotId, function(msg) {
-                App.updateProgress(
-                    progressId,
-                    stepLabels[msg.step] || msg.step,
-                    msg.percent,
-                    msg.detail
-                );
-            }).then(() => {
+                App.updateProgress(progressId, stepLabels[msg.step] || msg.step, msg.percent, msg.detail);
+            }).then(function() {
                 App.updateProgress(progressId, stepLabels.done, 100, '');
                 App.hideProgress(progressId, 'success');
                 App.showToast(t('snapshot_restored', snapshotId), 'success');
                 document.getElementById('snap-status').textContent = t('snapshot_restored', snapshotId);
-            }).catch(e => {
+            }).catch(function(e) {
                 App.hideProgress(progressId, 'error');
                 App.showToast(e.toString(), 'error');
             });
@@ -174,8 +162,8 @@
     }
 
     function deleteSnapshot(snapshotId) {
-        const envName = document.getElementById('snap-env').value;
-        App.confirm(t('snapshot_confirm_delete', snapshotId)).then(ok => {
+        var envName = document.getElementById('snap-env').value;
+        App.confirm(t('snapshot_confirm_delete', snapshotId)).then(function(ok) {
             if (!ok) return;
             BridgeAPI.deleteSnapshot(envName, snapshotId).then(function() {
                 App.showToast(t('snapshot_deleted'), 'success');
@@ -184,11 +172,11 @@
         });
     }
 
-    function escapeHtml(str) {
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
+    function h(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    App.registerPage('snapshots', { render });
+    App.registerPage('snapshots', { render: render });
 })();

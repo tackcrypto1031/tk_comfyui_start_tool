@@ -5,14 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>塔克ComfyUI啟動器</title>
 
-    <!-- Fonts: Space Grotesk + Inter + Material Symbols -->
+    <!-- Fonts: Geist + JetBrains Mono (industrial), Space Grotesk + Inter (legacy themes) + Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
 
     <!-- Anti-FOUC: apply theme before CSS parses -->
     <script>
       (function(){
-        var t = localStorage.getItem('color_scheme') || 'obsidian';
+        var t = localStorage.getItem('color_scheme') || 'tack-industrial';
         document.documentElement.setAttribute('data-theme', t);
       })();
     </script>
@@ -25,14 +26,37 @@
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/custom.css">
+
+    <!-- Tack Industrial design system (Linear/Warp-inspired; loaded last) -->
+    <link rel="stylesheet" href="css/tack-industrial.css">
 </head>
 <body class="bg-surface-container-lowest text-on-surface font-body antialiased min-h-screen flex overflow-hidden">
 
     <!-- ══════ SIDEBAR ══════ -->
     <aside id="sidebar" class="w-64 h-screen bg-surface-dim border-r border-outline-variant/20 flex flex-col fixed left-0 top-0 z-30">
 
-        <!-- Logo / Brand -->
-        <div class="px-6 py-5 border-b border-outline-variant/20">
+        <!-- Brand header (Tack Industrial) -->
+        <div class="ti-sidebar-head">
+            <div class="ti-brand">
+                <div class="ti-brand-mark">T</div>
+                <span>TACK · COMFYUI</span>
+            </div>
+            <div class="ti-subbrand" data-i18n="sidebar_subbrand">multi-env manager</div>
+        </div>
+
+        <!-- Active env pill (populated by app.js) -->
+        <div id="ti-env-pill" class="ti-env-pill" style="display:none">
+            <span class="ti-env-dot"></span>
+            <div class="ti-env-pill-body">
+                <div class="ti-env-pill-name" id="ti-env-pill-name">—</div>
+                <div class="ti-env-pill-meta" id="ti-env-pill-meta">no env</div>
+            </div>
+            <span class="material-symbols-outlined ti-env-pill-caret" style="font-size:14px">expand_more</span>
+            <div id="ti-env-menu" class="ti-env-menu" style="display:none"></div>
+        </div>
+
+        <!-- Legacy brand (shown only on non-industrial themes) -->
+        <div class="ti-legacy-brand px-6 py-5 border-b border-outline-variant/20">
             <h1 class="font-headline text-lg font-bold tracking-widest uppercase text-on-surface" data-i18n="sidebar_brand">塔克COMFYUI啟動器</h1>
             <div class="mt-2 flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
@@ -42,17 +66,21 @@
 
         <!-- Navigation -->
         <nav class="flex-1 py-4 overflow-y-auto">
+            <div class="ti-nav-section">工作區</div>
             <a href="#" data-page="home" class="nav-item active flex items-center gap-4 px-6 py-4 text-[12px] font-label uppercase tracking-[0.15em] font-medium transition-all duration-200 cursor-pointer">
                 <span class="material-symbols-outlined text-[20px]">home</span>
                 <span data-i18n="sidebar_home">首頁</span>
             </a>
-            <a href="#" data-page="environments" class="nav-item flex items-center gap-4 px-6 py-4 text-[12px] font-label uppercase tracking-[0.15em] font-medium transition-all duration-200 cursor-pointer">
-                <span class="material-symbols-outlined text-[20px]">dns</span>
-                <span data-i18n="sidebar_environments">Environments</span>
-            </a>
             <a href="#" data-page="launcher" class="nav-item flex items-center gap-4 px-6 py-4 text-[12px] font-label uppercase tracking-[0.15em] font-medium transition-all duration-200 cursor-pointer">
                 <span class="material-symbols-outlined text-[20px]">rocket_launch</span>
                 <span data-i18n="sidebar_launch">Launcher</span>
+                <span class="ti-nav-run-dot" id="ti-nav-run-dot"></span>
+            </a>
+
+            <div class="ti-nav-section">管理</div>
+            <a href="#" data-page="environments" class="nav-item flex items-center gap-4 px-6 py-4 text-[12px] font-label uppercase tracking-[0.15em] font-medium transition-all duration-200 cursor-pointer">
+                <span class="material-symbols-outlined text-[20px]">dns</span>
+                <span data-i18n="sidebar_environments">Environments</span>
             </a>
             <a href="#" data-page="plugins" class="nav-item flex items-center gap-4 px-6 py-4 text-[12px] font-label uppercase tracking-[0.15em] font-medium transition-all duration-200 cursor-pointer">
                 <span class="material-symbols-outlined text-[20px]">extension</span>
@@ -66,6 +94,8 @@
                 <span class="material-symbols-outlined text-[20px]">inventory_2</span>
                 <span data-i18n="sidebar_snapshots">Snapshots</span>
             </a>
+
+            <div class="ti-nav-section">其他</div>
             <a href="#" data-page="bug_report" class="nav-item flex items-center gap-4 px-6 py-4 text-[12px] font-label uppercase tracking-[0.15em] font-medium transition-all duration-200 cursor-pointer">
                 <span class="material-symbols-outlined text-[20px]">bug_report</span>
                 <span data-i18n="sidebar_bug_report">BUG 回報</span>
@@ -77,19 +107,19 @@
             </a>
         </nav>
 
-        <!-- Footer -->
-        <div class="px-6 py-5 border-t border-outline-variant/20 space-y-3">
-            <!-- Version block -->
-            <div id="version-block" class="version-block">
+        <!-- Footer (design: horizontal row — version · [lang dropdown]) -->
+        <div class="ti-sidebar-foot">
+            <button id="version-block" class="foot-version" title="Check for updates">
                 <span id="version-label" class="version-label">v0.1.1</span>
                 <span id="version-update-dot" class="version-dot"></span>
-            </div>
-            <!-- Language switcher -->
-            <div class="flex items-center gap-3">
-                <span class="material-symbols-outlined text-[18px] text-on-surface-variant">translate</span>
-                <select id="lang-switcher" class="select flex-1 py-1 text-[12px]">
-                    <option value="zh-TW">繁體中文</option>
-                    <option value="en">English</option>
+            </button>
+            <span class="foot-sep">·</span>
+            <span class="foot-latest" id="foot-latest-label">● latest</span>
+            <div class="foot-lang-wrap">
+                <span class="material-symbols-outlined foot-lang-icon">translate</span>
+                <select id="lang-switcher" class="foot-lang-select">
+                    <option value="zh-TW">繁中</option>
+                    <option value="en">EN</option>
                 </select>
             </div>
         </div>
@@ -100,8 +130,13 @@
 
         <!-- Top bar -->
         <header class="h-16 bg-surface border-b border-outline-variant/20 flex items-center px-8 sticky top-0 z-20 shrink-0">
-            <h2 id="page-title" class="font-headline text-xl font-black tracking-tighter uppercase text-on-surface" data-i18n="sidebar_environments">環境管理</h2>
+            <h2 id="page-title" class="font-headline text-xl font-black tracking-tighter uppercase text-on-surface" data-i18n="sidebar_home">首頁</h2>
             <div class="flex-1"></div>
+            <button id="ti-cmd-trigger" class="ti-cmd-trigger" type="button" title="Command palette (Ctrl+K)">
+                <span class="material-symbols-outlined" style="font-size:14px">search</span>
+                <span data-i18n="cmd_trigger">搜尋或跳轉</span>
+                <span class="ti-kbd">Ctrl K</span>
+            </button>
         </header>
 
         <!-- Page content container -->
@@ -112,6 +147,18 @@
             </div>
         </div>
     </main>
+
+    <!-- ══════ COMMAND PALETTE ══════ -->
+    <div id="ti-cmd-overlay" class="ti-cmd-overlay">
+        <div class="ti-cmd-panel" id="ti-cmd-panel">
+            <div class="ti-cmd-input-wrap">
+                <span class="material-symbols-outlined">search</span>
+                <input id="ti-cmd-input" class="ti-cmd-input" type="text" autocomplete="off" spellcheck="false" placeholder="輸入動作、環境名稱或頁面...">
+                <span class="ti-kbd">ESC</span>
+            </div>
+            <div id="ti-cmd-list" class="ti-cmd-list"></div>
+        </div>
+    </div>
 
     <!-- ══════ MODAL OVERLAY ══════ -->
     <div id="modal-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center">

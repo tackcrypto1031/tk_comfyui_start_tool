@@ -21,7 +21,7 @@ def get_default_config() -> dict:
         "default_port": 8188,
         "theme": "dark",
         "language": "zh-TW",
-        "color_scheme": "obsidian",
+        "color_scheme": "tack-industrial",
         "log_level": "INFO",
         "model_subdirs": [
             "audio_encoders", "checkpoints", "clip", "clip_vision", "configs",

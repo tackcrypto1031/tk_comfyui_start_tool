@@ -4,90 +4,87 @@
 (function() {
 
     function render(container) {
-        container.innerHTML = `
-            <div class="fade-in space-y-6">
-                <!-- Toolbar -->
-                <div class="flex items-center gap-3">
-                    <button id="env-btn-create" class="btn btn-primary">
-                        <span class="material-symbols-outlined text-[18px]">add</span>
-                        ${t('env_create')}
-                    </button>
-                    <button id="env-btn-clone" class="btn btn-secondary">
-                        <span class="material-symbols-outlined text-[18px]">content_copy</span>
-                        ${t('env_clone')}
-                    </button>
-                    <button id="env-btn-edit" class="btn btn-secondary">
-                        <span class="material-symbols-outlined text-[18px]">edit</span>
-                        ${t('env_edit') || 'Edit'}
-                    </button>
-                    <button id="env-btn-delete" class="btn btn-danger">
-                        <span class="material-symbols-outlined text-[18px]">delete</span>
-                        ${t('env_delete')}
-                    </button>
-                    <div class="flex-1"></div>
-                    <button id="env-btn-refresh" class="btn btn-icon" title="${t('env_refresh')}">
-                        <span class="material-symbols-outlined">refresh</span>
-                    </button>
-                </div>
+        container.innerHTML =
+            '<div class="ti-content fade-in">' +
+                '<div class="ti-page-head">' +
+                    '<div>' +
+                        '<h1>' + escapeHtml(t('sidebar_environments')) + '</h1>' +
+                        '<p class="ti-page-sub" id="env-sub">' + escapeHtml(t('env_manage_desc') || '管理你的 ComfyUI 安裝環境') + '</p>' +
+                    '</div>' +
+                    '<div class="ti-page-actions">' +
+                        '<button id="env-btn-clone" class="btn btn-secondary">' +
+                            '<span class="material-symbols-outlined" style="font-size:14px">content_copy</span>' +
+                            '<span>' + escapeHtml(t('env_clone')) + '</span>' +
+                        '</button>' +
+                        '<button id="env-btn-edit" class="btn btn-secondary">' +
+                            '<span class="material-symbols-outlined" style="font-size:14px">edit</span>' +
+                            '<span>' + escapeHtml(t('env_edit') || 'Edit') + '</span>' +
+                        '</button>' +
+                        '<button id="env-btn-delete" class="btn btn-ghost" style="color:oklch(0.82 0.14 25)">' +
+                            '<span class="material-symbols-outlined" style="font-size:14px">delete</span>' +
+                            '<span>' + escapeHtml(t('env_delete')) + '</span>' +
+                        '</button>' +
+                        '<button id="env-btn-refresh" class="btn btn-secondary" title="' + escapeHtml(t('env_refresh')) + '">' +
+                            '<span class="material-symbols-outlined" style="font-size:14px">refresh</span>' +
+                        '</button>' +
+                        '<button id="env-btn-create" class="btn btn-primary">' +
+                            '<span class="material-symbols-outlined" style="font-size:14px">add</span>' +
+                            '<span>' + escapeHtml(t('env_create')) + '</span>' +
+                        '</button>' +
+                    '</div>' +
+                '</div>' +
 
-                <!-- Shared Model Path -->
-                <div id="shared-model-section" class="p-4 border border-surface-container rounded-lg" style="background: rgba(255,255,255,0.03);">
-                    <div class="flex items-center gap-2 mb-3">
-                        <span class="material-symbols-outlined text-[18px]" style="color:rgb(var(--color-primary));">folder_shared</span>
-                        <span class="text-sm font-semibold">${t('shared_model_title')}</span>
-                    </div>
-                    <div class="flex items-center gap-4 mb-2">
-                        <label class="flex items-center gap-2 text-sm cursor-pointer">
-                            <input type="radio" name="shared-model-mode" value="default" checked class="accent-primary">
-                            ${t('shared_model_default')}
-                        </label>
-                        <label class="flex items-center gap-2 text-sm cursor-pointer">
-                            <input type="radio" name="shared-model-mode" value="custom" class="accent-primary">
-                            ${t('shared_model_custom')}
-                        </label>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <input type="text" id="shared-model-path" class="input flex-1 font-mono text-xs" readonly placeholder="${t('shared_model_path_placeholder')}">
-                        <button id="shared-model-browse" class="btn btn-secondary hidden" style="padding:6px 10px;">
-                            <span class="material-symbols-outlined text-[16px]">folder_open</span>
-                        </button>
-                        <button id="shared-model-save" class="btn btn-primary hidden" style="padding:6px 14px;">
-                            <span class="material-symbols-outlined text-[16px]">save</span>
-                        </button>
-                        <button id="shared-model-rescan" class="btn btn-secondary" style="padding:6px 14px;" title="${t('rescan_shared_models_tooltip')}">
-                            <span class="material-symbols-outlined text-[16px]">refresh</span>
-                            <span class="ml-1 text-xs">${t('rescan_shared_models')}</span>
-                        </button>
-                    </div>
-                </div>
+                // Shared model section (same markup, themed)
+                '<div id="shared-model-section" class="ti-card" style="margin-bottom:20px">' +
+                    '<div class="ti-card-head">' +
+                        '<span class="material-symbols-outlined">folder_shared</span>' +
+                        '<span class="ti-card-title">' + escapeHtml(t('shared_model_title')) + '</span>' +
+                    '</div>' +
+                    '<div class="ti-card-body">' +
+                        '<div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">' +
+                            '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;color:var(--text-1)">' +
+                                '<input type="radio" name="shared-model-mode" value="default" checked>' +
+                                escapeHtml(t('shared_model_default')) +
+                            '</label>' +
+                            '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;color:var(--text-1)">' +
+                                '<input type="radio" name="shared-model-mode" value="custom">' +
+                                escapeHtml(t('shared_model_custom')) +
+                            '</label>' +
+                        '</div>' +
+                        '<div style="display:flex;align-items:center;gap:8px">' +
+                            '<input type="text" id="shared-model-path" class="mono" readonly placeholder="' + escapeHtml(t('shared_model_path_placeholder')) + '" style="flex:1">' +
+                            '<button id="shared-model-browse" class="btn btn-secondary hidden">' +
+                                '<span class="material-symbols-outlined" style="font-size:14px">folder_open</span>' +
+                            '</button>' +
+                            '<button id="shared-model-save" class="btn btn-primary hidden">' +
+                                '<span class="material-symbols-outlined" style="font-size:14px">save</span>' +
+                            '</button>' +
+                            '<button id="shared-model-rescan" class="btn btn-secondary" title="' + escapeHtml(t('rescan_shared_models_tooltip')) + '">' +
+                                '<span class="material-symbols-outlined" style="font-size:14px">refresh</span>' +
+                                '<span>' + escapeHtml(t('rescan_shared_models')) + '</span>' +
+                            '</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
 
-                <!-- Environment table -->
-                <div class="border border-surface-container">
-                    <table class="data-table" id="env-table">
-                        <thead>
-                            <tr>
-                                <th>${t('env_col_name')}</th>
-                                <th>${t('env_col_branch')}</th>
-                                <th>${t('env_col_commit')}</th>
-                                <th>${t('env_col_created')}</th>
-                                <th class="text-center" style="white-space:nowrap;">
-                                    <div class="flex items-center justify-center gap-2">
-                                        <span>${t('shared_model_col')}</span>
-                                        <div id="shared-model-header-toggle" class="toggle-switch" data-state="on" title="Toggle all"></div>
-                                    </div>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody id="env-table-body">
-                            <!-- Populated by JS -->
-                        </tbody>
-                    </table>
-                </div>
+                // Environment list
+                '<div class="ti-env-list">' +
+                    '<div class="ti-env-list-head">' +
+                        '<span></span>' +
+                        '<span>' + escapeHtml(t('env_col_name')) + '</span>' +
+                        '<span>' + escapeHtml(t('env_col_branch')) + '</span>' +
+                        '<span>Python / CUDA</span>' +
+                        '<span>' + escapeHtml(t('env_col_created')) + '</span>' +
+                        '<span style="text-align:right;display:flex;align-items:center;justify-content:flex-end;gap:8px">' +
+                            '<span>' + escapeHtml(t('shared_model_col')) + '</span>' +
+                            '<div id="shared-model-header-toggle" class="toggle-switch" data-state="on" title="Toggle all"></div>' +
+                        '</span>' +
+                    '</div>' +
+                    '<div id="env-table-body"></div>' +
+                '</div>' +
 
-                <!-- Status -->
-                <div id="env-status" class="text-xs font-label uppercase tracking-wider text-on-surface-variant"></div>
-            </div>
-        `;
+                '<div id="env-status" style="margin-top:10px;font-family:var(--font-mono);font-size:11px;color:var(--text-4);text-transform:uppercase;letter-spacing:0.1em"></div>' +
+            '</div>';
 
         // Bind events
         document.getElementById('env-btn-create').addEventListener('click', showCreateDialog);
@@ -294,21 +291,46 @@
         BridgeAPI.listEnvironments().then(function(envs) {
             const tbody = document.getElementById('env-table-body');
             tbody.innerHTML = '';
+
+            // Update summary sub-heading
+            var sub = document.getElementById('env-sub');
+            if (sub) {
+                sub.textContent = (t('env_manage_desc') || '管理你的 ComfyUI 安裝環境') + ' · ' + envs.length + ' 個';
+            }
+
             envs.forEach(env => {
                 const commitShort = env.comfyui_commit ? env.comfyui_commit.substring(0, 7) : '';
                 const createdShort = env.created_at ? env.created_at.substring(0, 10) : '';
-                const tr = document.createElement('tr');
-                tr.className = 'cursor-pointer';
-                tr.dataset.envName = env.name;
-                tr.innerHTML =
-                    `<td>${escapeHtml(env.name)}</td>` +
-                    `<td class="text-on-surface-variant">${escapeHtml(env.comfyui_branch || '')}</td>` +
-                    `<td class="font-mono text-xs text-on-surface-variant">${commitShort}</td>` +
-                    `<td class="text-on-surface-variant text-xs">${createdShort}</td>` +
-                    `<td class="text-center"></td>`;
+                const branch = env.comfyui_branch || 'master';
+                const py = env.python_version || env.python || '—';
+                const cuda = env.cuda_version || env.cuda || '—';
+                const pytorch = env.pytorch_version || env.pytorch || '—';
 
-                // Add toggle to the last cell
-                var toggleCell = tr.querySelector('td:last-child');
+                const row = document.createElement('div');
+                row.className = 'ti-env-list-row';
+                row.dataset.envName = env.name;
+                row.innerHTML =
+                    '<span class="ti-env-dot ' + (env.status || 'stopped') + '"></span>' +
+                    '<div class="name">' +
+                        '<div style="min-width:0">' +
+                            '<div class="name-main">' + escapeHtml(env.name) + '</div>' +
+                            '<div class="name-sub">' + (env.size || '') + (env.size && env.plugin_count ? ' · ' : '') + (env.plugin_count ? env.plugin_count + ' plugins' : '') + '</div>' +
+                        '</div>' +
+                        (env.name === selectedEnvName ? '<span class="tag">' + escapeHtml(t('env_current') || 'SELECTED') + '</span>' : '') +
+                    '</div>' +
+                    '<div class="version">' +
+                        '<div class="version-main">' + escapeHtml(branch) + '</div>' +
+                        '<div class="version-sub">#' + escapeHtml(commitShort) + '</div>' +
+                    '</div>' +
+                    '<div class="stack">' +
+                        '<div class="stack-main">py ' + escapeHtml(py) + '</div>' +
+                        '<div class="stack-sub">' + escapeHtml(cuda) + ' · torch ' + escapeHtml(pytorch) + '</div>' +
+                    '</div>' +
+                    '<div class="status stopped">' + escapeHtml(createdShort || '—') + '</div>' +
+                    '<div class="actions"></div>';
+
+                // Add toggle to the actions cell
+                var actionsCell = row.querySelector('.actions');
                 var isEnabled = env.shared_model_enabled !== false;
                 var toggle = createToggleSwitch(isEnabled, function(el) {
                     var newState = el.dataset.state !== 'on';
@@ -324,14 +346,17 @@
                         App.showToast(e.toString(), 'error');
                     });
                 });
-                toggleCell.appendChild(toggle);
+                actionsCell.appendChild(toggle);
 
-                tr.addEventListener('click', () => {
-                    document.querySelectorAll('#env-table-body tr.selected').forEach(r => r.classList.remove('selected'));
-                    tr.classList.add('selected');
+                row.addEventListener('click', (ev) => {
+                    // Ignore clicks on the toggle switch
+                    if (ev.target.closest('.toggle-switch')) return;
+                    document.querySelectorAll('#env-table-body .ti-env-list-row.selected').forEach(r => r.classList.remove('selected'));
+                    row.classList.add('selected');
+                    row.style.background = 'var(--accent-glow)';
                     selectedEnvName = env.name;
                 });
-                tbody.appendChild(tr);
+                tbody.appendChild(row);
             });
 
             // Setup header toggle
