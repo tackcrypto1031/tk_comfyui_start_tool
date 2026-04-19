@@ -84,3 +84,81 @@ def test_install_pip_package_addon(tmp_path, monkeypatch):
     env = Environment.load_meta(str(env_dir))
     assert any(a["id"] == "insightface" for a in env.installed_addons)
     assert env.installed_addons[0]["torch_pack_at_install"] == "p1"
+
+
+# ---------------------------------------------------------------------------
+# Task 10: install_addon — git_clone path
+# ---------------------------------------------------------------------------
+
+def test_install_git_clone_addon(tmp_path, monkeypatch):
+    env_dir = _make_env(tmp_path)
+    calls = []
+
+    def _fake_clone(url, dest, branch=None, commit=None, progress_callback=None):
+        calls.append(("clone", url, dest))
+        Path(dest).mkdir(parents=True)
+        # Simulate a requirements.txt in the cloned repo
+        (Path(dest) / "requirements.txt").write_text("numpy\n")
+
+    def _fake_install(venv_path, args, tools_dir, uv_version,
+                      package_manager="uv", progress_callback=None):
+        calls.append(("install", tuple(args)))
+
+    monkeypatch.setattr("src.core.addons.git_ops.clone_repo", _fake_clone)
+    monkeypatch.setattr("src.core.addons.pkg_ops.run_install", _fake_install)
+    # Editable install goes through venv python -m pip — stub it to record call
+    def _fake_editable(args, cwd, env_dir, tools_dir, uv_version,
+                       package_manager, progress_callback):
+        calls.append(("install", tuple(args)))
+    monkeypatch.setattr(
+        "src.core.addons._run_editable_via_pkg_ops", _fake_editable,
+    )
+
+    install_addon(
+        addon_id="sage-attention",
+        env_dir=env_dir,
+        tools_dir=tmp_path / "tools",
+        uv_version="0.9.7",
+        package_manager="uv",
+    )
+
+    # Expect: clone, install -r requirements.txt, then post_install (pip install -e .)
+    assert calls[0][0] == "clone"
+    assert calls[0][1] == "https://github.com/thu-ml/SageAttention.git"
+
+    install_calls = [c for c in calls if c[0] == "install"]
+    # First install = requirements.txt
+    assert install_calls[0][1][0] == "install"
+    assert "-r" in install_calls[0][1]
+    # Second install = post_install (translated "pip" → "install -e .")
+    assert install_calls[1][1] == ("install", "-e", ".")
+
+
+def test_install_py_skipped_when_post_install_cmd_present(tmp_path, monkeypatch):
+    env_dir = _make_env(tmp_path)
+    called_install_py = {"ran": False}
+
+    def _fake_clone(url, dest, **kw):
+        Path(dest).mkdir(parents=True)
+        # Add an install.py which would normally be auto-run
+        (Path(dest) / "install.py").write_text("raise SystemExit(0)")
+
+    def _fake_install(*a, **kw): pass
+
+    def _fake_run_install_py(*a, **kw):
+        called_install_py["ran"] = True
+
+    def _fake_editable(*a, **kw): pass
+
+    monkeypatch.setattr("src.core.addons.git_ops.clone_repo", _fake_clone)
+    monkeypatch.setattr("src.core.addons.pkg_ops.run_install", _fake_install)
+    monkeypatch.setattr("src.core.addons._run_install_py", _fake_run_install_py)
+    monkeypatch.setattr("src.core.addons._run_editable_via_pkg_ops", _fake_editable)
+
+    install_addon(
+        addon_id="sage-attention",
+        env_dir=env_dir,
+        tools_dir=tmp_path / "tools",
+        uv_version="0.9.7",
+    )
+    assert called_install_py["ran"] is False

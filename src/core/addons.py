@@ -84,11 +84,14 @@ def find_addon(addon_id: str) -> Optional[Addon]:
 # Install / Uninstall
 # ---------------------------------------------------------------------------
 
+import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 from src.models.environment import Environment
-from src.utils import pkg_ops
+from src.utils import git_ops, pkg_ops
+from src.utils import pip_ops
 
 
 def install_addon(
@@ -146,5 +149,106 @@ def _install_git_clone_addon(
     package_manager: str,
     progress_callback,
 ) -> None:
-    """Placeholder — implemented in Task 10."""
-    raise NotImplementedError
+    """Clone add-on repo, install its requirements, then run post_install_cmd."""
+    node_dir = env_dir / "ComfyUI" / "custom_nodes" / addon.id
+    node_dir.parent.mkdir(parents=True, exist_ok=True)
+
+    git_ops.clone_repo(
+        addon.repo, str(node_dir), branch=None,
+        progress_callback=progress_callback,
+    )
+
+    # 1) install requirements.txt if present
+    req = node_dir / "requirements.txt"
+    if req.exists():
+        pkg_ops.run_install(
+            venv_path=str(env_dir / "venv"),
+            args=["install", "-r", str(req)],
+            tools_dir=tools_dir,
+            uv_version=uv_version,
+            package_manager=package_manager,
+            progress_callback=progress_callback,
+        )
+
+    # 2) post_install_cmd wins over install.py
+    if addon.post_install_cmd:
+        _run_post_install_cmd(
+            cmd=addon.post_install_cmd,
+            cwd=node_dir,
+            env_dir=env_dir,
+            tools_dir=tools_dir,
+            uv_version=uv_version,
+            package_manager=package_manager,
+            progress_callback=progress_callback,
+        )
+    else:
+        install_py = node_dir / "install.py"
+        if install_py.exists():
+            _run_install_py(install_py, env_dir, progress_callback)
+
+
+def _run_post_install_cmd(
+    cmd: list, cwd: Path, env_dir: Path, tools_dir: Path,
+    uv_version: str, package_manager: str, progress_callback,
+) -> None:
+    """Run an add-on's post_install_cmd; translate 'pip' → active package manager."""
+    if cmd and cmd[0] == "pip":
+        # Portable "pip" token → route through pkg_ops dispatch
+        args = cmd[1:]
+        resolved = []
+        for token in args:
+            if token in (".", "-e") or token.startswith("-"):
+                resolved.append(token)
+            elif token == "requirements.txt":
+                resolved.append(str((cwd / token).resolve()))
+            else:
+                resolved.append(token)
+        # Editable installs need cwd awareness
+        if "-e" in resolved and "." in resolved:
+            _run_editable_via_pkg_ops(
+                resolved, cwd=cwd, env_dir=env_dir, tools_dir=tools_dir,
+                uv_version=uv_version, package_manager=package_manager,
+                progress_callback=progress_callback,
+            )
+            return
+        pkg_ops.run_install(
+            venv_path=str(env_dir / "venv"),
+            args=resolved,
+            tools_dir=tools_dir,
+            uv_version=uv_version,
+            package_manager=package_manager,
+            progress_callback=progress_callback,
+        )
+        return
+    # Non-pip commands (unlikely in our registry) — run as-is
+    subprocess.run(cmd, cwd=str(cwd), check=True)
+
+
+def _run_editable_via_pkg_ops(
+    args, cwd, env_dir, tools_dir, uv_version, package_manager, progress_callback,
+):
+    """Editable installs need cwd awareness. Always invoke `python -m pip` from
+    the venv with cwd = add-on dir, so "." resolves correctly regardless of
+    which package manager the rest of the build uses."""
+    python = pip_ops.get_venv_python(str(env_dir / "venv"))
+    cmd = [python, "-m", "pip"] + list(args)
+    sub_kwargs = {"cwd": str(cwd)}
+    if sys.platform == "win32":
+        sub_kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+    proc = subprocess.run(cmd, capture_output=True, text=True, **sub_kwargs)
+    if proc.returncode != 0:
+        tail = (proc.stderr or proc.stdout or "").strip().splitlines()[-5:]
+        raise RuntimeError(
+            f"Editable install failed (exit {proc.returncode}): {' | '.join(tail)}"
+        )
+    if progress_callback:
+        progress_callback(f"Editable install of {cwd.name} complete.")
+
+
+def _run_install_py(install_py: Path, env_dir: Path, progress_callback) -> None:
+    """Legacy fallback: run an add-on's install.py if no post_install_cmd is set."""
+    python = pip_ops.get_venv_python(str(env_dir / "venv"))
+    sub_kwargs = {"cwd": str(install_py.parent)}
+    if sys.platform == "win32":
+        sub_kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+    subprocess.run([python, str(install_py)], check=True, **sub_kwargs)
