@@ -1,8 +1,18 @@
 """Curated add-on registry for the recommended creation flow."""
 from __future__ import annotations
 
+import os
+import shutil
+import stat
+import subprocess
+import sys
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Literal, Optional
+
+from src.models.environment import Environment
+from src.utils import git_ops, pip_ops, pkg_ops
 
 
 @dataclass(frozen=True)
@@ -83,15 +93,6 @@ def find_addon(addon_id: str) -> Optional[Addon]:
 # ---------------------------------------------------------------------------
 # Install / Uninstall
 # ---------------------------------------------------------------------------
-
-import subprocess
-import sys
-from datetime import datetime, timezone
-from pathlib import Path
-
-from src.models.environment import Environment
-from src.utils import git_ops, pkg_ops
-from src.utils import pip_ops
 
 
 def install_addon(
@@ -220,8 +221,12 @@ def _run_post_install_cmd(
             progress_callback=progress_callback,
         )
         return
-    # Non-pip commands (unlikely in our registry) — run as-is
-    subprocess.run(cmd, cwd=str(cwd), check=True)
+    # Registry only ships "pip"-prefixed post_install_cmds today. If this
+    # constraint ever relaxes, add a branch here (and a test) — do not
+    # silently shell out.
+    raise ValueError(
+        f"post_install_cmd must start with the 'pip' token; got {cmd!r}"
+    )
 
 
 def _run_editable_via_pkg_ops(
@@ -257,10 +262,6 @@ def _run_install_py(install_py: Path, env_dir: Path, progress_callback) -> None:
 # ---------------------------------------------------------------------------
 # Uninstall
 # ---------------------------------------------------------------------------
-
-import os
-import shutil
-import stat
 
 
 def uninstall_addon(
