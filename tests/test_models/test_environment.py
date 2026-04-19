@@ -148,3 +148,45 @@ class TestListenEnabledMigration:
         effective = env.get_effective_launch_settings()
         assert effective["listen_enabled"] is False
         assert effective["listen"] == ""
+
+
+class TestNewFields:
+    """Tests for torch_pack and installed_addons fields."""
+
+    def test_environment_new_fields_default_values(self):
+        env = Environment(name="e1", created_at="2026-04-19T00:00:00Z")
+        assert env.torch_pack is None
+        assert env.installed_addons == []
+
+    def test_environment_roundtrip_preserves_new_fields(self, tmp_path):
+        env_dir = tmp_path / "e1"
+        env_dir.mkdir()
+        env = Environment(
+            name="e1",
+            created_at="2026-04-19T00:00:00Z",
+            path=str(env_dir),
+            torch_pack="torch-2.9.1-cu130",
+            installed_addons=[
+                {
+                    "id": "sage-attention",
+                    "installed_at": "2026-04-19T00:00:00Z",
+                    "torch_pack_at_install": "torch-2.9.1-cu130",
+                }
+            ],
+        )
+        env.save_meta()
+        reloaded = Environment.load_meta(str(env_dir))
+        assert reloaded.torch_pack == "torch-2.9.1-cu130"
+        assert reloaded.installed_addons == env.installed_addons
+
+    def test_environment_loads_legacy_meta_without_new_fields(self, tmp_path):
+        env_dir = tmp_path / "legacy"
+        env_dir.mkdir()
+        meta = env_dir / "env_meta.json"
+        meta.write_text(
+            '{"name":"legacy","created_at":"2026-01-01T00:00:00Z"}',
+            encoding="utf-8",
+        )
+        env = Environment.load_meta(str(env_dir))
+        assert env.torch_pack is None
+        assert env.installed_addons == []
