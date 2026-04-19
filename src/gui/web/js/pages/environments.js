@@ -428,15 +428,23 @@
                 escapeHtml(t('env.create.pack') || 'PyTorch') + ': <strong>' + escapeHtml(gpuInfo.recommended_pack_label) + '</strong>' +
             '</div>' : '';
 
+        var recPackId = gpuInfo.recommended_pack_id || '';
         var addonsHtml = addons.map(function(a) {
-            var disabledAttr = canRecommend ? '' : ' disabled';
-            var cudaTag = a.requires_cuda ? '<span class="create-addon-tag">CUDA</span>' : '';
+            var compat = Array.isArray(a.compatible_packs) ? a.compatible_packs : [];
+            var packCompatible = !recPackId || compat.indexOf(recPackId) !== -1;
+            var isDisabled = !canRecommend || !packCompatible;
+            var disabledAttr = isDisabled ? ' disabled' : '';
             var compileTag = a.requires_compile ? '<span class="create-addon-tag create-addon-tag-warn">compiles</span>' : '';
+            var incompatTag = (canRecommend && !packCompatible) ?
+                '<span class="create-addon-tag create-addon-tag-warn">' +
+                    escapeHtml(t('env.create.addon_incompat') || 'not compatible with this Pack') +
+                '</span>' : '';
             var riskHtml = a.risk_note ? '<span class="create-addon-risk">\u26a0 ' + escapeHtml(a.risk_note) + '</span>' : '';
-            return '<label class="create-addon-row">' +
+            var rowClass = 'create-addon-row' + (isDisabled ? ' create-addon-row-disabled' : '');
+            return '<label class="' + rowClass + '">' +
                 '<input type="checkbox" name="addon" value="' + escapeHtml(a.id) + '"' + disabledAttr + '>' +
                 '<span class="create-addon-label">' + escapeHtml(a.label || a.id) + '</span>' +
-                '<span class="create-addon-tags">' + cudaTag + compileTag + '</span>' +
+                '<span class="create-addon-tags">' + compileTag + incompatTag + '</span>' +
                 '<span class="create-addon-desc">' + escapeHtml(a.description || '') + '</span>' +
                 riskHtml +
             '</label>';

@@ -883,8 +883,10 @@ class Bridge(QObject):
             items = [
                 {
                     "id": a.id, "label": a.label, "description": a.description,
-                    "requires_cuda": a.requires_cuda,
+                    "kind": a.kind,
+                    "compatible_packs": list(a.compatible_packs),
                     "requires_compile": a.requires_compile,
+                    "pack_pinned": a.pack_pinned,
                     "risk_note": a.risk_note or "",
                 }
                 for a in ADDONS

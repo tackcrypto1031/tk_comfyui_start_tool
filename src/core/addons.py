@@ -1,4 +1,11 @@
-"""Curated add-on registry for the recommended creation flow."""
+"""Curated add-on registry for the recommended creation flow.
+
+Each add-on pins a concrete version:
+- kind="pip": install a prebuilt wheel URL matched to the active Torch-Pack,
+  or fall back to ``pip_spec`` (PyPI).
+- kind="custom_node": git clone into ``ComfyUI/custom_nodes/<id>`` at a fixed
+  ref (tag or commit), then run ``source_post_install``.
+"""
 from __future__ import annotations
 
 import os
@@ -20,65 +27,98 @@ class Addon:
     id: str
     label: str
     description: str
-    install_method: Literal["pip_package", "git_clone"]
-    pip_package: Optional[str] = None
-    repo: Optional[str] = None
-    post_install_cmd: Optional[list] = None
-    requires_cuda: bool = False
+    kind: Literal["pip", "custom_node"]
+    # Torch-Pack ids this add-on is known to work with. Install is rejected
+    # when the env's current pack is not in this set.
+    compatible_packs: tuple[str, ...]
+
+    # kind="pip" — tried in order: wheel URL for current pack, then pip_spec.
+    wheels_by_pack: Optional[dict] = None
+    pip_spec: Optional[str] = None
+    pip_project_name: Optional[str] = None  # used for pip uninstall
+
+    # kind="custom_node"
+    source_repo: Optional[str] = None
+    source_ref: Optional[str] = None  # branch, tag, or commit sha
+    source_post_install: Optional[list] = None
+
+    # Requires the CUDA toolkit (nvcc) on the host to build from source.
+    # Currently only relevant for custom_node kind (wheels are prebuilt).
     requires_compile: bool = False
+    # True when the install is bound to a specific Torch-Pack (pack-specific
+    # wheel, or source-compile against the current torch). switch_pack must
+    # uninstall these before changing packs so the user can reinstall clean.
+    pack_pinned: bool = False
     risk_note: Optional[str] = None
 
 
 ADDONS: list[Addon] = [
     Addon(
         id="sage-attention",
-        label="SageAttention v2",
+        label="SageAttention v2.2.0",
         description="Attention acceleration — larger batch, lower VRAM",
-        install_method="git_clone",
-        repo="https://github.com/thu-ml/SageAttention.git",
-        post_install_cmd=["pip", "install", "-e", "."],
-        requires_cuda=True,
-        requires_compile=True,
-        risk_note="Requires CUDA toolkit (nvcc); first install compiles",
-    ),
-    Addon(
-        id="flash-attention",
-        label="FlashAttention",
-        description="Fast attention implementation",
-        install_method="git_clone",
-        repo="https://github.com/Dao-AILab/flash-attention.git",
-        post_install_cmd=["pip", "install", "-e", ".", "--no-build-isolation"],
-        requires_cuda=True,
-        requires_compile=True,
+        kind="pip",
+        compatible_packs=(
+            "torch-2.9.1-cu130",
+            "torch-2.8.0-cu128",
+            "torch-2.7.1-cu128",
+        ),
+        wheels_by_pack={
+            "torch-2.9.1-cu130": "https://github.com/woct0rdho/SageAttention/releases/download/v2.2.0-windows.post3/sageattention-2.2.0+cu130torch2.9.0.post3-cp39-abi3-win_amd64.whl",
+            "torch-2.8.0-cu128": "https://github.com/woct0rdho/SageAttention/releases/download/v2.2.0-windows.post3/sageattention-2.2.0+cu128torch2.8.0.post3-cp39-abi3-win_amd64.whl",
+            "torch-2.7.1-cu128": "https://github.com/woct0rdho/SageAttention/releases/download/v2.2.0-windows.post3/sageattention-2.2.0+cu128torch2.7.1.post3-cp39-abi3-win_amd64.whl",
+        },
+        pip_project_name="sageattention",
+        pack_pinned=True,
+        risk_note="Prebuilt Windows wheel (woct0rdho fork), matched to your Torch-Pack.",
     ),
     Addon(
         id="insightface",
-        label="InsightFace",
+        label="InsightFace 0.7.3",
         description="Face nodes (IPAdapter FaceID, ReActor)",
-        install_method="pip_package",
-        pip_package="insightface",
-        requires_cuda=False,
-        requires_compile=False,
+        kind="pip",
+        compatible_packs=(
+            "torch-2.9.1-cu130",
+            "torch-2.8.0-cu128",
+            "torch-2.7.1-cu128",
+        ),
+        wheels_by_pack={
+            # ONNX-based, torch-agnostic — same wheel across all packs.
+            "torch-2.9.1-cu130": "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp312-cp312-win_amd64.whl",
+            "torch-2.8.0-cu128": "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp312-cp312-win_amd64.whl",
+            "torch-2.7.1-cu128": "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp312-cp312-win_amd64.whl",
+        },
+        pip_spec="insightface==0.7.3",
+        pip_project_name="insightface",
     ),
     Addon(
         id="nunchaku",
-        label="Nunchaku",
+        label="Nunchaku v1.2.1",
         description="Quantized inference (4-bit FLUX)",
-        install_method="git_clone",
-        repo="https://github.com/mit-han-lab/nunchaku.git",
-        post_install_cmd=["pip", "install", "-e", "."],
-        requires_cuda=True,
-        requires_compile=True,
+        kind="pip",
+        compatible_packs=("torch-2.9.1-cu130", "torch-2.8.0-cu128"),
+        wheels_by_pack={
+            "torch-2.9.1-cu130": "https://github.com/nunchaku-ai/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch2.9-cp312-cp312-win_amd64.whl",
+            "torch-2.8.0-cu128": "https://github.com/nunchaku-ai/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu12.8torch2.8-cp312-cp312-win_amd64.whl",
+        },
+        pip_project_name="nunchaku",
+        pack_pinned=True,
     ),
     Addon(
         id="trellis2",
         label="Trellis 2.0",
         description="3D generation nodes",
-        install_method="git_clone",
-        repo="https://github.com/microsoft/TRELLIS.git",
-        post_install_cmd=["pip", "install", "-r", "requirements.txt"],
-        requires_cuda=True,
+        kind="custom_node",
+        compatible_packs=("torch-2.8.0-cu128",),
+        source_repo="https://github.com/microsoft/TRELLIS.2.git",
+        source_ref="main",
+        source_post_install=["pip", "install", "-r", "requirements.txt"],
         requires_compile=True,
+        pack_pinned=True,
+        risk_note=(
+            "Only works on the Torch 2.8.0 + CUDA 12.8 Pack. "
+            "First install compiles CUDA ops (~20 min) and downloads ~4B weights."
+        ),
     ),
 ]
 
@@ -90,8 +130,12 @@ def find_addon(addon_id: str) -> Optional[Addon]:
     return None
 
 
+class IncompatiblePackError(RuntimeError):
+    """Raised when an add-on is installed against a Torch-Pack it doesn't support."""
+
+
 # ---------------------------------------------------------------------------
-# Install / Uninstall
+# Install
 # ---------------------------------------------------------------------------
 
 
@@ -103,34 +147,39 @@ def install_addon(
     package_manager: str = "uv",
     progress_callback=None,
 ) -> dict:
-    """Install a single add-on into an environment. Returns {id, method}.
+    """Install a single add-on into an environment. Returns {id, kind}.
 
-    Raises if the add-on id is unknown. Package-install failures bubble up.
-    Updates env_meta.json.installed_addons on success.
+    Raises IncompatiblePackError if the env's current Torch-Pack is not in
+    the add-on's compatible_packs. Raises ValueError on unknown id.
+    Package-install failures bubble up. Updates env_meta.json on success.
     """
     addon = find_addon(addon_id)
     if addon is None:
         raise ValueError(f"Unknown addon: {addon_id}")
 
     env_dir = Path(env_dir)
-    venv_path = env_dir / "venv"
+    env = Environment.load_meta(str(env_dir))
+    current_pack = env.torch_pack or ""
 
-    if addon.install_method == "pip_package":
-        pkg_ops.run_install(
-            venv_path=str(venv_path),
-            args=["install", addon.pip_package],
-            tools_dir=tools_dir,
-            uv_version=uv_version,
-            package_manager=package_manager,
-            progress_callback=progress_callback,
+    if current_pack not in addon.compatible_packs:
+        raise IncompatiblePackError(
+            f"Add-on '{addon_id}' does not support Torch-Pack "
+            f"'{current_pack}'. Compatible packs: "
+            f"{', '.join(addon.compatible_packs) or '(none)'}"
         )
-    elif addon.install_method == "git_clone":
-        _install_git_clone_addon(
-            addon, env_dir, tools_dir, uv_version, package_manager,
-            progress_callback,
+
+    if addon.kind == "pip":
+        _install_pip_addon(
+            addon, current_pack, env_dir, tools_dir, uv_version,
+            package_manager, progress_callback,
+        )
+    elif addon.kind == "custom_node":
+        _install_custom_node_addon(
+            addon, env_dir, tools_dir, uv_version,
+            package_manager, progress_callback,
         )
     else:  # pragma: no cover — guarded by Literal
-        raise ValueError(f"Unknown install_method: {addon.install_method}")
+        raise ValueError(f"Unknown addon kind: {addon.kind}")
 
     env = Environment.load_meta(str(env_dir))
     env.installed_addons.append({
@@ -139,27 +188,44 @@ def install_addon(
         "torch_pack_at_install": env.torch_pack,
     })
     env.save_meta()
-    return {"id": addon_id, "method": addon.install_method}
+    return {"id": addon_id, "kind": addon.kind}
 
 
-def _install_git_clone_addon(
-    addon: Addon,
-    env_dir: Path,
-    tools_dir: Path,
-    uv_version: str,
-    package_manager: str,
-    progress_callback,
+def _install_pip_addon(
+    addon: Addon, pack_id: str, env_dir: Path, tools_dir: Path,
+    uv_version: str, package_manager: str, progress_callback,
 ) -> None:
-    """Clone add-on repo, install its requirements, then run post_install_cmd."""
+    """Prefer a pack-matched wheel URL; fall back to PyPI pip_spec."""
+    target = (addon.wheels_by_pack or {}).get(pack_id) or addon.pip_spec
+    if not target:
+        raise RuntimeError(
+            f"Add-on '{addon.id}' has no install target for pack '{pack_id}'"
+        )
+    pkg_ops.run_install(
+        venv_path=str(env_dir / "venv"),
+        args=["install", target],
+        tools_dir=tools_dir,
+        uv_version=uv_version,
+        package_manager=package_manager,
+        progress_callback=progress_callback,
+    )
+
+
+def _install_custom_node_addon(
+    addon: Addon, env_dir: Path, tools_dir: Path,
+    uv_version: str, package_manager: str, progress_callback,
+) -> None:
+    """Clone the add-on's repo at source_ref, install its requirements,
+    then run source_post_install."""
     node_dir = env_dir / "ComfyUI" / "custom_nodes" / addon.id
     node_dir.parent.mkdir(parents=True, exist_ok=True)
 
     git_ops.clone_repo(
-        addon.repo, str(node_dir), branch=None,
+        addon.source_repo, str(node_dir),
+        branch=addon.source_ref,
         progress_callback=progress_callback,
     )
 
-    # 1) install requirements.txt if present
     req = node_dir / "requirements.txt"
     if req.exists():
         pkg_ops.run_install(
@@ -171,10 +237,9 @@ def _install_git_clone_addon(
             progress_callback=progress_callback,
         )
 
-    # 2) post_install_cmd wins over install.py
-    if addon.post_install_cmd:
+    if addon.source_post_install:
         _run_post_install_cmd(
-            cmd=addon.post_install_cmd,
+            cmd=addon.source_post_install,
             cwd=node_dir,
             env_dir=env_dir,
             tools_dir=tools_dir,
@@ -194,7 +259,6 @@ def _run_post_install_cmd(
 ) -> None:
     """Run an add-on's post_install_cmd; translate 'pip' → active package manager."""
     if cmd and cmd[0] == "pip":
-        # Portable "pip" token → route through pkg_ops dispatch
         args = cmd[1:]
         resolved = []
         for token in args:
@@ -204,7 +268,6 @@ def _run_post_install_cmd(
                 resolved.append(str((cwd / token).resolve()))
             else:
                 resolved.append(token)
-        # Editable installs need cwd awareness
         if "-e" in resolved and "." in resolved:
             _run_editable_via_pkg_ops(
                 resolved, cwd=cwd, env_dir=env_dir, tools_dir=tools_dir,
@@ -221,9 +284,6 @@ def _run_post_install_cmd(
             progress_callback=progress_callback,
         )
         return
-    # Registry only ships "pip"-prefixed post_install_cmds today. If this
-    # constraint ever relaxes, add a branch here (and a test) — do not
-    # silently shell out.
     raise ValueError(
         f"post_install_cmd must start with the 'pip' token; got {cmd!r}"
     )
@@ -279,16 +339,16 @@ def uninstall_addon(
 
     env_dir = Path(env_dir)
 
-    if addon.install_method == "pip_package":
+    if addon.kind == "pip" and addon.pip_project_name:
         pkg_ops.run_install(
             venv_path=str(env_dir / "venv"),
-            args=["uninstall", "-y", addon.pip_package],
+            args=["uninstall", "-y", addon.pip_project_name],
             tools_dir=tools_dir,
             uv_version=uv_version,
             package_manager=package_manager,
             progress_callback=progress_callback,
         )
-    elif addon.install_method == "git_clone":
+    elif addon.kind == "custom_node":
         node_dir = env_dir / "ComfyUI" / "custom_nodes" / addon.id
         if node_dir.exists():
             def _on_rm_error(func, path, exc_info):

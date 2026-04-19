@@ -257,7 +257,7 @@
         }
 
         if (warnEl) {
-            var compiledIds = new Set(_ptAddonRegistry.filter(function(a) { return a.requires_compile; }).map(function(a) { return a.id; }));
+            var compiledIds = new Set(_ptAddonRegistry.filter(function(a) { return a.pack_pinned || a.requires_compile; }).map(function(a) { return a.id; }));
             var installedAddons = (env && env.installed_addons) ? env.installed_addons : [];
             var compiled = installedAddons.filter(function(a) { return compiledIds.has(a.id || a); });
             if (compiled.length) {
@@ -280,7 +280,7 @@
         if (!picked) { App.showToast(t('versions.pytorch.pick_pack') || 'Pick a Pack first', 'info'); return; }
 
         var env = _ptEnvs.find(function(e) { return e.name === envName; });
-        var compiledIds = new Set(_ptAddonRegistry.filter(function(a) { return a.requires_compile; }).map(function(a) { return a.id; }));
+        var compiledIds = new Set(_ptAddonRegistry.filter(function(a) { return a.pack_pinned || a.requires_compile; }).map(function(a) { return a.id; }));
         var installedAddons = (env && env.installed_addons) ? env.installed_addons : [];
         var compiled = installedAddons.filter(function(a) { return compiledIds.has(a.id || a); }).map(function(a) { return a.id || a; });
 

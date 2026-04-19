@@ -187,18 +187,19 @@ def switch_pack(
         return {"ok": False, "error": f"unknown pack '{target_pack_id}'",
                 "noop": False, "removed_addons": []}
 
-    # Identify compiled add-ons — they need removal before we swap torch
+    # Identify pack-pinned add-ons — wheel/source is bound to the current
+    # torch version, so we must uninstall before swapping torch.
     compiled_addons = []
     for entry in env.installed_addons:
         addon = find_addon(entry.get("id", ""))
-        if addon and addon.requires_compile:
+        if addon and addon.pack_pinned:
             compiled_addons.append(entry["id"])
 
     if compiled_addons and not confirm_addon_removal:
         return {
             "ok": False,
             "error": (
-                f"Compiled add-ons require removal before Pack switch: "
+                f"Pack-pinned add-ons require removal before Pack switch: "
                 f"{', '.join(compiled_addons)}. Re-invoke with "
                 f"confirm_addon_removal=True."
             ),
@@ -224,10 +225,10 @@ def switch_pack(
     for aid in compiled_addons:
         _report("addon", 15, f"Removing compiled add-on: {aid}")
         addon = find_addon(aid)
-        if addon and addon.install_method == "pip_package":
+        if addon and addon.kind == "pip" and addon.pip_project_name:
             pkg_ops.run_install(
                 venv_path=venv_path,
-                args=["uninstall", "-y", addon.pip_package],
+                args=["uninstall", "-y", addon.pip_project_name],
                 tools_dir=tools_dir,
                 uv_version=uv_version,
                 package_manager=pkg_mgr,

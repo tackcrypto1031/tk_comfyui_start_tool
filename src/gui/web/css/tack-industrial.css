@@ -1774,6 +1774,11 @@ html[data-theme="tack-industrial"] #settings-diagnostics {
   font-size: 13px;
 }
 .create-addon-row:hover { background: #1f2730; }
+.create-addon-row-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.create-addon-row-disabled:hover { background: transparent; }
 .create-addon-label { color: var(--text-0); font-weight: 500; }
 .create-addon-tags { display: flex; gap: 4px; }
 .create-addon-tag {

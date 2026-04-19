@@ -441,6 +441,7 @@ const I18N = (function() {
             // env create dialog — recommended mode (Task 18)
             "env.create.no_gpu_title": "No supported GPU detected",
             "env.create.no_gpu_hint": "Recommended mode requires CUDA \u2265 12.8. Use advanced mode below to pick versions manually, or check your driver.",
+            "env.create.addon_incompat": "not compatible with this Pack",
             "env.create.pack": "PyTorch",
             "env.create.addons": "Optional Add-ons",
             "env.create.advanced_mode": "\u25ba Advanced mode (manual Python/CUDA/Torch)",
@@ -906,6 +907,7 @@ const I18N = (function() {
             // env create dialog — recommended mode (Task 18)
             "env.create.no_gpu_title": "未偵測到支援的 GPU",
             "env.create.no_gpu_hint": "推薦模式需要 CUDA \u2265 12.8。請使用下方進階模式手動選版本，或檢查驅動。",
+            "env.create.addon_incompat": "與目前 Pack 不相容",
             "env.create.pack": "PyTorch",
             "env.create.addons": "可選擴充",
             "env.create.advanced_mode": "\u25ba 進階模式（手動選 Python/CUDA/Torch）",

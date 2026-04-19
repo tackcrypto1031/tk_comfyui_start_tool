@@ -1,47 +1,80 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
-from src.core.addons import ADDONS, find_addon, Addon, install_addon, uninstall_addon
+import pytest
+
+from src.core.addons import (
+    ADDONS,
+    Addon,
+    IncompatiblePackError,
+    find_addon,
+    install_addon,
+    uninstall_addon,
+)
 from src.models.environment import Environment
 
 
+# ---------------------------------------------------------------------------
+# Registry shape
+# ---------------------------------------------------------------------------
+
 def test_registry_has_expected_ids():
     ids = {a.id for a in ADDONS}
-    assert ids == {
-        "sage-attention", "flash-attention", "insightface",
-        "nunchaku", "trellis2",
-    }
+    # FlashAttention removed: no reliable Windows wheel path.
+    assert ids == {"sage-attention", "insightface", "nunchaku", "trellis2"}
 
 
 def test_find_existing():
     addon = find_addon("sage-attention")
     assert addon is not None
-    assert addon.requires_compile is True
+    assert addon.kind == "pip"
 
 
 def test_find_missing():
     assert find_addon("ghost") is None
 
 
-def test_pip_package_addon_has_no_repo():
+def test_pip_addon_has_wheels_and_project_name():
     insight = find_addon("insightface")
-    assert insight.install_method == "pip_package"
-    assert insight.repo is None
-    assert insight.pip_package == "insightface"
+    assert insight.kind == "pip"
+    assert insight.pip_project_name == "insightface"
+    assert insight.wheels_by_pack  # has prebuilt wheels per pack
+    # Same wheel across all packs (torch-agnostic)
+    assert len(set(insight.wheels_by_pack.values())) == 1
 
 
-def test_git_clone_addon_has_repo_and_post_install():
+def test_custom_node_addon_has_source_ref():
+    trellis = find_addon("trellis2")
+    assert trellis.kind == "custom_node"
+    assert trellis.source_repo
+    assert trellis.source_ref  # pinned ref, not floating master
+    assert trellis.source_post_install == ["pip", "install", "-r", "requirements.txt"]
+
+
+def test_trellis_gated_to_cu128_pack():
+    trellis = find_addon("trellis2")
+    assert trellis.compatible_packs == ("torch-2.8.0-cu128",)
+
+
+def test_sage_attention_has_per_pack_wheels():
     sage = find_addon("sage-attention")
-    assert sage.install_method == "git_clone"
-    assert sage.repo
-    assert sage.post_install_cmd == ["pip", "install", "-e", "."]
+    assert set(sage.wheels_by_pack.keys()) == {
+        "torch-2.9.1-cu130", "torch-2.8.0-cu128", "torch-2.7.1-cu128",
+    }
+    # All three are distinct — wheel is torch-specific.
+    assert len(set(sage.wheels_by_pack.values())) == 3
+
+
+def test_nunchaku_not_compatible_with_torch_2_7():
+    nunchaku = find_addon("nunchaku")
+    assert "torch-2.7.1-cu128" not in nunchaku.compatible_packs
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_env(tmp_path, torch_pack="p1"):
+def _make_env(tmp_path, torch_pack="torch-2.9.1-cu130"):
     env_dir = tmp_path / "main"
     (env_dir / "ComfyUI" / "custom_nodes").mkdir(parents=True)
     (env_dir / "venv").mkdir()
@@ -56,48 +89,81 @@ def _make_env(tmp_path, torch_pack="p1"):
 
 
 # ---------------------------------------------------------------------------
-# Task 9: install_addon — pip_package path
+# Install — pip kind (wheel primary, pip_spec fallback)
 # ---------------------------------------------------------------------------
 
-def test_install_pip_package_addon(tmp_path, monkeypatch):
-    env_dir = _make_env(tmp_path)
+def test_install_pip_addon_uses_wheel_for_current_pack(tmp_path, monkeypatch):
+    env_dir = _make_env(tmp_path, torch_pack="torch-2.8.0-cu128")
     captured = {"args": None}
 
     def _fake_install(venv_path, args, tools_dir, uv_version,
                       package_manager="uv", progress_callback=None):
         captured["args"] = args
 
-    monkeypatch.setattr(
-        "src.core.addons.pkg_ops.run_install", _fake_install,
-    )
+    monkeypatch.setattr("src.core.addons.pkg_ops.run_install", _fake_install)
 
     result = install_addon(
-        addon_id="insightface",
+        addon_id="sage-attention",
         env_dir=env_dir,
         tools_dir=tmp_path / "tools",
         uv_version="0.9.7",
         package_manager="uv",
     )
-    assert captured["args"] == ["install", "insightface"]
-    assert result["id"] == "insightface"
+    assert result == {"id": "sage-attention", "kind": "pip"}
+    # Installed via the pack-matched wheel URL.
+    assert captured["args"][0] == "install"
+    assert "cu128torch2.8.0" in captured["args"][1]
 
     env = Environment.load_meta(str(env_dir))
-    assert any(a["id"] == "insightface" for a in env.installed_addons)
-    assert env.installed_addons[0]["torch_pack_at_install"] == "p1"
+    assert any(a["id"] == "sage-attention" for a in env.installed_addons)
+    assert env.installed_addons[0]["torch_pack_at_install"] == "torch-2.8.0-cu128"
+
+
+def test_install_pip_addon_falls_back_to_pip_spec(tmp_path, monkeypatch):
+    """When wheels_by_pack lacks the current pack but pip_spec exists,
+    installer should fall back to PyPI spec."""
+    env_dir = _make_env(tmp_path, torch_pack="torch-2.9.1-cu130")
+    captured = {"args": None}
+
+    def _fake_install(venv_path, args, tools_dir, uv_version,
+                      package_manager="uv", progress_callback=None):
+        captured["args"] = args
+
+    monkeypatch.setattr("src.core.addons.pkg_ops.run_install", _fake_install)
+
+    # Patch the addon's wheels_by_pack in place to simulate a missing wheel
+    # for the current pack while retaining pip_spec.
+    stub = Addon(
+        id="insightface", label="InsightFace", description="face",
+        kind="pip",
+        compatible_packs=("torch-2.9.1-cu130",),
+        wheels_by_pack={},  # no wheel for current pack
+        pip_spec="insightface==0.7.3",
+        pip_project_name="insightface",
+    )
+    monkeypatch.setattr("src.core.addons.ADDONS", [stub])
+
+    install_addon(
+        addon_id="insightface",
+        env_dir=env_dir,
+        tools_dir=tmp_path / "tools",
+        uv_version="0.9.7",
+    )
+    assert captured["args"] == ["install", "insightface==0.7.3"]
 
 
 # ---------------------------------------------------------------------------
-# Task 10: install_addon — git_clone path
+# Install — custom_node kind (git clone + post_install_cmd)
 # ---------------------------------------------------------------------------
 
-def test_install_git_clone_addon(tmp_path, monkeypatch):
-    env_dir = _make_env(tmp_path)
+def test_install_custom_node_addon(tmp_path, monkeypatch):
+    # Trellis only works on cu128 pack.
+    env_dir = _make_env(tmp_path, torch_pack="torch-2.8.0-cu128")
     calls = []
 
     def _fake_clone(url, dest, branch=None, commit=None, progress_callback=None):
-        calls.append(("clone", url, dest))
+        calls.append(("clone", url, dest, branch))
         Path(dest).mkdir(parents=True)
-        # Simulate a requirements.txt in the cloned repo
         (Path(dest) / "requirements.txt").write_text("numpy\n")
 
     def _fake_install(venv_path, args, tools_dir, uv_version,
@@ -106,111 +172,73 @@ def test_install_git_clone_addon(tmp_path, monkeypatch):
 
     monkeypatch.setattr("src.core.addons.git_ops.clone_repo", _fake_clone)
     monkeypatch.setattr("src.core.addons.pkg_ops.run_install", _fake_install)
-    # Editable install goes through venv python -m pip — stub it to record call
-    def _fake_editable(args, cwd, env_dir, tools_dir, uv_version,
-                       package_manager, progress_callback):
-        calls.append(("install", tuple(args)))
-    monkeypatch.setattr(
-        "src.core.addons._run_editable_via_pkg_ops", _fake_editable,
-    )
 
     install_addon(
-        addon_id="sage-attention",
+        addon_id="trellis2",
         env_dir=env_dir,
         tools_dir=tmp_path / "tools",
         uv_version="0.9.7",
-        package_manager="uv",
     )
 
-    # Expect: clone, install -r requirements.txt, then post_install (pip install -e .)
     assert calls[0][0] == "clone"
-    assert calls[0][1] == "https://github.com/thu-ml/SageAttention.git"
+    assert calls[0][1] == "https://github.com/microsoft/TRELLIS.2.git"
+    # Cloned at the pinned source_ref, not floating master.
+    assert calls[0][3] == "main"
 
     install_calls = [c for c in calls if c[0] == "install"]
-    # First install = requirements.txt
-    assert install_calls[0][1][0] == "install"
+    # First install = requirements.txt from the cloned repo.
     assert "-r" in install_calls[0][1]
-    # Second install = post_install (translated "pip" → "install -e .")
-    assert install_calls[1][1] == ("install", "-e", ".")
-
-
-def test_install_py_skipped_when_post_install_cmd_present(tmp_path, monkeypatch):
-    env_dir = _make_env(tmp_path)
-    called_install_py = {"ran": False}
-
-    def _fake_clone(url, dest, **kw):
-        Path(dest).mkdir(parents=True)
-        # Add an install.py which would normally be auto-run
-        (Path(dest) / "install.py").write_text("raise SystemExit(0)")
-
-    def _fake_install(*a, **kw): pass
-
-    def _fake_run_install_py(*a, **kw):
-        called_install_py["ran"] = True
-
-    def _fake_editable(*a, **kw): pass
-
-    monkeypatch.setattr("src.core.addons.git_ops.clone_repo", _fake_clone)
-    monkeypatch.setattr("src.core.addons.pkg_ops.run_install", _fake_install)
-    monkeypatch.setattr("src.core.addons._run_install_py", _fake_run_install_py)
-    monkeypatch.setattr("src.core.addons._run_editable_via_pkg_ops", _fake_editable)
-
-    install_addon(
-        addon_id="sage-attention",
-        env_dir=env_dir,
-        tools_dir=tmp_path / "tools",
-        uv_version="0.9.7",
-    )
-    assert called_install_py["ran"] is False
+    # Second install = translated post_install_cmd.
+    assert install_calls[1][1][0] == "install"
+    assert "-r" in install_calls[1][1]  # "pip install -r requirements.txt"
 
 
 # ---------------------------------------------------------------------------
-# Task 11: uninstall_addon
+# Compatibility gating
 # ---------------------------------------------------------------------------
 
-def test_uninstall_git_clone_addon(tmp_path, monkeypatch):
-    env_dir = _make_env(tmp_path)
-    node_dir = env_dir / "ComfyUI" / "custom_nodes" / "sage-attention"
-    node_dir.mkdir(parents=True)
-    (node_dir / "junk.py").write_text("x")
-    env = Environment.load_meta(str(env_dir))
-    env.installed_addons.append({
-        "id": "sage-attention",
-        "installed_at": "2026-04-19T00:00:00Z",
-        "torch_pack_at_install": "p1",
-    })
-    env.save_meta()
-
-    calls = []
-
-    def _fake_install(venv_path, args, tools_dir, uv_version,
-                      package_manager="uv", progress_callback=None):
-        calls.append(args)
-
-    monkeypatch.setattr("src.core.addons.pkg_ops.run_install", _fake_install)
-
-    uninstall_addon(
-        addon_id="sage-attention",
-        env_dir=env_dir,
-        tools_dir=tmp_path / "tools",
-        uv_version="0.9.7",
-        package_manager="uv",
+def test_incompatible_pack_raises(tmp_path, monkeypatch):
+    # Trellis on cu130 env should be rejected pre-flight.
+    env_dir = _make_env(tmp_path, torch_pack="torch-2.9.1-cu130")
+    monkeypatch.setattr(
+        "src.core.addons.pkg_ops.run_install",
+        lambda *a, **kw: (_ for _ in ()).throw(AssertionError("should not install")),
     )
-    assert not node_dir.exists()
-    # For editable git_clone add-ons we skip pip uninstall (the dir removal
-    # is the authoritative action), so no install call expected.
-    assert calls == []
+
+    with pytest.raises(IncompatiblePackError):
+        install_addon(
+            addon_id="trellis2",
+            env_dir=env_dir,
+            tools_dir=tmp_path / "tools",
+            uv_version="0.9.7",
+        )
+
     env = Environment.load_meta(str(env_dir))
-    assert not any(a["id"] == "sage-attention" for a in env.installed_addons)
+    assert env.installed_addons == []  # not recorded on failure
 
 
-def test_uninstall_pip_package_addon(tmp_path, monkeypatch):
+def test_unknown_addon_raises(tmp_path):
+    env_dir = _make_env(tmp_path)
+    with pytest.raises(ValueError):
+        install_addon(
+            addon_id="ghost",
+            env_dir=env_dir,
+            tools_dir=tmp_path / "tools",
+            uv_version="0.9.7",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Uninstall
+# ---------------------------------------------------------------------------
+
+def test_uninstall_pip_addon(tmp_path, monkeypatch):
     env_dir = _make_env(tmp_path)
     env = Environment.load_meta(str(env_dir))
     env.installed_addons.append({
         "id": "insightface",
         "installed_at": "2026-04-19T00:00:00Z",
-        "torch_pack_at_install": "p1",
+        "torch_pack_at_install": "torch-2.9.1-cu130",
     })
     env.save_meta()
 
@@ -227,8 +255,42 @@ def test_uninstall_pip_package_addon(tmp_path, monkeypatch):
         env_dir=env_dir,
         tools_dir=tmp_path / "tools",
         uv_version="0.9.7",
-        package_manager="uv",
     )
+    # pip uninstall uses pip_project_name (not pip_spec with version pin).
     assert calls == [("uninstall", "-y", "insightface")]
+    env = Environment.load_meta(str(env_dir))
+    assert env.installed_addons == []
+
+
+def test_uninstall_custom_node_addon(tmp_path, monkeypatch):
+    env_dir = _make_env(tmp_path, torch_pack="torch-2.8.0-cu128")
+    node_dir = env_dir / "ComfyUI" / "custom_nodes" / "trellis2"
+    node_dir.mkdir(parents=True)
+    (node_dir / "junk.py").write_text("x")
+    env = Environment.load_meta(str(env_dir))
+    env.installed_addons.append({
+        "id": "trellis2",
+        "installed_at": "2026-04-19T00:00:00Z",
+        "torch_pack_at_install": "torch-2.8.0-cu128",
+    })
+    env.save_meta()
+
+    calls = []
+
+    def _fake_install(venv_path, args, tools_dir, uv_version,
+                      package_manager="uv", progress_callback=None):
+        calls.append(args)
+
+    monkeypatch.setattr("src.core.addons.pkg_ops.run_install", _fake_install)
+
+    uninstall_addon(
+        addon_id="trellis2",
+        env_dir=env_dir,
+        tools_dir=tmp_path / "tools",
+        uv_version="0.9.7",
+    )
+    assert not node_dir.exists()
+    # custom_node uninstall is tree-removal only, no pip call.
+    assert calls == []
     env = Environment.load_meta(str(env_dir))
     assert env.installed_addons == []
