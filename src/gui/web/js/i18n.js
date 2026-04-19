@@ -467,6 +467,8 @@ const I18N = (function() {
             "versions.pytorch.switched": "Pack switched",
             "versions.pytorch.refreshed": "Refreshed",
             "versions.pytorch.compiled_warn": "Switching will uninstall these compiled add-ons (you can reinstall afterward):",
+            "versions.pytorch.reinstall_prompt": "Reinstall these add-ons now?",
+            "versions.pytorch.reinstalling": "Reinstalling add-on",
         },
         "zh-TW": {
             // Main window
@@ -930,6 +932,8 @@ const I18N = (function() {
             "versions.pytorch.switched": "已切換 Pack",
             "versions.pytorch.refreshed": "已刷新",
             "versions.pytorch.compiled_warn": "切換會卸載下列編譯型擴充（可重裝）：",
+            "versions.pytorch.reinstall_prompt": "現在重裝這些擴充？",
+            "versions.pytorch.reinstalling": "重裝擴充中",
         },
     };
 

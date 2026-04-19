@@ -300,7 +300,7 @@
             (BridgeAPI.switchTorchPack ? BridgeAPI.switchTorchPack(envName, picked.value, function(msg) {
                 App.updateProgress(progressId, msg.step || msg, msg.percent || 0, msg.detail || '');
             }) : Promise.reject('switchTorchPack not available'))
-                .then(function() {
+                .then(function(result) {
                     App.hideProgress(progressId, 'success');
                     App.showToast(t('versions.pytorch.switched') || 'Pack switched', 'success');
                     if (statusEl) statusEl.textContent = t('versions.pytorch.switched') || 'Pack switched';
@@ -309,6 +309,29 @@
                         _ptEnvs = envs || [];
                         _ptRefreshCurrent(container);
                     });
+                    // Offer to reinstall any compiled add-ons that were auto-removed
+                    var removed = (result && result.removed_addons) || compiled;
+                    if (removed && removed.length) {
+                        var reinstallMsg = (t('versions.pytorch.reinstall_prompt')
+                            || 'Reinstall these add-ons now?') + ' ' + removed.join(', ');
+                        App.confirm(reinstallMsg).then(function(wantReinstall) {
+                            if (!wantReinstall) return;
+                            removed.reduce(function(chain, aid) {
+                                return chain.then(function() {
+                                    var pid = 'pt-reinstall-' + aid + '-' + Date.now();
+                                    App.showProgress(pid, t('versions.pytorch.reinstalling') || 'Reinstalling ' + aid);
+                                    return BridgeAPI.installAddon(envName, aid, function(msg) {
+                                        App.updateProgress(pid, msg.step || msg, msg.percent || 0, msg.detail || '');
+                                    }).then(function() {
+                                        App.hideProgress(pid, 'success');
+                                    }).catch(function(err) {
+                                        App.hideProgress(pid, 'error');
+                                        App.showToast(aid + ': ' + err, 'error');
+                                    });
+                                });
+                            }, Promise.resolve());
+                        });
+                    }
                 }).catch(function(e) {
                     App.hideProgress(progressId, 'error');
                     App.showToast(t('error') + ': ' + e, 'error');
