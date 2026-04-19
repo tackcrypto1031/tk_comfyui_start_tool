@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "last_updated": "2026-04-19",
+  "remote_url": "https://raw.githubusercontent.com/tackcrypto1031/tk_comfyui_start_tool/master/data/torch_packs.json",
+  "recommended_python": "3.12.10",
+  "recommended_uv_version": "0.9.7",
+  "packs": [
+    {
+      "id": "torch-2.9.1-cu130",
+      "label": "PyTorch 2.9.1 + CUDA 13.0 (Latest)",
+      "torch": "2.9.1",
+      "torchvision": "0.24.1",
+      "torchaudio": "2.9.1",
+      "cuda_tag": "cu130",
+      "min_driver": 13.0,
+      "recommended": true
+    },
+    {
+      "id": "torch-2.8.0-cu128",
+      "label": "PyTorch 2.8.0 + CUDA 12.8 (Stable Fallback)",
+      "torch": "2.8.0",
+      "torchvision": "0.23.0",
+      "torchaudio": "2.8.0",
+      "cuda_tag": "cu128",
+      "min_driver": 12.8,
+      "recommended": false
+    },
+    {
+      "id": "torch-2.7.1-cu128",
+      "label": "PyTorch 2.7.1 + CUDA 12.8 (Compat)",
+      "torch": "2.7.1",
+      "torchvision": "0.22.1",
+      "torchaudio": "2.7.1",
+      "cuda_tag": "cu128",
+      "min_driver": 12.8,
+      "recommended": false
+    }
+  ],
+  "pinned_deps": {
+    "av": "16.0.1",
+    "transformers": "4.57.6",
+    "stringzilla": "3.12.6"
+  }
+}
