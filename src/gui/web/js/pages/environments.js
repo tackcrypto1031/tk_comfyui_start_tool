@@ -397,18 +397,16 @@
             buttons: [],
         });
 
-        // Fetch GPU status and addon list in parallel
+        // Fetch GPU status and addon list in parallel.
+        // BridgeAPI promises resolve to already-parsed objects (see bridge.js _handleResult),
+        // so we consume them directly — do NOT re-parse.
         Promise.all([
-            BridgeAPI.detectGpuForRecommended ? BridgeAPI.detectGpuForRecommended() : Promise.resolve('{"ok":false}'),
-            BridgeAPI.listAddons ? BridgeAPI.listAddons() : Promise.resolve('{"ok":false,"addons":[]}'),
+            BridgeAPI.detectGpuForRecommended ? BridgeAPI.detectGpuForRecommended() : Promise.resolve({ok: false}),
+            BridgeAPI.listAddons ? BridgeAPI.listAddons() : Promise.resolve({ok: false, addons: []}),
         ]).then(function(results) {
-            var gpuInfo = {};
-            var addons = [];
-            try { gpuInfo = JSON.parse(results[0]); } catch(e) { gpuInfo = {ok: false}; }
-            try {
-                var addonsRes = JSON.parse(results[1]);
-                addons = addonsRes.ok ? (addonsRes.addons || []) : [];
-            } catch(e) { addons = []; }
+            var gpuInfo = (results[0] && typeof results[0] === 'object') ? results[0] : {ok: false};
+            var addonsRes = (results[1] && typeof results[1] === 'object') ? results[1] : {ok: false, addons: []};
+            var addons = addonsRes.ok ? (addonsRes.addons || []) : [];
 
             var canRecommend = !!(gpuInfo.ok && gpuInfo.recommended_pack_id);
             _openCreateDialogWithData(canRecommend, gpuInfo, addons);
