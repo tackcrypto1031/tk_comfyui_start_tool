@@ -1,19 +1,28 @@
 {
-  "version": "0.3.1",
+  "version": "0.4.0",
   "min_python": "3.10",
-  "release_notes": "下拉選單樣式統一、進階設定與診斷移至設置分頁",
+  "release_notes": "推薦模式建環境 + Torch-Pack 切換 + uv 遷移",
   "changes": [
-    "全域下拉選單樣式統一,啟動器「啟動參數」卡片內的 VRAM 模式、精度等選單不再使用系統預設樣式",
-    "將「進階設定」與「診斷」工具從啟動器移至設置分頁,啟動器頁面聚焦於啟動參數與啟動按鈕"
+    "新增推薦模式:建環境時自動依 GPU 選擇 PyTorch/CUDA 組合,無需手動選版本",
+    "新增 Torch-Pack 引擎切換(版本頁 → PyTorch 引擎分頁)",
+    "新增可選擴充:SageAttention / FlashAttention / InsightFace / Nunchaku / Trellis 2",
+    "套件安裝改用 uv(顯著加快環境建置速度)",
+    "env_meta.json 新增 torch_pack 與 installed_addons 欄位"
   ],
   "changes_i18n": {
     "en": [
-      "Unified global dropdown styling — selects inside the launcher 'Launch Params' card (VRAM mode, precision) no longer fall back to the OS native popup",
-      "Moved 'Advanced Settings' and 'Diagnostics' tools from the Launcher to the Settings page, keeping the Launcher focused on launch params and the start button"
+      "Added Recommended mode: environment creation auto-selects PyTorch/CUDA combo based on GPU — no more manual version picking",
+      "Added Torch-Pack engine switcher (Versions page → PyTorch Engine tab)",
+      "Added optional curated add-ons: SageAttention / FlashAttention / InsightFace / Nunchaku / Trellis 2",
+      "Package operations now use uv (significantly faster env creation)",
+      "env_meta.json gains torch_pack and installed_addons fields"
     ],
     "zh-TW": [
-      "全域下拉選單樣式統一,啟動器「啟動參數」卡片內的 VRAM 模式、精度等選單不再使用系統預設樣式",
-      "將「進階設定」與「診斷」工具從啟動器移至設置分頁,啟動器頁面聚焦於啟動參數與啟動按鈕"
+      "新增推薦模式:建環境時自動依 GPU 選擇 PyTorch/CUDA 組合,無需手動選版本",
+      "新增 Torch-Pack 引擎切換(版本頁 → PyTorch 引擎分頁)",
+      "新增可選擴充:SageAttention / FlashAttention / InsightFace / Nunchaku / Trellis 2",
+      "套件安裝改用 uv(顯著加快環境建置速度)",
+      "env_meta.json 新增 torch_pack 與 installed_addons 欄位"
     ]
   }
 }
