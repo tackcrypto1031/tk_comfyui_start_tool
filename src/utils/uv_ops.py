@@ -7,7 +7,7 @@ import subprocess
 import sys
 import zipfile
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 import requests
 
@@ -59,7 +59,7 @@ def _download_uv_binary(dest: Path, version: str) -> None:
 
 
 def run_uv_pip(uv_binary: Path, venv_python: str, args: list,
-               progress_callback=None) -> None:
+               progress_callback: Optional[Callable[[str], None]] = None) -> None:
     """Invoke `uv pip <args>` against the given venv python. Streams output.
 
     Raises RuntimeError with parsed stderr tail on non-zero exit.
