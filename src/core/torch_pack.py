@@ -51,25 +51,31 @@ class TorchPackManager:
         return self._data
 
     def list_packs(self) -> list[Pack]:
+        """Return all defined Packs as Pack objects."""
         data = self.load()
         return [Pack(**p) for p in data.get("packs", [])]
 
     def find(self, pack_id: str) -> Optional[Pack]:
+        """Return the Pack with the given id, or None if unknown."""
         for p in self.list_packs():
             if p.id == pack_id:
                 return p
         return None
 
     def get_pinned_deps(self) -> dict:
+        """Return the global pinned_deps map ({package: version})."""
         return self.load().get("pinned_deps", {})
 
     def get_recommended_python(self) -> str:
+        """Return the Python version recommended for fresh env creation."""
         return self.load().get("recommended_python", "")
 
     def get_recommended_uv_version(self) -> str:
+        """Return the uv binary version to ensure in tools/uv/."""
         return self.load().get("recommended_uv_version", "")
 
     def get_remote_url(self) -> str:
+        """Return the URL used by refresh_remote() to pull updated Pack data."""
         return self.load().get("remote_url", "")
 
     def select_pack_for_gpu(self, gpu_info: dict) -> Optional[Pack]:
