@@ -30,6 +30,13 @@ def cli(ctx, config):
     """tack_comfyui_start_tool - ComfyUI Environment Manager"""
     ctx.ensure_object(dict)
     ctx.obj["config_path"] = config
+    try:
+        from src.core.migrations import migrate_env_meta_0_4_0
+        _cfg = load_config(config)
+        migrate_env_meta_0_4_0(_cfg)
+    except Exception as _exc:
+        import logging as _logging
+        _logging.getLogger(__name__).warning("0.4.0 migration failed: %s", _exc)
 
 
 # --- env group ---

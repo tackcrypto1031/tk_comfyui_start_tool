@@ -31,6 +31,13 @@ def main():
         app = QApplication(sys.argv)
         config = load_config("config.json")
 
+        try:
+            from src.core.migrations import migrate_env_meta_0_4_0
+            migrate_env_meta_0_4_0(config)
+        except Exception as exc:
+            import logging as _logging
+            _logging.getLogger(__name__).warning("0.4.0 migration failed: %s", exc)
+
         # App icon (title bar + taskbar)
         icon_path = Path(__file__).parent / "assets" / "icon.ico"
         app_icon = QIcon(str(icon_path))
