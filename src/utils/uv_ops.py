@@ -56,3 +56,60 @@ def _download_uv_binary(dest: Path, version: str) -> None:
                     out.write(src.read())
                 return
     raise RuntimeError("uv.exe not found in downloaded zip")
+
+
+def run_uv_pip(uv_binary: Path, venv_python: str, args: list,
+               progress_callback=None) -> None:
+    """Invoke `uv pip <args>` against the given venv python. Streams output.
+
+    Raises RuntimeError with parsed stderr tail on non-zero exit.
+    """
+    cmd = [str(uv_binary), "pip"] + list(args) + ["--python", str(venv_python)]
+    # Move --python to come right after the subcommand name for clarity
+    # (uv accepts it anywhere, but this order matches docs).
+    sub = args[0] if args else ""
+    if sub in ("install", "uninstall", "freeze", "list", "show", "sync"):
+        cmd = [str(uv_binary), "pip", sub, "--python", str(venv_python)] + list(args[1:])
+
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        **_SUBPROCESS_KWARGS,
+    )
+
+    tail: list[str] = []
+    for raw in proc.stdout:
+        try:
+            line = raw.decode("utf-8", errors="replace").rstrip("\r\n")
+        except AttributeError:
+            line = raw.rstrip("\r\n")
+        if line:
+            tail.append(line)
+            if len(tail) > 40:
+                tail.pop(0)
+            if progress_callback:
+                progress_callback(line)
+    rc = proc.wait()
+    if rc != 0:
+        detail = " | ".join(tail[-5:]) if tail else "no output"
+        raise RuntimeError(f"uv pip failed (exit {rc}): {detail}")
+
+
+def uv_freeze(uv_binary: Path, venv_python: str) -> dict:
+    """Return `uv pip freeze` as {package: version}."""
+    cmd = [str(uv_binary), "pip", "freeze", "--python", str(venv_python)]
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, **_SUBPROCESS_KWARGS,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"uv pip freeze failed: {result.stderr.strip()}")
+    packages = {}
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if not line or line.startswith("-e ") or line.startswith("#"):
+            continue
+        if "==" in line:
+            name, version = line.split("==", 1)
+            packages[name.strip()] = version.strip()
+    return packages
