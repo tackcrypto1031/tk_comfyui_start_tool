@@ -78,3 +78,73 @@ def find_addon(addon_id: str) -> Optional[Addon]:
         if a.id == addon_id:
             return a
     return None
+
+
+# ---------------------------------------------------------------------------
+# Install / Uninstall
+# ---------------------------------------------------------------------------
+
+from datetime import datetime, timezone
+from pathlib import Path
+
+from src.models.environment import Environment
+from src.utils import pkg_ops
+
+
+def install_addon(
+    addon_id: str,
+    env_dir: Path,
+    tools_dir: Path,
+    uv_version: str,
+    package_manager: str = "uv",
+    progress_callback=None,
+) -> dict:
+    """Install a single add-on into an environment. Returns {id, method}.
+
+    Raises if the add-on id is unknown. Package-install failures bubble up.
+    Updates env_meta.json.installed_addons on success.
+    """
+    addon = find_addon(addon_id)
+    if addon is None:
+        raise ValueError(f"Unknown addon: {addon_id}")
+
+    env_dir = Path(env_dir)
+    venv_path = env_dir / "venv"
+
+    if addon.install_method == "pip_package":
+        pkg_ops.run_install(
+            venv_path=str(venv_path),
+            args=["install", addon.pip_package],
+            tools_dir=tools_dir,
+            uv_version=uv_version,
+            package_manager=package_manager,
+            progress_callback=progress_callback,
+        )
+    elif addon.install_method == "git_clone":
+        _install_git_clone_addon(
+            addon, env_dir, tools_dir, uv_version, package_manager,
+            progress_callback,
+        )
+    else:  # pragma: no cover — guarded by Literal
+        raise ValueError(f"Unknown install_method: {addon.install_method}")
+
+    env = Environment.load_meta(str(env_dir))
+    env.installed_addons.append({
+        "id": addon_id,
+        "installed_at": datetime.now(timezone.utc).isoformat(),
+        "torch_pack_at_install": env.torch_pack,
+    })
+    env.save_meta()
+    return {"id": addon_id, "method": addon.install_method}
+
+
+def _install_git_clone_addon(
+    addon: Addon,
+    env_dir: Path,
+    tools_dir: Path,
+    uv_version: str,
+    package_manager: str,
+    progress_callback,
+) -> None:
+    """Placeholder — implemented in Task 10."""
+    raise NotImplementedError
