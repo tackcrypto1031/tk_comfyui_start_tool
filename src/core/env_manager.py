@@ -16,6 +16,7 @@ import yaml
 from src.models.environment import Environment
 from src.utils import git_ops, pip_ops, pkg_ops
 from src.core.snapshot_manager import SnapshotManager
+from src.core import addons
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ class EnvManager:
         self.environments_dir = Path(config["environments_dir"])
         self.models_dir = Path(config["models_dir"])
         self.comfyui_url = config.get("comfyui_repo_url", DEFAULT_COMFYUI_URL)
+        self._torch_pack_mgr = None
 
     # ------------------------------------------------------------------
     # Small helpers shared by create_environment() and create_recommended()
@@ -92,6 +94,238 @@ class EnvManager:
             package_manager=self._pkg_mgr(),
             progress_callback=progress_callback,
         )
+
+    def _get_torch_pack_mgr(self):
+        from src.core.torch_pack import TorchPackManager
+        if self._torch_pack_mgr is None:
+            shipped = Path(self.config.get("base_dir", ".")) / "data" / "torch_packs.json"
+            remote = self._tools_dir() / "torch_packs_remote.json"
+            self._torch_pack_mgr = TorchPackManager(shipped, remote)
+        return self._torch_pack_mgr
+
+    def _detect_gpu(self) -> dict:
+        """Lazy import of version_manager to avoid circular imports at module load."""
+        from src.core.version_manager import VersionManager
+        return VersionManager(self.config).detect_gpu()
+
+    def _latest_comfyui_tag(self) -> str:
+        """Fetch the newest release tag via VersionController. Falls back to master on failure."""
+        try:
+            from src.core.version_controller import VersionController
+            vc = VersionController(self.config)
+            remote = vc.list_remote_versions(self.comfyui_url)
+            tags = remote.get("tags", [])
+            if tags:
+                return tags[0]  # VersionController sorts newest first
+        except Exception as exc:
+            logger.warning("Failed to fetch latest ComfyUI tag: %s", exc)
+        return "master"
+
+    def _ensure_python(self, version: str) -> str:
+        """Ensure a specific Python version is available in tools/. Returns exe path."""
+        from src.core.version_manager import VersionManager
+        vm = VersionManager(self.config)
+        bundled = self._get_bundled_python_version()
+        try:
+            return str(vm.get_python_executable(version, bundled))
+        except FileNotFoundError:
+            versions = vm.refresh_python_versions()
+            match = next((v for v in versions if v["version"] == version), None)
+            if not match:
+                raise RuntimeError(
+                    f"Python {version} not available on python.org index"
+                )
+            vm.download_python(version, match["url"], match.get("sha256", ""))
+            return str(vm.get_python_executable(version, bundled))
+
+    def create_recommended(
+        self,
+        name: str,
+        selected_addon_ids: list,
+        progress_callback=None,
+    ) -> "Environment":
+        """Create an environment using GPU-auto-selected Torch-Pack + selected add-ons."""
+        self._validate_name(name)
+
+        env_dir = self.environments_dir / name
+        if env_dir.exists():
+            raise FileExistsError(f"Environment '{name}' already exists")
+
+        tpm = self._get_torch_pack_mgr()
+
+        def _report(step, pct, detail=""):
+            if progress_callback:
+                progress_callback(step, pct, detail)
+
+        # 10% — GPU detection + Pack selection BEFORE any disk work
+        _report("gpu", 10, "Detecting GPU...")
+        gpu = self._detect_gpu()
+        pack = tpm.select_pack_for_gpu(gpu)
+        if pack is None:
+            raise RuntimeError(
+                "推薦模式需要偵測到 CUDA ≥ 12.8 的 NVIDIA GPU。"
+                "請確認驅動已安裝、或改用進階模式手動選版本。"
+                " (no suitable Torch-Pack for detected GPU)"
+            )
+
+        # 5% — Resolve Python
+        python_version = tpm.get_recommended_python() or "3.12.10"
+        _report("python", 5, f"Preparing Python {python_version}...")
+        python_exe = self._ensure_python(python_version)
+
+        # 15% — latest ComfyUI tag
+        _report("tag", 15, "Resolving ComfyUI release tag...")
+        tag = self._latest_comfyui_tag()
+
+        env_dir.mkdir(parents=True)
+        failed_addons = []
+        try:
+            # 20% — venv
+            _report("venv", 20, "Creating virtual environment...")
+            venv_path = env_dir / "venv"
+            pip_ops.create_venv(str(venv_path), python_executable=python_exe)
+
+            # 30% — clone ComfyUI at tag
+            _report("clone", 30, f"Cloning ComfyUI {tag}...")
+            comfyui_path = env_dir / "ComfyUI"
+            git_ops.clone_repo(
+                self.comfyui_url, str(comfyui_path),
+                branch=tag if tag != "master" else "master",
+                progress_callback=lambda pct, msg: _report(
+                    "clone", 30 + int(pct * 0.1), msg or "Cloning ComfyUI..."
+                ),
+            )
+
+            # 45% — torch trio via pack
+            _report("pytorch", 45, f"Installing PyTorch ({pack.label})...")
+            self._install_torch_pack(
+                venv_path=str(venv_path),
+                torch=pack.torch,
+                torchvision=pack.torchvision,
+                torchaudio=pack.torchaudio,
+                cuda_tag=pack.cuda_tag,
+                progress_callback=lambda line: _report("pytorch", 45, line),
+            )
+
+            # 60% — ComfyUI requirements with torch-pinned constraints
+            _report("deps", 60, "Installing ComfyUI dependencies...")
+            req_path = comfyui_path / "requirements.txt"
+            if req_path.exists():
+                constraint = env_dir / "_constraints.txt"
+                constraint.write_text(
+                    f"torch=={pack.torch}\n"
+                    f"torchvision=={pack.torchvision}\n"
+                    f"torchaudio=={pack.torchaudio}\n",
+                    encoding="utf-8",
+                )
+                pkg_ops.run_install(
+                    venv_path=str(venv_path),
+                    args=[
+                        "install", "-r", str(req_path.resolve()),
+                        "--extra-index-url",
+                        f"https://download.pytorch.org/whl/{pack.cuda_tag}",
+                        "-c", str(constraint.resolve()),
+                    ],
+                    tools_dir=self._tools_dir(),
+                    uv_version=self._uv_version(),
+                    package_manager=self._pkg_mgr(),
+                    progress_callback=lambda line: _report("deps", 60, line),
+                )
+                constraint.unlink(missing_ok=True)
+
+            # 68% — re-pin fragile deps
+            _report("pins", 68, "Pinning fragile dependencies...")
+            self._install_pinned_deps(
+                str(venv_path), tpm.get_pinned_deps(),
+                progress_callback=lambda line: _report("pins", 68, line),
+            )
+
+            # 72% — verify critical
+            _report("verify", 72, "Verifying critical packages...")
+            freeze_data = pkg_ops.freeze(
+                venv_path=str(venv_path),
+                tools_dir=self._tools_dir(),
+                uv_version=self._uv_version(),
+                package_manager=self._pkg_mgr(),
+            )
+            if len(freeze_data) > 5:
+                critical = ["torch", "numpy", "pillow", "pyyaml", "aiohttp"]
+                installed = {k.lower().replace("_", "-") for k in freeze_data}
+                missing = [p for p in critical if p not in installed]
+                if missing:
+                    raise RuntimeError(
+                        f"Critical packages missing: {', '.join(missing)}"
+                    )
+
+            # 78% — ComfyUI-Manager
+            _report("manager", 78, "Installing ComfyUI-Manager...")
+            manager_installed = False
+            manager_path = comfyui_path / "custom_nodes" / "ComfyUI-Manager"
+            try:
+                manager_path.parent.mkdir(parents=True, exist_ok=True)
+                git_ops.clone_repo(DEFAULT_MANAGER_URL, str(manager_path), branch="main")
+                self._write_manager_security_config(comfyui_path)
+                manager_installed = True
+            except Exception as e:
+                logger.warning("ComfyUI-Manager install failed: %s", e)
+
+            # Save env_meta BEFORE add-ons so install_addon can read torch_pack
+            now = datetime.now(timezone.utc).isoformat()
+            env = Environment(
+                name=name,
+                created_at=now,
+                comfyui_commit=git_ops.get_current_commit(str(comfyui_path)),
+                comfyui_branch=tag,
+                python_version=python_version,
+                cuda_tag=pack.cuda_tag,
+                pytorch_version=freeze_data.get("torch", f"{pack.torch}+{pack.cuda_tag}"),
+                pip_freeze=freeze_data,
+                custom_nodes=(
+                    [{"name": "ComfyUI-Manager",
+                      "repo_url": DEFAULT_MANAGER_URL,
+                      "commit": git_ops.get_current_commit(str(manager_path)) if manager_installed else ""}]
+                    if manager_installed else []
+                ),
+                path=str(env_dir),
+                shared_model_enabled=True,
+                torch_pack=pack.id,
+                installed_addons=[],
+            )
+            env.save_meta()
+
+            # 82-95% — add-ons (per-addon failures are isolated)
+            total = len(selected_addon_ids)
+            for i, aid in enumerate(selected_addon_ids):
+                pct = 82 + int((i / max(total, 1)) * 13)
+                _report("addon", pct, f"Installing add-on: {aid}...")
+                try:
+                    addons.install_addon(
+                        addon_id=aid,
+                        env_dir=env_dir,
+                        tools_dir=self._tools_dir(),
+                        uv_version=self._uv_version(),
+                        package_manager=self._pkg_mgr(),
+                        progress_callback=lambda line: _report("addon", pct, line),
+                    )
+                except Exception as exc:
+                    logger.warning("Add-on %s failed: %s", aid, exc)
+                    failed_addons.append({"id": aid, "error": str(exc)})
+
+            # 96% — extra_model_paths.yaml
+            _report("finalize", 96, "Generating extra_model_paths.yaml...")
+            self._generate_extra_model_paths(comfyui_path)
+
+            # Reload env after add-on installs appended to installed_addons
+            env = Environment.load_meta(str(env_dir))
+            env.failed_addons = failed_addons  # transient attribute, not persisted
+            _report("done", 100, "Recommended environment created!")
+            return env
+
+        except Exception:
+            # Fatal failure before env_meta.json write → full rollback
+            if env_dir.exists() and not (env_dir / "env_meta.json").exists():
+                shutil.rmtree(env_dir, ignore_errors=True)
+            raise
 
     def create_environment(self, name: str, branch: str = "master",
                            commit: Optional[str] = None,
