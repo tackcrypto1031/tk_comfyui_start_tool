@@ -855,7 +855,7 @@ class Bridge(QObject):
             logger.error(f"refresh_torch_packs error: {exc}")
             return json.dumps({"ok": False, "error": str(exc)})
 
-    @Slot(str, str, bool)
+    @Slot(str, str, str)
     def switch_torch_pack(
         self, request_id: str, env_name: str, target_pack_id: str,
     ) -> None:
