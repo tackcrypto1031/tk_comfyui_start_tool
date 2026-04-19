@@ -1,5 +1,5 @@
 /**
- * versions.js — Git branch/tag/commit control (Tack Industrial redesign)
+ * versions.js — Git branch/tag/commit control + PyTorch Engine sub-tab
  */
 (function() {
 
@@ -9,72 +9,108 @@
     var _selectedLabel = null;
     var _currentCommit = '';
 
+    // ── PyTorch Engine tab state ──────────────────────────────────────────
+    var _ptEnvs = [];
+    var _ptPacks = [];
+    var _ptAddonRegistry = [];
+
     function render(container) {
         container.innerHTML =
             '<div class="ti-content fade-in">' +
-                '<div class="ti-page-head">' +
-                    '<div>' +
-                        '<p class="ti-page-sub" id="ver-sub">—</p>' +
-                    '</div>' +
-                    '<div class="ti-page-actions">' +
-                        '<div class="ti-env-select">' +
-                            '<label>' + h(t('version_environment')) + '</label>' +
-                            '<select id="ver-env"></select>' +
-                        '</div>' +
-                        '<button id="ver-btn-refresh" class="btn btn-secondary" title="' + h(t('env_refresh')) + '">' +
-                            '<span class="material-symbols-outlined" style="font-size:14px">refresh</span>' +
-                        '</button>' +
-                    '</div>' +
+                // Sub-tab switcher
+                '<div class="versions-tabs">' +
+                    '<button class="versions-tab-btn active" data-tab="comfy">' + h(t('versions.tab_comfy') || 'ComfyUI Version') + '</button>' +
+                    '<button class="versions-tab-btn" data-tab="pytorch">' + h(t('versions.tab_pytorch') || 'PyTorch Engine') + '</button>' +
                 '</div>' +
 
-                '<div class="ti-card-grid-2">' +
-                    // Left: branch / tag switcher
-                    '<div class="ti-card">' +
-                        '<div class="ti-card-head">' +
-                            '<span class="material-symbols-outlined">tag</span>' +
-                            '<span class="ti-card-title">' + h(t('version_available_tags')) + '</span>' +
-                            '<button id="ver-btn-fetch" class="btn btn-ghost btn-sm" style="margin-left:auto">' +
-                                '<span class="material-symbols-outlined" style="font-size:13px">cloud_download</span>' +
-                                '<span>' + h(t('version_refresh_versions')) + '</span>' +
-                            '</button>' +
+                // ComfyUI Version tab content
+                '<div class="versions-tab-content active" id="tab-comfy">' +
+                    '<div class="ti-page-head">' +
+                        '<div>' +
+                            '<p class="ti-page-sub" id="ver-sub">—</p>' +
                         '</div>' +
-                        '<div class="ti-card-body">' +
-                            '<div id="ver-tags-status" style="font-size:11px;color:var(--text-3);font-family:var(--font-mono)">—</div>' +
-                            '<div id="ver-tags-list" class="ti-tag-list" style="margin-top:10px"></div>' +
-                            '<div id="ver-current-notice" style="font-size:11px;color:var(--warn);font-family:var(--font-mono);display:none;margin-top:10px"></div>' +
-                            '<button id="ver-btn-switch" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:12px">' +
-                                '<span class="material-symbols-outlined" style="font-size:14px">download</span>' +
-                                '<span>' + h(t('version_switch')) + '</span>' +
-                            '</button>' +
-                        '</div>' +
-                    '</div>' +
-                    // Right: pull latest
-                    '<div class="ti-card">' +
-                        '<div class="ti-card-head">' +
-                            '<span class="material-symbols-outlined">refresh</span>' +
-                            '<span class="ti-card-title">' + h(t('version_update')) + '</span>' +
-                        '</div>' +
-                        '<div class="ti-card-body">' +
-                            '<div id="ver-update-status" style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-3)">' +
-                                '<span class="chip">—</span>' +
+                        '<div class="ti-page-actions">' +
+                            '<div class="ti-env-select">' +
+                                '<label>' + h(t('version_environment')) + '</label>' +
+                                '<select id="ver-env"></select>' +
                             '</div>' +
-                            '<button id="ver-btn-update" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:12px">' +
-                                '<span class="material-symbols-outlined" style="font-size:14px">arrow_forward</span>' +
-                                '<span>' + h(t('version_update')) + '</span>' +
+                            '<button id="ver-btn-refresh" class="btn btn-secondary" title="' + h(t('env_refresh')) + '">' +
+                                '<span class="material-symbols-outlined" style="font-size:14px">refresh</span>' +
                             '</button>' +
                         '</div>' +
                     '</div>' +
+
+                    '<div class="ti-card-grid-2">' +
+                        '<div class="ti-card">' +
+                            '<div class="ti-card-head">' +
+                                '<span class="material-symbols-outlined">tag</span>' +
+                                '<span class="ti-card-title">' + h(t('version_available_tags')) + '</span>' +
+                                '<button id="ver-btn-fetch" class="btn btn-ghost btn-sm" style="margin-left:auto">' +
+                                    '<span class="material-symbols-outlined" style="font-size:13px">cloud_download</span>' +
+                                    '<span>' + h(t('version_refresh_versions')) + '</span>' +
+                                '</button>' +
+                            '</div>' +
+                            '<div class="ti-card-body">' +
+                                '<div id="ver-tags-status" style="font-size:11px;color:var(--text-3);font-family:var(--font-mono)">—</div>' +
+                                '<div id="ver-tags-list" class="ti-tag-list" style="margin-top:10px"></div>' +
+                                '<div id="ver-current-notice" style="font-size:11px;color:var(--warn);font-family:var(--font-mono);display:none;margin-top:10px"></div>' +
+                                '<button id="ver-btn-switch" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:12px">' +
+                                    '<span class="material-symbols-outlined" style="font-size:14px">download</span>' +
+                                    '<span>' + h(t('version_switch')) + '</span>' +
+                                '</button>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="ti-card">' +
+                            '<div class="ti-card-head">' +
+                                '<span class="material-symbols-outlined">refresh</span>' +
+                                '<span class="ti-card-title">' + h(t('version_update')) + '</span>' +
+                            '</div>' +
+                            '<div class="ti-card-body">' +
+                                '<div id="ver-update-status" style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-3)">' +
+                                    '<span class="chip">—</span>' +
+                                '</div>' +
+                                '<button id="ver-btn-update" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:12px">' +
+                                    '<span class="material-symbols-outlined" style="font-size:14px">arrow_forward</span>' +
+                                    '<span>' + h(t('version_update')) + '</span>' +
+                                '</button>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+
+                    '<div class="ti-section-head">' +
+                        '<h2>' + h(t('version_recent_commits') || '最近 Commits') + '</h2>' +
+                        '<div class="line"></div>' +
+                    '</div>' +
+                    '<div id="ver-commits" class="ti-card"></div>' +
+                    '<div id="ver-status" style="margin-top:10px;font-family:var(--font-mono);font-size:11px;color:var(--text-4);text-transform:uppercase;letter-spacing:0.1em"></div>' +
                 '</div>' +
 
-                '<div class="ti-section-head">' +
-                    '<h2>' + h(t('version_recent_commits') || '最近 Commits') + '</h2>' +
-                    '<div class="line"></div>' +
+                // PyTorch Engine tab content
+                '<div class="versions-tab-content" id="tab-pytorch">' +
+                    '<div id="pt-panel"></div>' +
                 '</div>' +
-                '<div id="ver-commits" class="ti-card"></div>' +
-
-                '<div id="ver-status" style="margin-top:10px;font-family:var(--font-mono);font-size:11px;color:var(--text-4);text-transform:uppercase;letter-spacing:0.1em"></div>' +
             '</div>';
 
+        // Tab switching
+        container.querySelectorAll('.versions-tab-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                container.querySelectorAll('.versions-tab-btn').forEach(function(b) { b.classList.remove('active'); });
+                container.querySelectorAll('.versions-tab-content').forEach(function(c) { c.classList.remove('active'); });
+                btn.classList.add('active');
+                var target = container.querySelector('#tab-' + btn.dataset.tab);
+                if (target) target.classList.add('active');
+                // Lazy-load PyTorch panel on first open
+                if (btn.dataset.tab === 'pytorch') {
+                    var panel = container.querySelector('#pt-panel');
+                    if (panel && !panel.dataset.loaded) {
+                        panel.dataset.loaded = '1';
+                        renderPyTorchPanel(panel);
+                    }
+                }
+            });
+        });
+
+        // ComfyUI tab bindings
         document.getElementById('ver-btn-refresh').addEventListener('click', loadEnvs);
         document.getElementById('ver-btn-fetch').addEventListener('click', fetchTags);
         document.getElementById('ver-btn-switch').addEventListener('click', switchToSelected);
@@ -82,6 +118,203 @@
         document.getElementById('ver-env').addEventListener('change', onEnvChange);
 
         loadEnvs();
+    }
+
+    // ── PyTorch Engine panel ──────────────────────────────────────────────
+
+    function renderPyTorchPanel(container) {
+        container.innerHTML = '<div style="color:var(--text-3);font-size:13px;padding:20px">' + h(t('loading')) + '</div>';
+
+        Promise.all([
+            BridgeAPI.listEnvironments(),
+            BridgeAPI.listTorchPacks ? BridgeAPI.listTorchPacks() : Promise.resolve('{"ok":false,"packs":[]}'),
+            BridgeAPI.listAddons ? BridgeAPI.listAddons() : Promise.resolve('{"ok":false,"addons":[]}'),
+        ]).then(function(results) {
+            _ptEnvs = results[0] || [];
+            try {
+                var packsRes = typeof results[1] === 'string' ? JSON.parse(results[1]) : results[1];
+                _ptPacks = (packsRes && packsRes.packs) ? packsRes.packs : [];
+            } catch(e) { _ptPacks = []; }
+            try {
+                var addonsRes = typeof results[2] === 'string' ? JSON.parse(results[2]) : results[2];
+                _ptAddonRegistry = (addonsRes && addonsRes.addons) ? addonsRes.addons : [];
+            } catch(e) { _ptAddonRegistry = []; }
+
+            _renderPtPanelHtml(container);
+        }).catch(function(e) {
+            container.innerHTML = '<div style="color:var(--danger);font-size:13px;padding:20px">' + h(t('error') + ': ' + e) + '</div>';
+        });
+    }
+
+    function _renderPtPanelHtml(container) {
+        var envOptions = _ptEnvs.map(function(e) {
+            return '<option value="' + h(e.name) + '">' + h(e.name) + '</option>';
+        }).join('');
+
+        var packRows = _ptPacks.map(function(p) {
+            var recTag = p.recommended ? '<span class="pt-pack-tag">' + h(t('versions.pytorch.recommended') || 'Recommended') + '</span>' : '';
+            return '<label class="pt-pack-row">' +
+                '<input type="radio" name="pt-pack" value="' + h(p.id) + '" style="flex-shrink:0">' +
+                '<span class="pt-pack-label">' + h(p.label || p.id) + '</span>' +
+                recTag +
+            '</label>';
+        }).join('');
+
+        if (!packRows) {
+            packRows = '<div style="padding:14px;color:var(--text-3);font-size:13px">' + h(t('version_no_tags') || 'No packs found. Click Refresh List.') + '</div>';
+        }
+
+        container.innerHTML =
+            '<div class="ti-card-grid-2" style="margin-bottom:16px">' +
+                '<div>' +
+                    '<div class="ti-env-select" style="width:100%;margin-bottom:10px">' +
+                        '<label>' + h(t('versions.pytorch.env') || 'Environment') + '</label>' +
+                        '<select id="pt-env">' + envOptions + '</select>' +
+                    '</div>' +
+                    '<div id="pt-current" class="pt-current-info"></div>' +
+                    '<div id="pt-compiled-warn"></div>' +
+                '</div>' +
+                '<div>' +
+                    '<div class="pt-pack-list" id="pt-pack-list">' + packRows + '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="pt-actions">' +
+                '<button id="pt-refresh" class="btn btn-secondary">' +
+                    '<span class="material-symbols-outlined" style="font-size:14px">refresh</span>' +
+                    '<span>' + h(t('versions.pytorch.refresh') || 'Refresh List') + '</span>' +
+                '</button>' +
+                '<button id="pt-switch" class="btn btn-primary">' +
+                    '<span class="material-symbols-outlined" style="font-size:14px">swap_horiz</span>' +
+                    '<span>' + h(t('versions.pytorch.switch') || 'Switch') + '</span>' +
+                '</button>' +
+            '</div>' +
+            '<div id="pt-status" style="margin-top:8px;font-family:var(--font-mono);font-size:11px;color:var(--text-4)"></div>';
+
+        // Bind env selector
+        var envSel = container.querySelector('#pt-env');
+        if (envSel) {
+            envSel.addEventListener('change', function() { _ptRefreshCurrent(container); });
+            _ptRefreshCurrent(container);
+        }
+
+        // Refresh list button
+        var refreshBtn = container.querySelector('#pt-refresh');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', function() {
+                refreshBtn.disabled = true;
+                (BridgeAPI.refreshTorchPacks ? BridgeAPI.refreshTorchPacks() : Promise.resolve('{"ok":false,"error":"not available"}'))
+                    .then(function(res) {
+                        var parsed = {};
+                        try { parsed = typeof res === 'string' ? JSON.parse(res) : res; } catch(e) {}
+                        if (parsed.ok) {
+                            App.showToast(t('versions.pytorch.refreshed') || 'Refreshed', 'success');
+                            // Reload packs then re-render
+                            return BridgeAPI.listTorchPacks();
+                        } else {
+                            App.showToast(parsed.error || 'Refresh failed', 'error');
+                        }
+                    }).then(function(packsJson) {
+                        if (!packsJson) return;
+                        try {
+                            var pr = typeof packsJson === 'string' ? JSON.parse(packsJson) : packsJson;
+                            _ptPacks = (pr && pr.packs) ? pr.packs : _ptPacks;
+                        } catch(e) {}
+                        _renderPtPanelHtml(container);
+                    }).catch(function(e) {
+                        App.showToast(t('error') + ': ' + e, 'error');
+                    }).finally ? (function() { refreshBtn.disabled = false; })() : null;
+                // ensure re-enable even if .finally not available
+                setTimeout(function() { if (refreshBtn) refreshBtn.disabled = false; }, 5000);
+            });
+        }
+
+        // Switch button
+        var switchBtn = container.querySelector('#pt-switch');
+        if (switchBtn) {
+            switchBtn.addEventListener('click', function() { _ptDoSwitch(container); });
+        }
+    }
+
+    function _ptRefreshCurrent(container) {
+        var envSel = container.querySelector('#pt-env');
+        if (!envSel) return;
+        var envName = envSel.value;
+        var env = _ptEnvs.find(function(e) { return e.name === envName; });
+        var currentEl = container.querySelector('#pt-current');
+        var warnEl = container.querySelector('#pt-compiled-warn');
+
+        if (currentEl) {
+            if (env && env.torch_pack) {
+                var pack = _ptPacks.find(function(p) { return p.id === env.torch_pack; });
+                currentEl.innerHTML = '<p>' + h(t('versions.pytorch.current') || 'Current') + ': <strong>' +
+                    h(pack ? pack.label : env.torch_pack) + '</strong> \u2705</p>';
+            } else if (env) {
+                currentEl.innerHTML = '<p>' + h(t('versions.pytorch.custom') || 'Custom version') +
+                    ' (torch ' + h(env.pytorch_version || '?') + ') \u26a0\ufe0f</p>';
+            } else {
+                currentEl.innerHTML = '';
+            }
+        }
+
+        if (warnEl) {
+            var compiledIds = new Set(_ptAddonRegistry.filter(function(a) { return a.requires_compile; }).map(function(a) { return a.id; }));
+            var installedAddons = (env && env.installed_addons) ? env.installed_addons : [];
+            var compiled = installedAddons.filter(function(a) { return compiledIds.has(a.id || a); });
+            if (compiled.length) {
+                warnEl.innerHTML = '<div class="pt-banner-warn">' +
+                    h(t('versions.pytorch.compiled_warn') || 'Switching will uninstall these compiled add-ons (you can reinstall afterward):') +
+                    '<ul>' + compiled.map(function(c) { return '<li>' + h(c.id || c) + '</li>'; }).join('') + '</ul>' +
+                '</div>';
+            } else {
+                warnEl.innerHTML = '';
+            }
+        }
+    }
+
+    function _ptDoSwitch(container) {
+        var envSel = container.querySelector('#pt-env');
+        var picked = container.querySelector('input[name="pt-pack"]:checked');
+        if (!envSel) return;
+        var envName = envSel.value;
+        if (!envName) { App.showToast(t('launch_select_env'), 'info'); return; }
+        if (!picked) { App.showToast(t('versions.pytorch.pick_pack') || 'Pick a Pack first', 'info'); return; }
+
+        var env = _ptEnvs.find(function(e) { return e.name === envName; });
+        var compiledIds = new Set(_ptAddonRegistry.filter(function(a) { return a.requires_compile; }).map(function(a) { return a.id; }));
+        var installedAddons = (env && env.installed_addons) ? env.installed_addons : [];
+        var compiled = installedAddons.filter(function(a) { return compiledIds.has(a.id || a); }).map(function(a) { return a.id || a; });
+
+        var confirmMsg = t('versions.pytorch.confirm') || 'Switch Pack now? A snapshot will be created first.';
+        if (compiled.length) {
+            confirmMsg += '\n\n' + (t('versions.pytorch.confirm_compiled_removal') || 'The following compiled add-ons will be uninstalled (you can reinstall afterward):') + ' ' + compiled.join(', ');
+        }
+
+        App.confirm(confirmMsg).then(function(ok) {
+            if (!ok) return;
+            var statusEl = container.querySelector('#pt-status');
+            if (statusEl) statusEl.textContent = t('version_switching');
+
+            var progressId = 'pt-switch-' + Date.now();
+            App.showProgress(progressId, t('version_switching'));
+
+            (BridgeAPI.switchTorchPack ? BridgeAPI.switchTorchPack(envName, picked.value, function(msg) {
+                App.updateProgress(progressId, msg.step || msg, msg.percent || 0, msg.detail || '');
+            }) : Promise.reject('switchTorchPack not available'))
+                .then(function() {
+                    App.hideProgress(progressId, 'success');
+                    App.showToast(t('versions.pytorch.switched') || 'Pack switched', 'success');
+                    if (statusEl) statusEl.textContent = t('versions.pytorch.switched') || 'Pack switched';
+                    // Refresh env list and re-render current indicator
+                    BridgeAPI.listEnvironments().then(function(envs) {
+                        _ptEnvs = envs || [];
+                        _ptRefreshCurrent(container);
+                    });
+                }).catch(function(e) {
+                    App.hideProgress(progressId, 'error');
+                    App.showToast(t('error') + ': ' + e, 'error');
+                    if (statusEl) statusEl.textContent = t('error') + ': ' + e;
+                });
+        });
     }
 
     function loadEnvs() {
