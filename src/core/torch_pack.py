@@ -138,3 +138,163 @@ class TorchPackManager:
         except (OSError, json.JSONDecodeError) as exc:
             logger.warning("Failed to read %s: %s", path, exc)
             return None
+
+
+# ---------------------------------------------------------------------------
+# Module-level switch_pack
+# ---------------------------------------------------------------------------
+
+import shutil  # noqa: E402 — stdlib, safe to import here
+
+from src.core.addons import find_addon  # noqa: E402
+from src.core.snapshot_manager import SnapshotManager  # noqa: E402
+from src.models.environment import Environment  # noqa: E402
+from src.utils import pkg_ops  # noqa: E402
+
+
+def switch_pack(
+    config: dict,
+    env_name: str,
+    target_pack_id: str,
+    confirm_addon_removal: bool,
+    progress_callback=None,
+) -> dict:
+    """Switch an environment from its current Pack to target_pack_id.
+
+    Returns {
+      "ok": bool,
+      "noop": bool,
+      "removed_addons": list[str],
+      "error": str,
+    }
+    """
+    env_dir = Path(config["environments_dir"]) / env_name
+    if not env_dir.exists():
+        return {"ok": False, "error": f"env '{env_name}' not found",
+                "noop": False, "removed_addons": []}
+
+    env = Environment.load_meta(str(env_dir))
+    if env.torch_pack == target_pack_id:
+        return {"ok": True, "noop": True, "removed_addons": [], "error": ""}
+
+    base_dir = Path(config.get("base_dir", "."))
+    mgr = TorchPackManager(
+        shipped_path=base_dir / "data" / "torch_packs.json",
+        remote_path=base_dir / "tools" / "torch_packs_remote.json",
+    )
+    target = mgr.find(target_pack_id)
+    if target is None:
+        return {"ok": False, "error": f"unknown pack '{target_pack_id}'",
+                "noop": False, "removed_addons": []}
+
+    # Identify compiled add-ons — they need removal before we swap torch
+    compiled_addons = []
+    for entry in env.installed_addons:
+        addon = find_addon(entry.get("id", ""))
+        if addon and addon.requires_compile:
+            compiled_addons.append(entry["id"])
+
+    if compiled_addons and not confirm_addon_removal:
+        return {
+            "ok": False,
+            "error": (
+                f"Compiled add-ons require removal before Pack switch: "
+                f"{', '.join(compiled_addons)}. Re-invoke with "
+                f"confirm_addon_removal=True."
+            ),
+            "noop": False,
+            "removed_addons": [],
+        }
+
+    def _report(step, pct, detail=""):
+        if progress_callback:
+            progress_callback(step, pct, detail)
+
+    # Auto-snapshot
+    _report("snapshot", 5, "Creating pre-switch snapshot...")
+    SnapshotManager(config).create_snapshot(env_name, trigger="pack_switch")
+
+    removed_addons: list = []
+    venv_path = str(env_dir / "venv")
+    tools_dir = base_dir / "tools"
+    uv_version = mgr.get_recommended_uv_version() or "0.9.7"
+    pkg_mgr = config.get("package_manager", "uv")
+
+    # Remove compiled add-ons
+    for aid in compiled_addons:
+        _report("addon", 15, f"Removing compiled add-on: {aid}")
+        addon = find_addon(aid)
+        if addon and addon.install_method == "pip_package":
+            pkg_ops.run_install(
+                venv_path=venv_path,
+                args=["uninstall", "-y", addon.pip_package],
+                tools_dir=tools_dir,
+                uv_version=uv_version,
+                package_manager=pkg_mgr,
+            )
+        node_dir = env_dir / "ComfyUI" / "custom_nodes" / aid
+        if node_dir.exists():
+            shutil.rmtree(str(node_dir), ignore_errors=True)
+        env.installed_addons = [
+            e for e in env.installed_addons if e.get("id") != aid
+        ]
+        removed_addons.append(aid)
+
+    # Uninstall current torch trio
+    _report("uninstall", 30, "Uninstalling current PyTorch...")
+    pkg_ops.run_install(
+        venv_path=venv_path,
+        args=["uninstall", "-y", "torch", "torchvision", "torchaudio"],
+        tools_dir=tools_dir,
+        uv_version=uv_version,
+        package_manager=pkg_mgr,
+    )
+
+    # Install target trio
+    _report("install", 55, f"Installing {target.label}...")
+    pkg_ops.run_install(
+        venv_path=venv_path,
+        args=[
+            "install",
+            f"torch=={target.torch}",
+            f"torchvision=={target.torchvision}",
+            f"torchaudio=={target.torchaudio}",
+            "--index-url", f"https://download.pytorch.org/whl/{target.cuda_tag}",
+        ],
+        tools_dir=tools_dir,
+        uv_version=uv_version,
+        package_manager=pkg_mgr,
+    )
+
+    # Re-apply pinned deps
+    _report("pins", 80, "Re-applying pinned deps...")
+    pinned = mgr.get_pinned_deps()
+    if pinned:
+        pkg_ops.run_install(
+            venv_path=venv_path,
+            args=["install"] + [f"{k}=={v}" for k, v in pinned.items()],
+            tools_dir=tools_dir,
+            uv_version=uv_version,
+            package_manager=pkg_mgr,
+        )
+
+    # Update env_meta
+    freeze_data = pkg_ops.freeze(
+        venv_path=venv_path,
+        tools_dir=tools_dir,
+        uv_version=uv_version,
+        package_manager=pkg_mgr,
+    )
+    env.torch_pack = target.id
+    env.cuda_tag = target.cuda_tag
+    env.pytorch_version = freeze_data.get(
+        "torch", f"{target.torch}+{target.cuda_tag}"
+    )
+    env.pip_freeze = freeze_data
+    env.save_meta()
+
+    _report("done", 100, "Pack switch complete.")
+    return {
+        "ok": True, "noop": False, "removed_addons": removed_addons,
+        "error": "",
+    }
