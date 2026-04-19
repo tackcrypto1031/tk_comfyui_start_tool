@@ -5,6 +5,8 @@ import traceback
 from pathlib import Path
 from PySide6.QtCore import QObject, Slot, Signal, QThread
 from src.utils.fs_ops import save_config
+from src.core.torch_pack import TorchPackManager, switch_pack as _switch_pack
+from src.core.addons import ADDONS, install_addon as _install_addon, uninstall_addon as _uninstall_addon
 
 # Set up file logging for debugging
 _log_path = Path(__file__).parent.parent.parent / "debug.log"
@@ -815,3 +817,163 @@ class Bridge(QObject):
             webbrowser.open(url)
             return {"opened": url}
         return self._safe_call(_open)
+
+    # ── Torch-Pack / Addons / Recommended-Env ──
+
+    def _torch_pack_mgr(self) -> TorchPackManager:
+        base = Path(self.config.get("base_dir", "."))
+        return TorchPackManager(
+            shipped_path=base / "data" / "torch_packs.json",
+            remote_path=base / "tools" / "torch_packs_remote.json",
+        )
+
+    @Slot(result=str)
+    def list_torch_packs(self) -> str:
+        """Return all Torch-Packs from shipped (or remote-override) list."""
+        try:
+            mgr = self._torch_pack_mgr()
+            packs = [
+                {
+                    "id": p.id, "label": p.label, "torch": p.torch,
+                    "torchvision": p.torchvision, "torchaudio": p.torchaudio,
+                    "cuda_tag": p.cuda_tag, "min_driver": p.min_driver,
+                    "recommended": p.recommended,
+                }
+                for p in mgr.list_packs()
+            ]
+            return json.dumps({"ok": True, "packs": packs})
+        except Exception as exc:
+            logger.error(f"list_torch_packs error: {exc}")
+            return json.dumps({"ok": False, "error": str(exc)})
+
+    @Slot(result=str)
+    def refresh_torch_packs(self) -> str:
+        """Fetch remote torch_packs.json and write to tools/torch_packs_remote.json."""
+        try:
+            return json.dumps(self._torch_pack_mgr().refresh_remote())
+        except Exception as exc:
+            logger.error(f"refresh_torch_packs error: {exc}")
+            return json.dumps({"ok": False, "error": str(exc)})
+
+    @Slot(str, str, bool)
+    def switch_torch_pack(
+        self, request_id: str, env_name: str, target_pack_id: str,
+    ) -> None:
+        """Switch an environment to a different Torch-Pack (async).
+
+        confirm_addon_removal is always True via this bridge entry-point;
+        the frontend must confirm before calling.
+        Uses the async request_id pattern — poll via poll_result().
+        """
+        def _switch():
+            return _switch_pack(
+                config=self.config,
+                env_name=env_name,
+                target_pack_id=target_pack_id,
+                confirm_addon_removal=True,
+                progress_callback=lambda step, pct, detail="":
+                    self.push_progress(request_id, step, pct, detail),
+            )
+        self._run_async(request_id, _switch)
+
+    @Slot(result=str)
+    def list_addons(self) -> str:
+        """Return the curated add-on registry."""
+        try:
+            items = [
+                {
+                    "id": a.id, "label": a.label, "description": a.description,
+                    "requires_cuda": a.requires_cuda,
+                    "requires_compile": a.requires_compile,
+                    "risk_note": a.risk_note or "",
+                }
+                for a in ADDONS
+            ]
+            return json.dumps({"ok": True, "addons": items})
+        except Exception as exc:
+            logger.error(f"list_addons error: {exc}")
+            return json.dumps({"ok": False, "error": str(exc)})
+
+    @Slot(str, str, str)
+    def install_addon(self, request_id: str, env_name: str, addon_id: str) -> None:
+        """Install a curated add-on into an environment (async).
+
+        Uses the async request_id pattern — poll via poll_result().
+        """
+        def _install():
+            env_dir = Path(self.config["environments_dir"]) / env_name
+            tools_dir = Path(self.config.get("base_dir", ".")) / "tools"
+            uv_ver = self._torch_pack_mgr().get_recommended_uv_version() or "0.9.7"
+            result = _install_addon(
+                addon_id=addon_id, env_dir=env_dir, tools_dir=tools_dir,
+                uv_version=uv_ver,
+                package_manager=self.config.get("package_manager", "uv"),
+                progress_callback=lambda msg:
+                    self.push_progress(request_id, msg, 0, ""),
+            )
+            return {"ok": True, **result}
+        self._run_async(request_id, _install)
+
+    @Slot(str, str, str)
+    def uninstall_addon(self, request_id: str, env_name: str, addon_id: str) -> None:
+        """Uninstall a curated add-on from an environment (async).
+
+        Uses the async request_id pattern — poll via poll_result().
+        """
+        def _uninstall():
+            env_dir = Path(self.config["environments_dir"]) / env_name
+            tools_dir = Path(self.config.get("base_dir", ".")) / "tools"
+            uv_ver = self._torch_pack_mgr().get_recommended_uv_version() or "0.9.7"
+            _uninstall_addon(
+                addon_id=addon_id, env_dir=env_dir, tools_dir=tools_dir,
+                uv_version=uv_ver,
+                package_manager=self.config.get("package_manager", "uv"),
+            )
+            return {"ok": True}
+        self._run_async(request_id, _uninstall)
+
+    @Slot(result=str)
+    def detect_gpu_for_recommended(self) -> str:
+        """Pre-flight GPU check used by the Create Recommended dialog."""
+        try:
+            from src.core.version_manager import VersionManager
+            gpu = VersionManager(self.config).detect_gpu()
+            mgr = self._torch_pack_mgr()
+            pack = mgr.select_pack_for_gpu(gpu)
+            return json.dumps({
+                "ok": True,
+                "has_gpu": gpu.get("has_gpu", False),
+                "driver_version": gpu.get("cuda_driver_version", ""),
+                "recommended_pack_id": pack.id if pack else None,
+                "recommended_pack_label": pack.label if pack else None,
+            })
+        except Exception as exc:
+            logger.error(f"detect_gpu_for_recommended error: {exc}")
+            return json.dumps({"ok": False, "error": str(exc)})
+
+    @Slot(str, str, str)
+    def create_recommended_env(
+        self, request_id: str, name: str, selected_addon_ids_json: str,
+    ) -> None:
+        """Create a recommended environment with GPU-selected Torch-Pack (async).
+
+        selected_addon_ids_json: JSON-encoded list of add-on ids to install.
+        Uses the async request_id pattern — poll via poll_result().
+        # TODO(async): already wired into the request_id pattern used by create_environment.
+        """
+        def _create():
+            addon_ids = json.loads(selected_addon_ids_json or "[]")
+            from src.core.env_manager import EnvManager
+            env = EnvManager(self.config).create_recommended(
+                name=name,
+                selected_addon_ids=addon_ids,
+                progress_callback=lambda step, pct, detail="":
+                    self.push_progress(request_id, step, pct, detail),
+            )
+            return {
+                "ok": True,
+                "name": env.name,
+                "torch_pack": env.torch_pack,
+                "failed_addons": getattr(env, "failed_addons", []),
+            }
+        self._run_async(request_id, _create)
