@@ -14,7 +14,7 @@ from typing import List, Optional
 import yaml
 
 from src.models.environment import Environment
-from src.utils import git_ops, pip_ops
+from src.utils import git_ops, pip_ops, pkg_ops
 from src.core.snapshot_manager import SnapshotManager
 
 logger = logging.getLogger(__name__)
@@ -37,6 +37,61 @@ class EnvManager:
         self.environments_dir = Path(config["environments_dir"])
         self.models_dir = Path(config["models_dir"])
         self.comfyui_url = config.get("comfyui_repo_url", DEFAULT_COMFYUI_URL)
+
+    # ------------------------------------------------------------------
+    # Small helpers shared by create_environment() and create_recommended()
+    # ------------------------------------------------------------------
+
+    def _tools_dir(self) -> Path:
+        return Path(self.config.get("base_dir", ".")) / "tools"
+
+    def _uv_version(self) -> str:
+        # Delegated to TorchPackManager when available; fallback constant.
+        mgr = getattr(self, "_torch_pack_mgr", None)
+        if mgr:
+            return mgr.get_recommended_uv_version() or "0.9.7"
+        return "0.9.7"
+
+    def _pkg_mgr(self) -> str:
+        return self.config.get("package_manager", "uv")
+
+    def _install_torch_pack(
+        self, venv_path: str, torch: str, torchvision: str, torchaudio: str,
+        cuda_tag: str, progress_callback=None,
+    ) -> None:
+        """Install exactly the torch trio pinned to the given versions + index."""
+        index_url = f"https://download.pytorch.org/whl/{cuda_tag}"
+        args = [
+            "install",
+            f"torch=={torch}",
+            f"torchvision=={torchvision}",
+            f"torchaudio=={torchaudio}",
+            "--index-url", index_url,
+        ]
+        pkg_ops.run_install(
+            venv_path=venv_path,
+            args=args,
+            tools_dir=self._tools_dir(),
+            uv_version=self._uv_version(),
+            package_manager=self._pkg_mgr(),
+            progress_callback=progress_callback,
+        )
+
+    def _install_pinned_deps(
+        self, venv_path: str, pinned: dict, progress_callback=None,
+    ) -> None:
+        """Install exactly the pinned versions, overwriting whatever torch/requirements pulled in."""
+        if not pinned:
+            return
+        args = ["install"] + [f"{pkg}=={ver}" for pkg, ver in pinned.items()]
+        pkg_ops.run_install(
+            venv_path=venv_path,
+            args=args,
+            tools_dir=self._tools_dir(),
+            uv_version=self._uv_version(),
+            package_manager=self._pkg_mgr(),
+            progress_callback=progress_callback,
+        )
 
     def create_environment(self, name: str, branch: str = "master",
                            commit: Optional[str] = None,
