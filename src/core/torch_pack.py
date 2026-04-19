@@ -71,6 +71,27 @@ class TorchPackManager:
     def get_remote_url(self) -> str:
         return self.load().get("remote_url", "")
 
+    def select_pack_for_gpu(self, gpu_info: dict) -> Optional[Pack]:
+        """Pick the best Pack for a detected GPU, or None if none qualifies."""
+        if not gpu_info.get("has_gpu"):
+            return None
+        raw = gpu_info.get("cuda_driver_version")
+        if not raw:
+            return None
+        try:
+            driver = float(raw)
+        except (TypeError, ValueError):
+            return None
+        # Prefer recommended packs, then higher min_driver (newer)
+        candidates = sorted(
+            self.list_packs(),
+            key=lambda p: (not p.recommended, -p.min_driver),
+        )
+        for p in candidates:
+            if driver >= p.min_driver:
+                return p
+        return None
+
     @staticmethod
     def _read_json(path: Path) -> Optional[dict]:
         if not path.exists():

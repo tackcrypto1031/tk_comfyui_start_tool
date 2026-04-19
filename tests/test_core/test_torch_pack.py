@@ -64,3 +64,65 @@ def test_find_pack_by_id(tmp_path):
     mgr = TorchPackManager(shipped_path=shipped, remote_path=tmp_path / "no.json")
     assert mgr.find("p1").id == "p1"
     assert mgr.find("ghost") is None
+
+
+_MULTI = {
+    **_BASE,
+    "packs": [
+        {"id": "p-new", "label": "New", "torch": "2.9.1", "torchvision": "0.24.1",
+         "torchaudio": "2.9.1", "cuda_tag": "cu130", "min_driver": 13.0,
+         "recommended": True},
+        {"id": "p-mid", "label": "Mid", "torch": "2.8.0", "torchvision": "0.23.0",
+         "torchaudio": "2.8.0", "cuda_tag": "cu128", "min_driver": 12.8,
+         "recommended": False},
+        {"id": "p-old", "label": "Old", "torch": "2.7.1", "torchvision": "0.22.1",
+         "torchaudio": "2.7.1", "cuda_tag": "cu128", "min_driver": 12.8,
+         "recommended": False},
+    ],
+}
+
+
+def _mgr_with(tmp_path, data):
+    shipped = tmp_path / "data" / "torch_packs.json"
+    _write_json(shipped, data)
+    return TorchPackManager(shipped_path=shipped, remote_path=tmp_path / "no.json")
+
+
+def test_select_no_gpu(tmp_path):
+    mgr = _mgr_with(tmp_path, _MULTI)
+    assert mgr.select_pack_for_gpu({"has_gpu": False}) is None
+
+
+def test_select_driver_too_old(tmp_path):
+    mgr = _mgr_with(tmp_path, _MULTI)
+    assert mgr.select_pack_for_gpu(
+        {"has_gpu": True, "cuda_driver_version": "11.8"}
+    ) is None
+
+
+def test_select_driver_matches_fallback(tmp_path):
+    mgr = _mgr_with(tmp_path, _MULTI)
+    # Driver 12.8: only p-mid qualifies (p-new needs 13.0)
+    assert mgr.select_pack_for_gpu(
+        {"has_gpu": True, "cuda_driver_version": "12.8"}
+    ).id == "p-mid"
+
+
+def test_select_driver_matches_recommended(tmp_path):
+    mgr = _mgr_with(tmp_path, _MULTI)
+    # Driver 13.0: p-new is recommended + meets min_driver
+    assert mgr.select_pack_for_gpu(
+        {"has_gpu": True, "cuda_driver_version": "13.0"}
+    ).id == "p-new"
+
+
+def test_select_malformed_driver_version(tmp_path):
+    mgr = _mgr_with(tmp_path, _MULTI)
+    assert mgr.select_pack_for_gpu(
+        {"has_gpu": True, "cuda_driver_version": "not-a-number"}
+    ) is None
+
+
+def test_select_missing_driver_field(tmp_path):
+    mgr = _mgr_with(tmp_path, _MULTI)
+    assert mgr.select_pack_for_gpu({"has_gpu": True}) is None
