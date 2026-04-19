@@ -241,5 +241,23 @@ var BridgeAPI = (function() {
         // UI Flags
         getUiFlag: function(key) { return callSlot('get_ui_flag', key); },
         setUiFlag: function(key, value) { return callSlot('set_ui_flag', key, JSON.stringify(value)); },
+
+        // Torch Pack / Addon management (Task 17 bridge methods)
+        listTorchPacks: function() { return callSlot('list_torch_packs'); },
+        refreshTorchPacks: function() { return callAsync('refresh_torch_packs'); },
+        switchTorchPack: function(envName, targetPackId, onProgress) {
+            return callAsync('switch_torch_pack', envName, targetPackId, {onProgress: onProgress, timeoutMinutes: 30});
+        },
+        listAddons: function() { return callSlot('list_addons'); },
+        installAddon: function(envName, addonId, onProgress) {
+            return callAsync('install_addon', envName, addonId, {onProgress: onProgress, timeoutMinutes: 30});
+        },
+        uninstallAddon: function(envName, addonId, onProgress) {
+            return callAsync('uninstall_addon', envName, addonId, {onProgress: onProgress, timeoutMinutes: 30});
+        },
+        detectGpuForRecommended: function() { return callSlot('detect_gpu_for_recommended'); },
+        createRecommendedEnv: function(name, addonIds, onProgress) {
+            return callAsync('create_recommended_env', name, JSON.stringify(addonIds), {onProgress: onProgress, timeoutMinutes: 60});
+        },
     };
 })();

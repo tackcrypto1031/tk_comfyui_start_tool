@@ -387,377 +387,471 @@
         });
     }
 
+    // ── Task 18: Recommended-mode create dialog ─────────────────────────────
+
     function showCreateDialog() {
-        const bodyHtml =
-            `<div class="space-y-4">
-                <div>
-                    <label class="input-label">${t('env_name')}</label>
-                    <input type="text" id="create-name" class="input" placeholder="e.g. production, dev-test" pattern="[A-Za-z0-9][A-Za-z0-9_-]*" maxlength="64">
-                    <div class="text-xs text-on-surface-variant mt-1">${t('env_name_hint')}</div>
-                    <div id="create-name-error" class="text-xs text-error mt-1 hidden"></div>
-                </div>
-                <div>
-                    <label class="input-label">${t('version_type')}</label>
-                    <div class="flex gap-4 mt-2">
-                        <label class="flex items-center gap-2 text-sm cursor-pointer">
-                            <input type="radio" name="version-type" value="branch" class="accent-primary">
-                            ${t('version_type_branch')}
-                        </label>
-                        <label class="flex items-center gap-2 text-sm cursor-pointer">
-                            <input type="radio" name="version-type" value="tag" checked class="accent-primary">
-                            ${t('version_type_tag')}
-                        </label>
-                    </div>
-                </div>
-                <div id="create-branch-row" class="hidden">
-                    <label class="input-label">${t('env_branch')}</label>
-                    <select id="create-branch" class="select">
-                        <option value="master">master</option>
-                    </select>
-                </div>
-                <div id="create-tag-row">
-                    <label class="input-label">${t('version_tag')}</label>
-                    <select id="create-tag" class="select">
-                        <option value="">-- ${t('loading')} --</option>
-                    </select>
-                </div>
-                <div class="border-t border-outline/20 pt-3 mt-3">
-                    <div id="create-advanced-toggle" class="flex items-center gap-2 cursor-pointer select-none" style="color:rgb(var(--color-on-surface-variant));">
-                        <span class="material-symbols-outlined text-[16px]" id="create-advanced-arrow">chevron_right</span>
-                        <span class="text-sm font-label uppercase tracking-wider">${t('env_advanced_options')}</span>
-                    </div>
-                    <div id="create-advanced-body" class="hidden mt-3 space-y-4">
-                        <div class="flex gap-4">
-                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                <input type="radio" name="env-mode" value="recommended" checked class="accent-primary">
-                                ${t('env_mode_recommended')}
-                            </label>
-                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                <input type="radio" name="env-mode" value="custom" class="accent-primary">
-                                ${t('env_mode_custom')}
-                            </label>
-                        </div>
-                        <div id="create-recommended-info" class="text-sm text-on-surface-variant p-3 rounded" style="background: rgba(255,255,255,0.05);">
-                            ${t('loading')}
-                        </div>
-                        <div id="create-custom-body" class="hidden space-y-4">
-                            <div>
-                                <label class="input-label">${t('env_python_version')}</label>
-                                <select id="create-python" class="select">
-                                    <option value="">${t('loading')}</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="input-label">${t('env_cuda_version')}</label>
-                                <select id="create-cuda" class="select">
-                                    <option value="">${t('loading')}</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="input-label">${t('env_pytorch_version')}</label>
-                                <select id="create-pytorch" class="select">
-                                    <option value="">${t('loading')}</option>
-                                </select>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <button id="create-refresh-versions" class="btn btn-secondary text-xs" style="padding: 4px 12px;">
-                                    <span class="material-symbols-outlined text-[14px]">refresh</span> ${t('env_refresh_versions')}
-                                </button>
-                                <span id="create-version-hint" class="text-xs text-on-surface-variant"></span>
-                            </div>
-                        </div>
-                        <div class="border-t border-outline/20 pt-3 mt-3">
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="material-symbols-outlined text-[14px]" style="color:rgb(var(--color-primary));">folder_shared</span>
-                                <span class="text-xs font-label uppercase tracking-wider">${t('shared_model_create_info')}</span>
-                            </div>
-                            <div id="create-model-path" class="text-xs text-on-surface-variant font-mono p-2 rounded" style="background: rgba(255,255,255,0.05);"></div>
-                        </div>
-                    </div>
-                </div>
-                <div id="create-status" class="text-xs text-on-surface-variant"></div>
-            </div>`;
+        // Show a loading modal immediately, then populate after GPU/addon fetch
+        App.showModal({
+            title: t('env_create_title'),
+            body: '<div style="padding:20px;text-align:center;color:var(--text-3)">' + escapeHtml(t('loading')) + '</div>',
+            buttons: [],
+        });
+
+        // Fetch GPU status and addon list in parallel
+        Promise.all([
+            BridgeAPI.detectGpuForRecommended ? BridgeAPI.detectGpuForRecommended() : Promise.resolve('{"ok":false}'),
+            BridgeAPI.listAddons ? BridgeAPI.listAddons() : Promise.resolve('{"ok":false,"addons":[]}'),
+        ]).then(function(results) {
+            var gpuInfo = {};
+            var addons = [];
+            try { gpuInfo = JSON.parse(results[0]); } catch(e) { gpuInfo = {ok: false}; }
+            try {
+                var addonsRes = JSON.parse(results[1]);
+                addons = addonsRes.ok ? (addonsRes.addons || []) : [];
+            } catch(e) { addons = []; }
+
+            var canRecommend = !!(gpuInfo.ok && gpuInfo.recommended_pack_id);
+            _openCreateDialogWithData(canRecommend, gpuInfo, addons);
+        }).catch(function(e) {
+            console.warn('GPU/addon prefetch failed, falling back to advanced-only:', e);
+            _openCreateDialogWithData(false, {ok: false}, []);
+        });
+    }
+
+    function _openCreateDialogWithData(canRecommend, gpuInfo, addons) {
+        var noBannerHtml = canRecommend ? '' :
+            '<div class="create-env-banner-error">' +
+                '<strong>' + escapeHtml(t('env.create.no_gpu_title') || 'No supported GPU detected') + '</strong>' +
+                '<p>' + escapeHtml(t('env.create.no_gpu_hint') || 'Recommended mode requires CUDA \u2265 12.8. Use advanced mode below to pick versions manually, or check your driver.') + '</p>' +
+            '</div>';
+
+        var packInfoHtml = (canRecommend && gpuInfo.recommended_pack_label) ?
+            '<div class="create-pack-info">' +
+                escapeHtml(t('env.create.pack') || 'PyTorch') + ': <strong>' + escapeHtml(gpuInfo.recommended_pack_label) + '</strong>' +
+            '</div>' : '';
+
+        var addonsHtml = addons.map(function(a) {
+            var disabledAttr = canRecommend ? '' : ' disabled';
+            var cudaTag = a.requires_cuda ? '<span class="create-addon-tag">CUDA</span>' : '';
+            var compileTag = a.requires_compile ? '<span class="create-addon-tag create-addon-tag-warn">compiles</span>' : '';
+            var riskHtml = a.risk_note ? '<span class="create-addon-risk">\u26a0 ' + escapeHtml(a.risk_note) + '</span>' : '';
+            return '<label class="create-addon-row">' +
+                '<input type="checkbox" name="addon" value="' + escapeHtml(a.id) + '"' + disabledAttr + '>' +
+                '<span class="create-addon-label">' + escapeHtml(a.label || a.id) + '</span>' +
+                '<span class="create-addon-tags">' + cudaTag + compileTag + '</span>' +
+                '<span class="create-addon-desc">' + escapeHtml(a.description || '') + '</span>' +
+                riskHtml +
+            '</label>';
+        }).join('');
+
+        var advancedFormHtml = _buildAdvancedFormHtml();
+
+        var bodyHtml =
+            '<div class="create-env-modal-inner">' +
+                noBannerHtml +
+
+                // Recommended section
+                '<div class="create-section-recommended' + (canRecommend ? '' : ' create-section-disabled') + '">' +
+                    '<div class="create-rec-name-row">' +
+                        '<label class="input-label">' + escapeHtml(t('env.create.name') || 'Name') +
+                            '<input type="text" id="rec-name" class="input" placeholder="e.g. main, dev-test" pattern="[A-Za-z0-9][A-Za-z0-9_-]*" maxlength="64">' +
+                        '</label>' +
+                        '<div id="rec-name-error" class="text-xs text-error mt-1 hidden"></div>' +
+                    '</div>' +
+                    packInfoHtml +
+                    (addons.length > 0 ? (
+                        '<fieldset class="create-addons-fieldset">' +
+                            '<legend>' + escapeHtml(t('env.create.addons') || 'Optional Add-ons') + '</legend>' +
+                            addonsHtml +
+                        '</fieldset>'
+                    ) : '') +
+                '</div>' +
+
+                // Advanced section
+                '<details class="create-section-advanced"' + (canRecommend ? '' : ' open') + '>' +
+                    '<summary>' + escapeHtml(t('env.create.advanced_mode') || '\u25ba Advanced mode (manual Python/CUDA/Torch)') + '</summary>' +
+                    '<div class="create-advanced-inner">' + advancedFormHtml + '</div>' +
+                '</details>' +
+
+                '<div class="modal-create-actions">' +
+                    '<button type="button" class="btn btn-secondary" id="create-cancel-btn">' + escapeHtml(t('cancel') || 'Cancel') + '</button>' +
+                    '<button type="button" class="btn btn-primary" id="create-rec-btn"' + (canRecommend ? '' : ' disabled') + '>' +
+                        escapeHtml(t('env.create.create_recommended') || 'Create (Recommended)') +
+                    '</button>' +
+                    '<button type="button" class="btn btn-secondary" id="create-adv-btn">' +
+                        escapeHtml(t('env.create.create_advanced') || 'Create (Advanced)') +
+                    '</button>' +
+                '</div>' +
+            '</div>';
 
         App.showModal({
             title: t('env_create_title'),
             body: bodyHtml,
-            buttons: [
-                { text: t('cancel'), class: 'btn-secondary' },
-                { text: t('env_create'), class: 'btn-primary', closeModal: false, onClick: doCreate },
-            ],
+            buttons: [],  // buttons are inside the body for full control
         });
 
-        // Bind radio toggle and fetch versions after modal renders
-        setTimeout(() => {
-            document.querySelectorAll('input[name="version-type"]').forEach(radio => {
-                radio.addEventListener('change', () => {
-                    document.getElementById('create-branch-row').classList.toggle('hidden', radio.value !== 'branch');
-                    document.getElementById('create-tag-row').classList.toggle('hidden', radio.value !== 'tag');
-                });
-            });
-
-            // Live-validate environment name
-            const nameInput = document.getElementById('create-name');
-            const nameError = document.getElementById('create-name-error');
-            if (nameInput && nameError) {
-                nameInput.addEventListener('input', function() {
-                    const v = nameInput.value.trim();
+        // Bind after modal renders
+        setTimeout(function() {
+            // Rec name validation
+            var recNameInput = document.getElementById('rec-name');
+            var recNameError = document.getElementById('rec-name-error');
+            if (recNameInput && recNameError) {
+                recNameInput.addEventListener('input', function() {
+                    var v = recNameInput.value.trim();
                     if (v === '' || /^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(v)) {
-                        nameError.classList.add('hidden');
-                        nameError.textContent = '';
+                        recNameError.classList.add('hidden');
+                        recNameError.textContent = '';
                     } else {
-                        nameError.classList.remove('hidden');
-                        nameError.textContent = t('env_name_invalid');
+                        recNameError.classList.remove('hidden');
+                        recNameError.textContent = t('env_name_invalid');
                     }
                 });
             }
 
-            // Load and display shared model path (read-only)
-            BridgeAPI.getSharedModelConfig().then(function(config) {
-                var pathEl = document.getElementById('create-model-path');
-                if (pathEl) {
-                    if (config.mode === 'custom' && config.path) {
-                        pathEl.textContent = config.path + ' (' + t('shared_model_custom') + ')';
-                    } else {
-                        pathEl.textContent = config.default_path + ' (' + t('shared_model_default') + ')';
-                    }
-                }
+            var cancelBtn = document.getElementById('create-cancel-btn');
+            if (cancelBtn) cancelBtn.addEventListener('click', function() { App.hideModal(); });
+
+            var recBtn = document.getElementById('create-rec-btn');
+            if (recBtn) recBtn.addEventListener('click', function() { _submitRecommended(gpuInfo); });
+
+            var advBtn = document.getElementById('create-adv-btn');
+            if (advBtn) advBtn.addEventListener('click', function() { _submitAdvanced(); });
+
+            // Wire up the advanced form internals
+            _initAdvancedFormBindings();
+        }, 100);
+    }
+
+    // Build the HTML for the advanced create form (extracted from old showCreateDialog)
+    function _buildAdvancedFormHtml() {
+        return '<div class="space-y-4 mt-3">' +
+            '<div>' +
+                '<label class="input-label">' + t('env_name') + '</label>' +
+                '<input type="text" id="create-name" class="input" placeholder="e.g. production, dev-test" pattern="[A-Za-z0-9][A-Za-z0-9_-]*" maxlength="64">' +
+                '<div class="text-xs text-on-surface-variant mt-1">' + t('env_name_hint') + '</div>' +
+                '<div id="create-name-error" class="text-xs text-error mt-1 hidden"></div>' +
+            '</div>' +
+            '<div>' +
+                '<label class="input-label">' + t('version_type') + '</label>' +
+                '<div class="flex gap-4 mt-2">' +
+                    '<label class="flex items-center gap-2 text-sm cursor-pointer">' +
+                        '<input type="radio" name="version-type" value="branch" class="accent-primary">' +
+                        t('version_type_branch') +
+                    '</label>' +
+                    '<label class="flex items-center gap-2 text-sm cursor-pointer">' +
+                        '<input type="radio" name="version-type" value="tag" checked class="accent-primary">' +
+                        t('version_type_tag') +
+                    '</label>' +
+                '</div>' +
+            '</div>' +
+            '<div id="create-branch-row" class="hidden">' +
+                '<label class="input-label">' + t('env_branch') + '</label>' +
+                '<select id="create-branch" class="select"><option value="master">master</option></select>' +
+            '</div>' +
+            '<div id="create-tag-row">' +
+                '<label class="input-label">' + t('version_tag') + '</label>' +
+                '<select id="create-tag" class="select"><option value="">-- ' + t('loading') + ' --</option></select>' +
+            '</div>' +
+            '<div class="border-t border-outline/20 pt-3 mt-3">' +
+                '<div id="create-advanced-toggle" class="flex items-center gap-2 cursor-pointer select-none" style="color:rgb(var(--color-on-surface-variant));">' +
+                    '<span class="material-symbols-outlined text-[16px]" id="create-advanced-arrow">chevron_right</span>' +
+                    '<span class="text-sm font-label uppercase tracking-wider">' + t('env_advanced_options') + '</span>' +
+                '</div>' +
+                '<div id="create-advanced-body" class="hidden mt-3 space-y-4">' +
+                    '<div class="flex gap-4">' +
+                        '<label class="flex items-center gap-2 text-sm cursor-pointer">' +
+                            '<input type="radio" name="env-mode" value="recommended" checked class="accent-primary">' +
+                            t('env_mode_recommended') +
+                        '</label>' +
+                        '<label class="flex items-center gap-2 text-sm cursor-pointer">' +
+                            '<input type="radio" name="env-mode" value="custom" class="accent-primary">' +
+                            t('env_mode_custom') +
+                        '</label>' +
+                    '</div>' +
+                    '<div id="create-recommended-info" class="text-sm text-on-surface-variant p-3 rounded" style="background: rgba(255,255,255,0.05);">' +
+                        t('loading') +
+                    '</div>' +
+                    '<div id="create-custom-body" class="hidden space-y-4">' +
+                        '<div><label class="input-label">' + t('env_python_version') + '</label>' +
+                            '<select id="create-python" class="select"><option value="">' + t('loading') + '</option></select></div>' +
+                        '<div><label class="input-label">' + t('env_cuda_version') + '</label>' +
+                            '<select id="create-cuda" class="select"><option value="">' + t('loading') + '</option></select></div>' +
+                        '<div><label class="input-label">' + t('env_pytorch_version') + '</label>' +
+                            '<select id="create-pytorch" class="select"><option value="">' + t('loading') + '</option></select></div>' +
+                        '<div class="flex items-center gap-3">' +
+                            '<button id="create-refresh-versions" class="btn btn-secondary text-xs" style="padding: 4px 12px;">' +
+                                '<span class="material-symbols-outlined text-[14px]">refresh</span> ' + t('env_refresh_versions') +
+                            '</button>' +
+                            '<span id="create-version-hint" class="text-xs text-on-surface-variant"></span>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="border-t border-outline/20 pt-3 mt-3">' +
+                        '<div class="flex items-center gap-2 mb-1">' +
+                            '<span class="material-symbols-outlined text-[14px]" style="color:rgb(var(--color-primary));">folder_shared</span>' +
+                            '<span class="text-xs font-label uppercase tracking-wider">' + t('shared_model_create_info') + '</span>' +
+                        '</div>' +
+                        '<div id="create-model-path" class="text-xs text-on-surface-variant font-mono p-2 rounded" style="background: rgba(255,255,255,0.05);"></div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div id="create-status" class="text-xs text-on-surface-variant"></div>' +
+        '</div>';
+    }
+
+    // Wire up all event handlers for the advanced form controls
+    function _initAdvancedFormBindings() {
+        // version-type radio toggle
+        document.querySelectorAll('input[name="version-type"]').forEach(function(radio) {
+            radio.addEventListener('change', function() {
+                var branchRow = document.getElementById('create-branch-row');
+                var tagRow = document.getElementById('create-tag-row');
+                if (branchRow) branchRow.classList.toggle('hidden', radio.value !== 'branch');
+                if (tagRow) tagRow.classList.toggle('hidden', radio.value !== 'tag');
             });
+        });
 
-            BridgeAPI.listRemoteVersions().then(function(versions) {
-                const tagSelect = document.getElementById('create-tag');
-                const branchSelect = document.getElementById('create-branch');
-                const statusDiv = document.getElementById('create-version-status');
-
-                const tags = (versions && versions.tags) || [];
-                if (tagSelect) {
-                    tagSelect.innerHTML = '';
-                    tags.forEach(function(tag) {
-                        const opt = document.createElement('option');
-                        opt.value = tag.name;
-                        opt.textContent = tag.name;
-                        tagSelect.appendChild(opt);
-                    });
-                    const stable = tags.filter(function(t) { return t.name.indexOf('-') === -1; });
-                    const defaultTag = (stable[0] || tags[0] || {}).name;
-                    if (defaultTag) tagSelect.value = defaultTag;
-                }
-
-                const rawBranches = (versions && versions.branches) || [];
-                const withDates = rawBranches.length > 0 && typeof rawBranches[0] === 'object';
-                let names;
-                if (withDates) {
-                    names = rawBranches.slice()
-                        .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); })
-                        .map(function(b) { return b.name; });
+        // Live-validate advanced env name
+        var nameInput = document.getElementById('create-name');
+        var nameError = document.getElementById('create-name-error');
+        if (nameInput && nameError) {
+            nameInput.addEventListener('input', function() {
+                var v = nameInput.value.trim();
+                if (v === '' || /^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(v)) {
+                    nameError.classList.add('hidden');
+                    nameError.textContent = '';
                 } else {
-                    names = rawBranches.slice().sort(function(a, b) {
-                        const pa = /^(master|main)$/i.test(a);
-                        const pb = /^(master|main)$/i.test(b);
-                        if (pa && !pb) return -1;
-                        if (!pa && pb) return 1;
-                        return a.localeCompare(b);
-                    });
+                    nameError.classList.remove('hidden');
+                    nameError.textContent = t('env_name_invalid');
                 }
-                let top = names.slice(0, 10);
-                const master = names.find(function(n) { return /^(master|main)$/i.test(n); });
-                if (master && top.indexOf(master) === -1) {
-                    top = [master].concat(top);
-                }
-                if (branchSelect) {
-                    branchSelect.innerHTML = '';
-                    top.forEach(function(name) {
-                        const opt = document.createElement('option');
-                        opt.value = name;
-                        opt.textContent = name;
-                        branchSelect.appendChild(opt);
-                    });
-                    if (top.length) branchSelect.value = top[0];
-                }
+            });
+        }
 
-                if (statusDiv) {
-                    statusDiv.textContent = `${t('version_branch_count', names.length)} / ${t('version_tag_count', tags.length)}`;
-                }
+        // Shared model path display
+        BridgeAPI.getSharedModelConfig().then(function(config) {
+            var pathEl = document.getElementById('create-model-path');
+            if (pathEl) {
+                pathEl.textContent = (config.mode === 'custom' && config.path)
+                    ? config.path + ' (' + t('shared_model_custom') + ')'
+                    : config.default_path + ' (' + t('shared_model_default') + ')';
+            }
+        }).catch(function() {});
+
+        // Fetch remote versions for tag/branch selects
+        BridgeAPI.listRemoteVersions().then(function(versions) {
+            var tagSelect = document.getElementById('create-tag');
+            var branchSelect = document.getElementById('create-branch');
+            var tags = (versions && versions.tags) || [];
+            if (tagSelect) {
+                tagSelect.innerHTML = '';
+                tags.forEach(function(tag) {
+                    var opt = document.createElement('option');
+                    opt.value = tag.name; opt.textContent = tag.name;
+                    tagSelect.appendChild(opt);
+                });
+                var stable = tags.filter(function(tg) { return tg.name.indexOf('-') === -1; });
+                var defaultTag = (stable[0] || tags[0] || {}).name;
+                if (defaultTag) tagSelect.value = defaultTag;
+            }
+            var rawBranches = (versions && versions.branches) || [];
+            var withDates = rawBranches.length > 0 && typeof rawBranches[0] === 'object';
+            var names;
+            if (withDates) {
+                names = rawBranches.slice()
+                    .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); })
+                    .map(function(b) { return b.name; });
+            } else {
+                names = rawBranches.slice().sort(function(a, b) {
+                    var pa = /^(master|main)$/i.test(a), pb = /^(master|main)$/i.test(b);
+                    if (pa && !pb) return -1; if (!pa && pb) return 1;
+                    return a.localeCompare(b);
+                });
+            }
+            var top = names.slice(0, 10);
+            var master = names.find(function(n) { return /^(master|main)$/i.test(n); });
+            if (master && top.indexOf(master) === -1) top = [master].concat(top);
+            if (branchSelect) {
+                branchSelect.innerHTML = '';
+                top.forEach(function(name) {
+                    var opt = document.createElement('option');
+                    opt.value = name; opt.textContent = name;
+                    branchSelect.appendChild(opt);
+                });
+                if (top.length) branchSelect.value = top[0];
+            }
+        }).catch(function(e) { console.warn('listRemoteVersions failed:', e); });
+
+        // Advanced options expand toggle
+        var advToggle = document.getElementById('create-advanced-toggle');
+        var advBody = document.getElementById('create-advanced-body');
+        var advArrow = document.getElementById('create-advanced-arrow');
+        if (advToggle) {
+            advToggle.addEventListener('click', function() {
+                var hidden = advBody.classList.toggle('hidden');
+                advArrow.textContent = hidden ? 'chevron_right' : 'expand_more';
+            });
+        }
+
+        // env-mode radio: recommended vs custom
+        var recommendedInfo = document.getElementById('create-recommended-info');
+        var customBody = document.getElementById('create-custom-body');
+
+        function loadPytorchVersions() {
+            var cudaSelect = document.getElementById('create-cuda');
+            var pySelect = document.getElementById('create-python');
+            var ptSelect = document.getElementById('create-pytorch');
+            if (!cudaSelect || !ptSelect || !pySelect) return;
+            var cudaTag = cudaSelect.value;
+            var pyVer = pySelect.value;
+            if (!cudaTag) return;
+            ptSelect.innerHTML = '<option value="">' + t('loading') + '</option>';
+            BridgeAPI.getPytorchVersions(cudaTag, pyVer).then(function(versions) {
+                ptSelect.innerHTML = '';
+                if (!versions.length) { ptSelect.innerHTML = '<option value="">--</option>'; return; }
+                versions.forEach(function(ver, idx) {
+                    var opt = document.createElement('option');
+                    opt.value = ver; opt.textContent = 'PyTorch ' + ver;
+                    if (idx === 0) opt.selected = true;
+                    ptSelect.appendChild(opt);
+                });
             }).catch(function(e) {
-                const statusDiv = document.getElementById('create-version-status');
-                if (statusDiv) statusDiv.textContent = t('version_fetch_failed', e.toString());
+                console.error('Failed to load PyTorch versions:', e);
+                ptSelect.innerHTML = '<option value="">--</option>';
             });
+        }
 
-            // Advanced options toggle
-            var advToggle = document.getElementById('create-advanced-toggle');
-            var advBody = document.getElementById('create-advanced-body');
-            var advArrow = document.getElementById('create-advanced-arrow');
-            if (advToggle) {
-                advToggle.addEventListener('click', function() {
-                    var hidden = advBody.classList.toggle('hidden');
-                    advArrow.textContent = hidden ? 'chevron_right' : 'expand_more';
-                });
-            }
-
-            // Mode toggle: recommended vs custom
-            var recommendedInfo = document.getElementById('create-recommended-info');
-            var customBody = document.getElementById('create-custom-body');
-            document.querySelectorAll('input[name="env-mode"]').forEach(function(radio) {
-                radio.addEventListener('change', function() {
-                    var isCustom = radio.value === 'custom';
-                    recommendedInfo.classList.toggle('hidden', isCustom);
-                    customBody.classList.toggle('hidden', !isCustom);
-                    if (isCustom) {
-                        // Trigger PyTorch version load when switching to custom
-                        loadPytorchVersions();
-                    }
-                });
+        document.querySelectorAll('input[name="env-mode"]').forEach(function(radio) {
+            radio.addEventListener('change', function() {
+                var isCustom = radio.value === 'custom';
+                if (recommendedInfo) recommendedInfo.classList.toggle('hidden', isCustom);
+                if (customBody) customBody.classList.toggle('hidden', !isCustom);
+                if (isCustom) loadPytorchVersions();
             });
+        });
 
-            // Helper: load PyTorch versions based on current CUDA + Python selection
-            function loadPytorchVersions() {
-                var cudaSelect = document.getElementById('create-cuda');
-                var pySelect = document.getElementById('create-python');
-                var ptSelect = document.getElementById('create-pytorch');
-                if (!cudaSelect || !ptSelect || !pySelect) return;
-                var cudaTag = cudaSelect.value;
-                var pyVer = pySelect.value;
-                if (!cudaTag) return;
-                ptSelect.innerHTML = '<option value="">' + t('loading') + '</option>';
-                BridgeAPI.getPytorchVersions(cudaTag, pyVer).then(function(versions) {
-                    ptSelect.innerHTML = '';
-                    if (versions.length === 0) {
-                        ptSelect.innerHTML = '<option value="">--</option>';
-                        return;
-                    }
-                    versions.forEach(function(ver, idx) {
-                        var opt = document.createElement('option');
-                        opt.value = ver;
-                        opt.textContent = 'PyTorch ' + ver;
-                        if (idx === 0) opt.selected = true;
-                        ptSelect.appendChild(opt);
-                    });
-                }).catch(function(e) {
-                    console.error('Failed to load PyTorch versions:', e);
-                    ptSelect.innerHTML = '<option value="">--</option>';
-                });
-            }
-
-            // Load version lists and GPU info for advanced options
-            Promise.all([
-                BridgeAPI.getVersionLists(),
-                BridgeAPI.detectGpu(),
-            ]).then(function(results) {
-                var lists = results[0];
-                var gpu = results[1];
+        // Load version lists + GPU for advanced dropdowns
+        Promise.all([BridgeAPI.getVersionLists(), BridgeAPI.detectGpu()])
+            .then(function(results) {
+                var lists = results[0]; var gpu = results[1];
                 var preset = lists.recommended_preset;
-
-                // Show recommended preset info
                 if (recommendedInfo && preset) {
-                    recommendedInfo.textContent = t('env_recommended_preset_desc', preset.label_en || (preset.python_version + ' + ' + preset.cuda_tag + ' + PyTorch ' + preset.pytorch_version));
+                    recommendedInfo.textContent = t('env_recommended_preset_desc',
+                        preset.label_en || (preset.python_version + ' + ' + preset.cuda_tag + ' + PyTorch ' + preset.pytorch_version));
                 }
-
-                // Populate Python dropdown
                 var pySelect = document.getElementById('create-python');
                 if (pySelect) {
                     pySelect.innerHTML = '';
                     lists.python.forEach(function(py) {
                         var opt = document.createElement('option');
-                        opt.value = py.version;
-                        opt.textContent = py.display || ('Python ' + py.version);
+                        opt.value = py.version; opt.textContent = py.display || ('Python ' + py.version);
                         pySelect.appendChild(opt);
                     });
-                    // Listen for Python version change to reload PyTorch versions
-                    pySelect.addEventListener('change', function() {
-                        loadPytorchVersions();
-                    });
+                    pySelect.addEventListener('change', loadPytorchVersions);
                 }
-
-                // Populate CUDA dropdown
                 var cudaSelect = document.getElementById('create-cuda');
                 if (cudaSelect) {
                     cudaSelect.innerHTML = '';
                     var recommendedTag = gpu.recommended_cuda_tag || 'cpu';
-                    console.log('GPU detection result:', JSON.stringify(gpu), 'recommended:', recommendedTag);
                     lists.cuda_tags.forEach(function(tag) {
                         var opt = document.createElement('option');
                         opt.value = tag;
-                        opt.textContent = tag === 'cpu' ? 'CPU Only' : tag.toUpperCase();
-                        if (tag === recommendedTag) {
-                            opt.textContent += ' (' + t('env_recommended') + ')';
-                        }
+                        opt.textContent = (tag === 'cpu' ? 'CPU Only' : tag.toUpperCase()) +
+                            (tag === recommendedTag ? ' (' + t('env_recommended') + ')' : '');
                         cudaSelect.appendChild(opt);
                     });
                     cudaSelect.value = recommendedTag;
-                    // Listen for CUDA tag change to reload PyTorch versions
-                    cudaSelect.addEventListener('change', function() {
-                        loadPytorchVersions();
-                    });
+                    cudaSelect.addEventListener('change', loadPytorchVersions);
                 }
-
-                // Version hint
                 var hint = document.getElementById('create-version-hint');
                 if (hint) {
-                    if (lists.cache_info) {
-                        hint.textContent = t('env_version_hint_cached', lists.cache_info.substring(0, 10));
-                    } else {
-                        hint.textContent = t('env_version_hint_offline');
-                    }
+                    hint.textContent = lists.cache_info
+                        ? t('env_version_hint_cached', lists.cache_info.substring(0, 10))
+                        : t('env_version_hint_offline');
                 }
-            }).catch(function(e) {
-                console.error('Failed to load version lists or detect GPU:', e);
-            });
+            }).catch(function(e) { console.error('Failed to load version lists or detect GPU:', e); });
 
-            // Refresh button
-            var refreshBtn = document.getElementById('create-refresh-versions');
-            if (refreshBtn) {
-                refreshBtn.addEventListener('click', function() {
-                    refreshBtn.disabled = true;
-                    refreshBtn.textContent = t('loading');
-                    BridgeAPI.refreshVersionLists().then(function(data) {
-                        App.showToast(t('env_refresh_success'), 'success');
-                        refreshBtn.textContent = t('env_refresh_versions');
-                        refreshBtn.disabled = false;
-                        var hint = document.getElementById('create-version-hint');
-                        if (hint) hint.textContent = t('env_version_hint_cached', data.last_updated.substring(0, 10));
-
-                        // Update recommended preset info
-                        if (recommendedInfo && data.recommended_preset) {
-                            var p = data.recommended_preset;
-                            recommendedInfo.textContent = t('env_recommended_preset_desc', p.label_en || (p.python_version + ' + ' + p.cuda_tag + ' + PyTorch ' + p.pytorch_version));
-                        }
-
-                        // Update Python dropdown
-                        var pySelect = document.getElementById('create-python');
-                        if (pySelect && data.python) {
-                            var currentVal = pySelect.value;
-                            pySelect.innerHTML = '';
-                            data.python.forEach(function(py) {
-                                var opt = document.createElement('option');
-                                opt.value = py.version;
-                                opt.textContent = py.display || ('Python ' + py.version);
-                                pySelect.appendChild(opt);
-                            });
-                            pySelect.value = currentVal;
-                        }
-                        // Update CUDA dropdown
-                        var cudaSelect = document.getElementById('create-cuda');
-                        if (cudaSelect && data.cuda_tags) {
-                            var currentCuda = cudaSelect.value;
-                            cudaSelect.innerHTML = '';
-                            data.cuda_tags.forEach(function(tag) {
-                                var opt = document.createElement('option');
-                                opt.value = tag;
-                                opt.textContent = tag === 'cpu' ? 'CPU Only' : tag.toUpperCase();
-                                cudaSelect.appendChild(opt);
-                            });
-                            cudaSelect.value = currentCuda;
-                        }
-                        // Reload PyTorch versions
-                        loadPytorchVersions();
-                    }).catch(function() {
-                        App.showToast(t('env_refresh_failed'), 'error');
-                        refreshBtn.textContent = t('env_refresh_versions');
-                        refreshBtn.disabled = false;
-                    });
+        // Refresh version list button
+        var refreshBtn = document.getElementById('create-refresh-versions');
+        var recommendedInfoRef = document.getElementById('create-recommended-info');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', function() {
+                refreshBtn.disabled = true;
+                refreshBtn.textContent = t('loading');
+                BridgeAPI.refreshVersionLists().then(function(data) {
+                    App.showToast(t('env_refresh_success'), 'success');
+                    refreshBtn.textContent = t('env_refresh_versions');
+                    refreshBtn.disabled = false;
+                    var hint = document.getElementById('create-version-hint');
+                    if (hint && data.last_updated) hint.textContent = t('env_version_hint_cached', data.last_updated.substring(0, 10));
+                    if (recommendedInfoRef && data.recommended_preset) {
+                        var p = data.recommended_preset;
+                        recommendedInfoRef.textContent = t('env_recommended_preset_desc',
+                            p.label_en || (p.python_version + ' + ' + p.cuda_tag + ' + PyTorch ' + p.pytorch_version));
+                    }
+                    var pySelect = document.getElementById('create-python');
+                    if (pySelect && data.python) {
+                        var cur = pySelect.value; pySelect.innerHTML = '';
+                        data.python.forEach(function(py) {
+                            var opt = document.createElement('option');
+                            opt.value = py.version; opt.textContent = py.display || ('Python ' + py.version);
+                            pySelect.appendChild(opt);
+                        });
+                        pySelect.value = cur;
+                    }
+                    var cudaSelect = document.getElementById('create-cuda');
+                    if (cudaSelect && data.cuda_tags) {
+                        var curCuda = cudaSelect.value; cudaSelect.innerHTML = '';
+                        data.cuda_tags.forEach(function(tag) {
+                            var opt = document.createElement('option');
+                            opt.value = tag; opt.textContent = tag === 'cpu' ? 'CPU Only' : tag.toUpperCase();
+                            cudaSelect.appendChild(opt);
+                        });
+                        cudaSelect.value = curCuda;
+                    }
+                    loadPytorchVersions();
+                }).catch(function() {
+                    App.showToast(t('env_refresh_failed'), 'error');
+                    refreshBtn.textContent = t('env_refresh_versions');
+                    refreshBtn.disabled = false;
                 });
+            });
+        }
+    }
+
+    // Submit the recommended-mode form
+    function _submitRecommended(gpuInfo) {
+        var name = (document.getElementById('rec-name') || {value:''}).value.trim();
+        if (!name) { App.showToast(t('env.create.name_required') || 'Name is required', 'info'); return; }
+        if (!/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(name)) {
+            App.showToast(t('env_name_invalid'), 'error'); return;
+        }
+        var selected = Array.from(document.querySelectorAll('input[name="addon"]:checked')).map(function(el) { return el.value; });
+
+        App.hideModal();
+
+        var progressId = 'create-rec-' + Date.now();
+        App.showProgress(progressId, t('env.create.creating') || 'Creating recommended environment...');
+
+        BridgeAPI.createRecommendedEnv(name, selected, function(msg) {
+            App.updateProgress(progressId, msg.step || msg, msg.percent || 0, msg.detail || '');
+        }).then(function(result) {
+            App.hideProgress(progressId, 'success');
+            // Check for partial addon failures
+            var res = result || {};
+            if (res.addon_errors && res.addon_errors.length > 0) {
+                App.showToast((t('env.create.addons_partial') || 'Created, but some add-ons failed:') + ' ' + res.addon_errors.join(', '), 'warning', 8000);
+            } else {
+                App.showToast((t('env.create.created') || 'Environment created') + ': ' + name, 'success');
             }
-        }, 100);
+            loadEnvironments();
+        }).catch(function(e) {
+            App.hideProgress(progressId, 'error');
+            App.showToast(t('error') + ': ' + e, 'error', 10000);
+        });
+    }
+
+    // Submit the advanced-mode form (same logic as old doCreate)
+    function _submitAdvanced() {
+        doCreate();
     }
 
     function doCreate() {

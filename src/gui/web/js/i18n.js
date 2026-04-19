@@ -437,6 +437,36 @@ const I18N = (function() {
             // Settings page
             "settings_coming_soon": "Feature under development",
             "settings_coming_soon_desc": "Settings options will be available in a future update.",
+
+            // env create dialog — recommended mode (Task 18)
+            "env.create.no_gpu_title": "No supported GPU detected",
+            "env.create.no_gpu_hint": "Recommended mode requires CUDA \u2265 12.8. Use advanced mode below to pick versions manually, or check your driver.",
+            "env.create.pack": "PyTorch",
+            "env.create.addons": "Optional Add-ons",
+            "env.create.advanced_mode": "\u25ba Advanced mode (manual Python/CUDA/Torch)",
+            "env.create.create_recommended": "Create (Recommended)",
+            "env.create.create_advanced": "Create (Advanced)",
+            "env.create.name": "Name",
+            "env.create.name_required": "Name is required",
+            "env.create.creating": "Creating recommended environment...",
+            "env.create.created": "Environment created",
+            "env.create.addons_partial": "Created, but some add-ons failed:",
+
+            // Versions page — PyTorch Engine sub-tab (Task 19)
+            "versions.tab_comfy": "ComfyUI Version",
+            "versions.tab_pytorch": "PyTorch Engine",
+            "versions.pytorch.env": "Environment",
+            "versions.pytorch.current": "Current",
+            "versions.pytorch.custom": "Custom version",
+            "versions.pytorch.recommended": "Recommended",
+            "versions.pytorch.refresh": "Refresh List",
+            "versions.pytorch.switch": "Switch",
+            "versions.pytorch.pick_pack": "Pick a Pack first",
+            "versions.pytorch.confirm": "Switch Pack now? A snapshot will be created first.",
+            "versions.pytorch.confirm_compiled_removal": "The following compiled add-ons will be uninstalled (you can reinstall afterward):",
+            "versions.pytorch.switched": "Pack switched",
+            "versions.pytorch.refreshed": "Refreshed",
+            "versions.pytorch.compiled_warn": "Switching will uninstall these compiled add-ons (you can reinstall afterward):",
         },
         "zh-TW": {
             // Main window
@@ -870,6 +900,36 @@ const I18N = (function() {
             // Settings page
             "settings_coming_soon": "功能開發中",
             "settings_coming_soon_desc": "設置選項將在後續版本中開放。",
+
+            // env create dialog — recommended mode (Task 18)
+            "env.create.no_gpu_title": "未偵測到支援的 GPU",
+            "env.create.no_gpu_hint": "推薦模式需要 CUDA \u2265 12.8。請使用下方進階模式手動選版本，或檢查驅動。",
+            "env.create.pack": "PyTorch",
+            "env.create.addons": "可選擴充",
+            "env.create.advanced_mode": "\u25ba 進階模式（手動選 Python/CUDA/Torch）",
+            "env.create.create_recommended": "建立（推薦）",
+            "env.create.create_advanced": "建立（進階）",
+            "env.create.name": "名稱",
+            "env.create.name_required": "需要輸入名稱",
+            "env.create.creating": "正在建立推薦環境...",
+            "env.create.created": "環境已建立",
+            "env.create.addons_partial": "建立完成，但有擴充失敗：",
+
+            // Versions page — PyTorch Engine sub-tab (Task 19)
+            "versions.tab_comfy": "ComfyUI 版本",
+            "versions.tab_pytorch": "PyTorch 引擎",
+            "versions.pytorch.env": "環境",
+            "versions.pytorch.current": "目前",
+            "versions.pytorch.custom": "自訂版本",
+            "versions.pytorch.recommended": "推薦",
+            "versions.pytorch.refresh": "刷新清單",
+            "versions.pytorch.switch": "切換",
+            "versions.pytorch.pick_pack": "請先選一個 Pack",
+            "versions.pytorch.confirm": "現在切換 Pack？會先建立快照。",
+            "versions.pytorch.confirm_compiled_removal": "下列編譯型擴充將被卸載（可重裝）：",
+            "versions.pytorch.switched": "已切換 Pack",
+            "versions.pytorch.refreshed": "已刷新",
+            "versions.pytorch.compiled_warn": "切換會卸載下列編譯型擴充（可重裝）：",
         },
     };
 
