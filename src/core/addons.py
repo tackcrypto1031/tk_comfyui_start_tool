@@ -252,3 +252,51 @@ def _run_install_py(install_py: Path, env_dir: Path, progress_callback) -> None:
     if sys.platform == "win32":
         sub_kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
     subprocess.run([python, str(install_py)], check=True, **sub_kwargs)
+
+
+# ---------------------------------------------------------------------------
+# Uninstall
+# ---------------------------------------------------------------------------
+
+import os
+import shutil
+import stat
+
+
+def uninstall_addon(
+    addon_id: str,
+    env_dir: Path,
+    tools_dir: Path,
+    uv_version: str,
+    package_manager: str = "uv",
+    progress_callback=None,
+) -> None:
+    """Remove an add-on from an env. Reverse of install_addon."""
+    addon = find_addon(addon_id)
+    if addon is None:
+        raise ValueError(f"Unknown addon: {addon_id}")
+
+    env_dir = Path(env_dir)
+
+    if addon.install_method == "pip_package":
+        pkg_ops.run_install(
+            venv_path=str(env_dir / "venv"),
+            args=["uninstall", "-y", addon.pip_package],
+            tools_dir=tools_dir,
+            uv_version=uv_version,
+            package_manager=package_manager,
+            progress_callback=progress_callback,
+        )
+    elif addon.install_method == "git_clone":
+        node_dir = env_dir / "ComfyUI" / "custom_nodes" / addon.id
+        if node_dir.exists():
+            def _on_rm_error(func, path, exc_info):
+                os.chmod(path, stat.S_IWRITE)
+                func(path)
+            shutil.rmtree(str(node_dir), onerror=_on_rm_error)
+
+    env = Environment.load_meta(str(env_dir))
+    env.installed_addons = [
+        a for a in env.installed_addons if a.get("id") != addon_id
+    ]
+    env.save_meta()

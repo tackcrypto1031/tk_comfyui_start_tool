@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
-from src.core.addons import ADDONS, find_addon, Addon, install_addon
+from src.core.addons import ADDONS, find_addon, Addon, install_addon, uninstall_addon
 from src.models.environment import Environment
 
 
@@ -162,3 +162,73 @@ def test_install_py_skipped_when_post_install_cmd_present(tmp_path, monkeypatch)
         uv_version="0.9.7",
     )
     assert called_install_py["ran"] is False
+
+
+# ---------------------------------------------------------------------------
+# Task 11: uninstall_addon
+# ---------------------------------------------------------------------------
+
+def test_uninstall_git_clone_addon(tmp_path, monkeypatch):
+    env_dir = _make_env(tmp_path)
+    node_dir = env_dir / "ComfyUI" / "custom_nodes" / "sage-attention"
+    node_dir.mkdir(parents=True)
+    (node_dir / "junk.py").write_text("x")
+    env = Environment.load_meta(str(env_dir))
+    env.installed_addons.append({
+        "id": "sage-attention",
+        "installed_at": "2026-04-19T00:00:00Z",
+        "torch_pack_at_install": "p1",
+    })
+    env.save_meta()
+
+    calls = []
+
+    def _fake_install(venv_path, args, tools_dir, uv_version,
+                      package_manager="uv", progress_callback=None):
+        calls.append(args)
+
+    monkeypatch.setattr("src.core.addons.pkg_ops.run_install", _fake_install)
+
+    uninstall_addon(
+        addon_id="sage-attention",
+        env_dir=env_dir,
+        tools_dir=tmp_path / "tools",
+        uv_version="0.9.7",
+        package_manager="uv",
+    )
+    assert not node_dir.exists()
+    # For editable git_clone add-ons we skip pip uninstall (the dir removal
+    # is the authoritative action), so no install call expected.
+    assert calls == []
+    env = Environment.load_meta(str(env_dir))
+    assert not any(a["id"] == "sage-attention" for a in env.installed_addons)
+
+
+def test_uninstall_pip_package_addon(tmp_path, monkeypatch):
+    env_dir = _make_env(tmp_path)
+    env = Environment.load_meta(str(env_dir))
+    env.installed_addons.append({
+        "id": "insightface",
+        "installed_at": "2026-04-19T00:00:00Z",
+        "torch_pack_at_install": "p1",
+    })
+    env.save_meta()
+
+    calls = []
+
+    def _fake_install(venv_path, args, tools_dir, uv_version,
+                      package_manager="uv", progress_callback=None):
+        calls.append(tuple(args))
+
+    monkeypatch.setattr("src.core.addons.pkg_ops.run_install", _fake_install)
+
+    uninstall_addon(
+        addon_id="insightface",
+        env_dir=env_dir,
+        tools_dir=tmp_path / "tools",
+        uv_version="0.9.7",
+        package_manager="uv",
+    )
+    assert calls == [("uninstall", "-y", "insightface")]
+    env = Environment.load_meta(str(env_dir))
+    assert env.installed_addons == []
