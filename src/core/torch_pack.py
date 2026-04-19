@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import requests
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -91,6 +92,36 @@ class TorchPackManager:
             if driver >= p.min_driver:
                 return p
         return None
+
+    def refresh_remote(self, timeout: int = 15) -> dict:
+        """Fetch remote torch_packs.json and write to remote_path.
+
+        Returns {"ok": bool, "error": str}. Non-fatal on all failures —
+        caller continues with shipped defaults.
+        """
+        url = self.get_remote_url()
+        if not url:
+            return {"ok": False, "error": "no remote_url configured"}
+        try:
+            resp = requests.get(url, timeout=timeout)
+            resp.raise_for_status()
+            payload = resp.json()
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
+        if payload.get("schema_version") != SCHEMA_VERSION:
+            return {
+                "ok": False,
+                "error": f"schema_version mismatch (got {payload.get('schema_version')})",
+            }
+
+        self.remote_path.parent.mkdir(parents=True, exist_ok=True)
+        self.remote_path.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        # Invalidate memo so next load sees the new file
+        self._data = None
+        return {"ok": True, "error": ""}
 
     @staticmethod
     def _read_json(path: Path) -> Optional[dict]:

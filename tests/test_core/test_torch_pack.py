@@ -126,3 +126,61 @@ def test_select_malformed_driver_version(tmp_path):
 def test_select_missing_driver_field(tmp_path):
     mgr = _mgr_with(tmp_path, _MULTI)
     assert mgr.select_pack_for_gpu({"has_gpu": True}) is None
+
+
+def test_refresh_writes_remote_file(tmp_path, monkeypatch):
+    shipped = tmp_path / "data" / "torch_packs.json"
+    remote = tmp_path / "tools" / "torch_packs_remote.json"
+    _write_json(shipped, _BASE)
+    mgr = TorchPackManager(shipped_path=shipped, remote_path=remote)
+
+    new_payload = {**_BASE, "last_updated": "2026-05-01"}
+
+    class _FakeResp:
+        status_code = 200
+        def json(self): return new_payload
+        def raise_for_status(self): pass
+
+    def _fake_get(url, timeout):
+        assert "x.json" in url
+        return _FakeResp()
+
+    monkeypatch.setattr("src.core.torch_pack.requests.get", _fake_get)
+    result = mgr.refresh_remote()
+    assert result["ok"] is True
+    assert remote.exists()
+    assert json.loads(remote.read_text(encoding="utf-8"))["last_updated"] == "2026-05-01"
+
+
+def test_refresh_network_failure_is_non_fatal(tmp_path, monkeypatch):
+    shipped = tmp_path / "data" / "torch_packs.json"
+    remote = tmp_path / "tools" / "torch_packs_remote.json"
+    _write_json(shipped, _BASE)
+    mgr = TorchPackManager(shipped_path=shipped, remote_path=remote)
+
+    def _boom(url, timeout):
+        raise ConnectionError("offline")
+
+    monkeypatch.setattr("src.core.torch_pack.requests.get", _boom)
+    result = mgr.refresh_remote()
+    assert result["ok"] is False
+    assert "offline" in result["error"]
+    assert not remote.exists()
+
+
+def test_refresh_schema_mismatch_does_not_write(tmp_path, monkeypatch):
+    shipped = tmp_path / "data" / "torch_packs.json"
+    remote = tmp_path / "tools" / "torch_packs_remote.json"
+    _write_json(shipped, _BASE)
+    mgr = TorchPackManager(shipped_path=shipped, remote_path=remote)
+
+    class _FakeResp:
+        status_code = 200
+        def json(self): return {"schema_version": 999}
+        def raise_for_status(self): pass
+
+    monkeypatch.setattr("src.core.torch_pack.requests.get", lambda url, timeout: _FakeResp())
+    result = mgr.refresh_remote()
+    assert result["ok"] is False
+    assert "schema" in result["error"].lower()
+    assert not remote.exists()
