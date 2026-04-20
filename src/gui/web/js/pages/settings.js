@@ -132,6 +132,23 @@
                     '</div>' +
                 '</div>' +
 
+                // Addon Registry section
+                '<div style="height:16px"></div>' +
+                '<div class="ti-card" id="settings-addon-registry">' +
+                    '<div class="ti-card-head">' +
+                        '<span class="material-symbols-outlined">extension</span>' +
+                        '<span class="ti-card-title">' + t('addonRegistry.tabTitle') + '</span>' +
+                    '</div>' +
+                    '<div class="ti-card-body">' +
+                        '<div class="ar-toolbar">' +
+                            '<button class="btn btn-secondary" id="ar-refresh-btn">' + t('addonRegistry.refreshRemote') + '</button>' +
+                            '<button class="btn btn-secondary" id="ar-restore-all-btn" style="color:var(--danger);border-color:var(--danger)">' + t('addonRegistry.restoreAllDefaults') + '</button>' +
+                        '</div>' +
+                        '<div id="ar-list" style="margin-top:12px"></div>' +
+                        '<div class="ar-footer">' + t('addonRegistry.footerInfo') + '</div>' +
+                    '</div>' +
+                '</div>' +
+
                 '<style>' +
                     '.ls-chip {' +
                         'display:inline-block;padding:4px 10px;font-size:11px;font-family:var(--font-mono);' +
@@ -153,6 +170,73 @@
                     '}' +
                     '#settings-diagnostics .diag-result {' +
                         'display:none;margin-top:10px;font-size:12px;max-height:160px;overflow-y:auto;' +
+                    '}' +
+                    '#settings-addon-registry .ar-toolbar {' +
+                        'display:flex;gap:8px;flex-wrap:wrap;' +
+                    '}' +
+                    '#settings-addon-registry .ar-row {' +
+                        'display:flex;align-items:center;gap:8px;padding:8px 0;' +
+                        'border-bottom:1px solid var(--border-1);' +
+                    '}' +
+                    '#settings-addon-registry .ar-row:last-child { border-bottom:none; }' +
+                    '#settings-addon-registry .ar-label { flex:1;font-size:13px;color:var(--text-0); }' +
+                    '#settings-addon-registry .ar-chip {' +
+                        'display:inline-block;padding:2px 7px;font-size:10px;border-radius:10px;' +
+                        'background:var(--bg-3);color:var(--text-3);border:1px solid var(--border-1);' +
+                        'margin-left:4px;vertical-align:middle;' +
+                    '}' +
+                    '#settings-addon-registry .ar-override-dot {' +
+                        'display:inline-block;width:8px;height:8px;border-radius:50%;' +
+                        'background:var(--accent);margin-left:4px;vertical-align:middle;cursor:help;' +
+                    '}' +
+                    '#settings-addon-registry .ar-footer {' +
+                        'margin-top:14px;font-size:11px;color:var(--text-3);line-height:1.5;' +
+                    '}' +
+                    // Editor modal styles
+                    '.ar-editor-overlay {' +
+                        'position:fixed;inset:0;background:rgba(0,0,0,.6);' +
+                        'display:flex;align-items:center;justify-content:center;z-index:9999;' +
+                    '}' +
+                    '.ar-editor-modal {' +
+                        'background:var(--bg-1);color:var(--text-0);border:1px solid var(--border-2);' +
+                        'border-radius:var(--radius);box-shadow:0 8px 32px rgba(0,0,0,.5);' +
+                        'width:520px;max-width:calc(100vw - 32px);max-height:calc(100vh - 64px);' +
+                        'display:flex;flex-direction:column;' +
+                    '}' +
+                    '.ar-editor-head {' +
+                        'padding:16px 20px;border-bottom:1px solid var(--border-1);' +
+                        'font-size:14px;font-weight:600;color:var(--text-0);' +
+                    '}' +
+                    '.ar-editor-body {' +
+                        'padding:16px 20px;overflow-y:auto;flex:1;' +
+                    '}' +
+                    '.ar-editor-section-title {' +
+                        'font-size:11px;font-family:var(--font-mono);text-transform:uppercase;' +
+                        'letter-spacing:0.08em;color:var(--text-3);margin-bottom:8px;margin-top:16px;' +
+                    '}' +
+                    '.ar-editor-section-title:first-child { margin-top:0; }' +
+                    '.ar-pack-row {' +
+                        'display:flex;align-items:center;gap:8px;padding:5px 0;' +
+                    '}' +
+                    '.ar-pack-row label { font-size:13px;color:var(--text-1);cursor:pointer;flex:1; }' +
+                    '.ar-pack-row.unknown label { color:var(--text-3); }' +
+                    '.ar-wheel-row {' +
+                        'margin-bottom:10px;' +
+                    '}' +
+                    '.ar-wheel-row .ar-wheel-label {' +
+                        'font-size:11px;color:var(--text-3);font-family:var(--font-mono);margin-bottom:3px;' +
+                    '}' +
+                    '.ar-wheel-row input {' +
+                        'width:100%;background:var(--bg-2);border:1px solid var(--border-1);' +
+                        'border-radius:var(--radius-sm);padding:5px 8px;font-size:12px;' +
+                        'font-family:var(--font-mono);color:var(--text-0);' +
+                    '}' +
+                    '.ar-wheel-warn {' +
+                        'font-size:11px;color:var(--warn);margin-top:2px;' +
+                    '}' +
+                    '.ar-editor-foot {' +
+                        'padding:12px 20px;border-top:1px solid var(--border-1);' +
+                        'display:flex;gap:8px;justify-content:flex-end;' +
                     '}' +
                 '</style>' +
             '</div>';
@@ -237,6 +321,45 @@
             btn.addEventListener('click', function() { runDiagnostic(this.dataset.diag); });
         });
 
+        // Addon Registry toolbar buttons
+        var arRefreshBtn = document.getElementById('ar-refresh-btn');
+        if (arRefreshBtn) {
+            arRefreshBtn.addEventListener('click', function() {
+                var btn = this;
+                btn.disabled = true;
+                BridgeAPI.refreshAddonsRemote().then(function(res) {
+                    btn.disabled = false;
+                    if (res && res.ok) {
+                        App.showToast(t('addonRegistry.refreshSuccess'), 'success');
+                        renderAddonRegistrySection();
+                    } else {
+                        App.showToast((res && res.error) || t('addonRegistry.refreshError'), 'error');
+                    }
+                }).catch(function(e) {
+                    btn.disabled = false;
+                    App.showToast(String(e), 'error');
+                });
+            });
+        }
+
+        var arRestoreAllBtn = document.getElementById('ar-restore-all-btn');
+        if (arRestoreAllBtn) {
+            arRestoreAllBtn.addEventListener('click', function() {
+                if (!confirm(t('addonRegistry.restoreAllConfirm'))) return;
+                BridgeAPI.clearAddonOverride('').then(function(res) {
+                    if (res && res.ok) {
+                        App.showToast(t('addonRegistry.restoreAllSuccess'), 'success');
+                        renderAddonRegistrySection();
+                    } else {
+                        App.showToast((res && res.error) || t('addonRegistry.restoreAllError'), 'error');
+                    }
+                }).catch(function(e) {
+                    App.showToast(String(e), 'error');
+                });
+            });
+        }
+
+        renderAddonRegistrySection();
         loadEnvs();
     }
 
@@ -511,6 +634,282 @@
                 resultEl.style.display = 'block';
                 resultEl.innerHTML = '<div style="color:var(--danger)">' + String(e) + '</div>';
             }
+        });
+    }
+
+    function renderAddonRegistrySection() {
+        var listEl = document.getElementById('ar-list');
+        if (!listEl) return;
+        listEl.innerHTML = '<div style="color:var(--text-3);font-size:12px">...</div>';
+        BridgeAPI.listAddonsWithOverrideStatus().then(function(addons) {
+            if (!Array.isArray(addons) || addons.length === 0) {
+                listEl.innerHTML = '<div style="color:var(--text-3);font-size:12px">' + t('addonRegistry.noAddons') + '</div>';
+                return;
+            }
+            var html = '';
+            addons.forEach(function(addon) {
+                var chips = '';
+                chips += '<span class="ar-chip">' + (addon.kind || 'unknown') + '</span>';
+                if (addon.pack_pinned) {
+                    chips += '<span class="ar-chip" style="color:var(--accent);border-color:var(--accent-dim)">' + t('addonRegistry.packPinned') + '</span>';
+                }
+                var overrideDot = addon.has_override
+                    ? '<span class="ar-override-dot" title="' + t('addonRegistry.hasOverride') + '"></span>'
+                    : '';
+                html += '<div class="ar-row">' +
+                    '<div class="ar-label">' + (addon.label || addon.id) + chips + overrideDot + '</div>' +
+                    '<button class="btn btn-secondary" style="padding:4px 10px;font-size:12px" data-ar-edit="' + addon.id + '">' +
+                        t('addonRegistry.editBtn') +
+                    '</button>' +
+                '</div>';
+            });
+            listEl.innerHTML = html;
+            listEl.querySelectorAll('[data-ar-edit]').forEach(function(btn) {
+                btn.addEventListener('click', function() { openAddonEditor(this.dataset.arEdit); });
+            });
+        }).catch(function(e) {
+            if (listEl) listEl.innerHTML = '<div style="color:var(--danger);font-size:12px">' + String(e) + '</div>';
+        });
+    }
+
+    function openAddonEditor(addonId) {
+        // Fetch addon data and all packs in parallel
+        Promise.all([
+            BridgeAPI.getAddonForEdit(addonId),
+            BridgeAPI.listTorchPacks()
+        ]).then(function(results) {
+            var addonData = results[0];  // {shipped, override, effective}
+            var allPacks = results[1];   // [{id, label, ...}, ...]
+            if (!addonData || !addonData.effective) {
+                App.showToast(t('addonRegistry.loadError'), 'error');
+                return;
+            }
+
+            var effective = addonData.effective;
+            var shipped = addonData.shipped || {};
+            var isPip = effective.kind === 'pip';
+            var effectivePacks = Array.isArray(effective.compatible_packs) ? effective.compatible_packs : [];
+            var effectiveWheels = effective.wheels_by_pack || {};
+            var knownPackIds = Array.isArray(allPacks) ? allPacks.map(function(p) { return p.id; }) : [];
+
+            // Build the set of all pack ids to show (known + unknown from effective)
+            var unknownPackIds = effectivePacks.filter(function(pid) { return knownPackIds.indexOf(pid) === -1; });
+
+            // Build pack rows HTML
+            var packRowsHtml = '';
+            if (Array.isArray(allPacks)) {
+                allPacks.forEach(function(pack) {
+                    var checked = effectivePacks.indexOf(pack.id) !== -1 ? 'checked' : '';
+                    packRowsHtml += '<div class="ar-pack-row">' +
+                        '<input type="checkbox" id="ar-pack-' + pack.id + '" data-pack-id="' + pack.id + '" ' + checked + '>' +
+                        '<label for="ar-pack-' + pack.id + '">' + (pack.label || pack.id) + '</label>' +
+                    '</div>';
+                });
+            }
+            unknownPackIds.forEach(function(pid) {
+                packRowsHtml += '<div class="ar-pack-row unknown">' +
+                    '<input type="checkbox" id="ar-pack-' + pid + '" data-pack-id="' + pid + '" checked>' +
+                    '<label for="ar-pack-' + pid + '">' + pid + ' <span style="color:var(--text-3)">(' + t('addonRegistry.unknownPack') + ')</span></label>' +
+                '</div>';
+            });
+
+            // Build wheel URL rows HTML (only shown for pip kind, only for checked packs initially)
+            var wheelSectionHtml = '';
+            if (isPip) {
+                wheelSectionHtml = '<div class="ar-editor-section-title">' + t('addonRegistry.wheelUrlsSection') + '</div>' +
+                    '<div id="ar-wheel-inputs"></div>';
+            }
+
+            var overlay = document.createElement('div');
+            overlay.className = 'ar-editor-overlay';
+            overlay.innerHTML =
+                '<div class="ar-editor-modal">' +
+                    '<div class="ar-editor-head">' + (effective.label || addonId) + '</div>' +
+                    '<div class="ar-editor-body">' +
+                        '<div class="ar-editor-section-title">' + t('addonRegistry.compatPacksSection') + '</div>' +
+                        '<div id="ar-pack-list">' + packRowsHtml + '</div>' +
+                        wheelSectionHtml +
+                    '</div>' +
+                    '<div class="ar-editor-foot">' +
+                        '<button class="btn btn-secondary" id="ar-editor-cancel">' + t('addonRegistry.cancelBtn') + '</button>' +
+                        '<button class="btn btn-secondary" id="ar-editor-restore" style="color:var(--danger);border-color:var(--danger)">' + t('addonRegistry.restoreThisBtn') + '</button>' +
+                        '<button class="btn btn-primary" id="ar-editor-save">' + t('addonRegistry.saveBtn') + '</button>' +
+                    '</div>' +
+                '</div>';
+            document.body.appendChild(overlay);
+
+            function rebuildWheelInputs() {
+                if (!isPip) return;
+                var wheelInputsEl = document.getElementById('ar-wheel-inputs');
+                if (!wheelInputsEl) return;
+                var checkedPacks = [];
+                overlay.querySelectorAll('[data-pack-id]').forEach(function(cb) {
+                    if (cb.checked) checkedPacks.push(cb.dataset.packId);
+                });
+                var html = '';
+                checkedPacks.forEach(function(pid) {
+                    var currentUrl = effectiveWheels[pid] || '';
+                    var packLabel = '';
+                    if (Array.isArray(allPacks)) {
+                        var found = allPacks.filter(function(p) { return p.id === pid; })[0];
+                        packLabel = found ? (found.label || pid) : pid;
+                    } else {
+                        packLabel = pid;
+                    }
+                    var warnHtml = (!currentUrl)
+                        ? '<div class="ar-wheel-warn">&#9888; ' + t('addonRegistry.wheelFallbackWarning') + '</div>'
+                        : '';
+                    html += '<div class="ar-wheel-row">' +
+                        '<div class="ar-wheel-label">' + packLabel + '</div>' +
+                        '<input type="text" data-wheel-pack="' + pid + '" value="' + currentUrl + '" placeholder="https://...">' +
+                        '<div class="ar-wheel-warn-placeholder" data-wheel-warn="' + pid + '">' + (warnHtml ? warnHtml : '') + '</div>' +
+                    '</div>';
+                });
+                wheelInputsEl.innerHTML = html || '<div style="color:var(--text-3);font-size:12px">' + t('addonRegistry.noPacksForWheels') + '</div>';
+                // Wire URL input change → update inline warning
+                wheelInputsEl.querySelectorAll('input[data-wheel-pack]').forEach(function(inp) {
+                    inp.addEventListener('input', function() {
+                        var warnEl = wheelInputsEl.querySelector('[data-wheel-warn="' + this.dataset.wheelPack + '"]');
+                        if (!warnEl) return;
+                        var val = this.value.trim();
+                        if (!val) {
+                            warnEl.innerHTML = '<div class="ar-wheel-warn">&#9888; ' + t('addonRegistry.wheelFallbackWarning') + '</div>';
+                        } else if (!/^https?:\/\//.test(val)) {
+                            warnEl.innerHTML = '<div class="ar-wheel-warn" style="color:var(--danger)">&#9888; ' + t('addonRegistry.urlFormatError') + '</div>';
+                        } else {
+                            warnEl.innerHTML = '';
+                        }
+                    });
+                });
+            }
+
+            // Initial build of wheel inputs
+            rebuildWheelInputs();
+
+            // Pack checkbox → rebuild wheel inputs
+            overlay.querySelectorAll('[data-pack-id]').forEach(function(cb) {
+                cb.addEventListener('change', function() {
+                    // Unknown packs: if unchecked, disable re-check
+                    if (unknownPackIds.indexOf(this.dataset.packId) !== -1 && this.checked) {
+                        this.checked = false;
+                        return;
+                    }
+                    rebuildWheelInputs();
+                });
+            });
+
+            function closeEditor() {
+                if (document.body.contains(overlay)) document.body.removeChild(overlay);
+            }
+
+            document.getElementById('ar-editor-cancel').addEventListener('click', closeEditor);
+
+            document.getElementById('ar-editor-restore').addEventListener('click', function() {
+                if (!confirm(t('addonRegistry.restoreThisConfirm'))) return;
+                BridgeAPI.clearAddonOverride(addonId).then(function(res) {
+                    closeEditor();
+                    if (res && res.ok) {
+                        App.showToast(t('addonRegistry.restoreThisSuccess'), 'success');
+                    } else {
+                        App.showToast((res && res.error) || t('addonRegistry.restoreThisError'), 'error');
+                    }
+                    renderAddonRegistrySection();
+                }).catch(function(e) {
+                    App.showToast(String(e), 'error');
+                    closeEditor();
+                });
+            });
+
+            document.getElementById('ar-editor-save').addEventListener('click', function() {
+                // Collect checked packs
+                var newPacks = [];
+                overlay.querySelectorAll('[data-pack-id]').forEach(function(cb) {
+                    if (cb.checked) newPacks.push(cb.dataset.packId);
+                });
+
+                // Collect wheel URLs
+                var newWheels = {};
+                if (isPip) {
+                    var urlErrors = [];
+                    overlay.querySelectorAll('input[data-wheel-pack]').forEach(function(inp) {
+                        var val = inp.value.trim();
+                        if (val && !/^https?:\/\//.test(val)) {
+                            urlErrors.push(inp.dataset.wheelPack);
+                        }
+                        newWheels[inp.dataset.wheelPack] = val;
+                    });
+                    if (urlErrors.length > 0) {
+                        App.showToast(t('addonRegistry.urlFormatError') + ': ' + urlErrors.join(', '), 'error');
+                        return;
+                    }
+                }
+
+                // Validation: empty packs confirm
+                if (newPacks.length === 0) {
+                    if (!confirm(t('addonRegistry.emptyPacksConfirm'))) return;
+                }
+
+                // Validation: pip packs without URL confirm
+                if (isPip && newPacks.length > 0) {
+                    var missingUrls = newPacks.filter(function(pid) { return !newWheels[pid]; });
+                    if (missingUrls.length > 0) {
+                        var missingLabels = missingUrls.map(function(pid) {
+                            if (Array.isArray(allPacks)) {
+                                var found = allPacks.filter(function(p) { return p.id === pid; })[0];
+                                return found ? (found.label || pid) : pid;
+                            }
+                            return pid;
+                        });
+                        if (!confirm(t('addonRegistry.pyPiFallbackConfirm') + '\n' + missingLabels.join('\n'))) return;
+                    }
+                }
+
+                // Compute minimal partial override vs shipped
+                var partial = {};
+                var shippedPacks = Array.isArray(shipped.compatible_packs) ? shipped.compatible_packs : [];
+                var packsChanged = (newPacks.slice().sort().join(',') !== shippedPacks.slice().sort().join(','));
+                if (packsChanged) partial.compatible_packs = newPacks;
+
+                if (isPip) {
+                    var shippedWheels = shipped.wheels_by_pack || {};
+                    var wheelOverride = {};
+                    var anyWheelChanged = false;
+                    newPacks.forEach(function(pid) {
+                        var newUrl = newWheels[pid] || '';
+                        var shippedUrl = shippedWheels[pid] || '';
+                        if (newUrl !== shippedUrl) {
+                            wheelOverride[pid] = newUrl;
+                            anyWheelChanged = true;
+                        }
+                    });
+                    if (anyWheelChanged) partial.wheels_by_pack = wheelOverride;
+                }
+
+                // If no diff from shipped → clear override for this addon
+                if (Object.keys(partial).length === 0) {
+                    BridgeAPI.clearAddonOverride(addonId).then(function(res) {
+                        closeEditor();
+                        if (res && res.ok) App.showToast(t('addonRegistry.saveSuccess'), 'success');
+                        else App.showToast((res && res.error) || t('addonRegistry.saveError'), 'error');
+                        renderAddonRegistrySection();
+                    }).catch(function(e) { App.showToast(String(e), 'error'); closeEditor(); });
+                    return;
+                }
+
+                BridgeAPI.saveAddonOverride(addonId, JSON.stringify(partial)).then(function(res) {
+                    closeEditor();
+                    if (res && res.ok) App.showToast(t('addonRegistry.saveSuccess'), 'success');
+                    else App.showToast((res && res.error) || t('addonRegistry.saveError'), 'error');
+                    renderAddonRegistrySection();
+                }).catch(function(e) { App.showToast(String(e), 'error'); closeEditor(); });
+            });
+
+            // Click outside modal to cancel
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) closeEditor();
+            });
+        }).catch(function(e) {
+            App.showToast(String(e), 'error');
         });
     }
 
