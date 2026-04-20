@@ -734,9 +734,12 @@ class EnvManager:
                     result["skipped"] = True
                     result["reason"] = "mkdir_failed"
                     return result
+            # Keep runtime state only — do NOT persist to config.json.
+            # model_subdirs is re-scanned from disk at every app startup and
+            # on the Rescan button, so persisting here would only duplicate
+            # that work and create a risky write path (mis-CWD'd callers
+            # could overwrite the real user config).
             self.config.setdefault("model_subdirs", []).extend(new)
-            from src.utils.fs_ops import save_config
-            save_config(self.config, "config.json")
             result["added"] = new
 
         if new or force_regen:

@@ -59,7 +59,7 @@ class TestSyncDiscovery:
         return env_dir
 
     def test_discovers_new_subdir_from_env_local_models(
-        self, sample_config, tmp_project, monkeypatch
+        self, sample_config, tmp_project
     ):
         # Seed shared dir with the configured subdirs (so only the env-only one is "new")
         shared = Path(sample_config["models_dir"])
@@ -67,21 +67,13 @@ class TestSyncDiscovery:
             (shared / name).mkdir(parents=True, exist_ok=True)
         self._make_env(tmp_project, "envA", extra_subdirs=["wanvideo"])
 
-        # Stub save_config so the test doesn't touch the real working directory
-        written = {}
-        def fake_save(cfg, path):
-            written["path"] = path
-            written["config"] = dict(cfg)
-        monkeypatch.setattr("src.utils.fs_ops.save_config", fake_save)
-
         manager = EnvManager(sample_config)
         result = manager.sync_shared_model_subdirs(force_regen=False)
 
         assert result["added"] == ["wanvideo"]
         assert (shared / "wanvideo").is_dir()
+        # model_subdirs updated in-memory only; no disk persistence
         assert "wanvideo" in manager.config["model_subdirs"]
-        assert written["path"] == "config.json"
-        assert "wanvideo" in written["config"]["model_subdirs"]
 
     def test_regenerates_yaml_only_for_enabled_envs(
         self, sample_config, tmp_project, monkeypatch
