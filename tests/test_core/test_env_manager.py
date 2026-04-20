@@ -719,3 +719,39 @@ def test_delete_environment_does_not_wipe_shared_models(tmp_path):
 
     assert not env_dir.exists()
     assert (tmp_path / "models/checkpoints/keep.safetensors").read_bytes() == b"K" * 10
+
+
+@pytest.mark.skipif(platform.system() != "Windows", reason="junction test")
+def test_set_shared_model_path_rewires_junctions(tmp_path):
+    from src.core.env_manager import EnvManager
+
+    config = {
+        "environments_dir": str(tmp_path / "envs"),
+        "models_dir": str(tmp_path / "shared_a"),
+        "snapshots_dir": str(tmp_path / "snapshots"),
+        "shared_model_mode": "default",
+        "custom_model_path": "",
+        "model_subdirs": ["checkpoints"],
+        "shared_model_subdirs_excluded": ["configs"],
+    }
+    mgr = EnvManager(config)
+    env_dir = tmp_path / "envs/x"
+    (env_dir / "ComfyUI/models/checkpoints").mkdir(parents=True)
+    (env_dir / "env_meta.json").write_text(
+        '{"name":"x","created_at":"2026-04-20T00:00:00","shared_model_enabled":false}',
+        encoding="utf-8",
+    )
+    mgr.toggle_shared_model("x", True)
+    assert (tmp_path / "shared_a/checkpoints").exists()
+
+    new_shared = tmp_path / "shared_b"
+    new_shared.mkdir()
+    mgr.set_shared_model_path("custom", str(new_shared), sync=True)
+
+    from src.utils import fs_ops
+    link = env_dir / "ComfyUI/models/checkpoints"
+    assert fs_ops.is_junction(link)
+    probe = new_shared / "checkpoints/probe.bin"
+    probe.parent.mkdir(exist_ok=True)
+    probe.write_bytes(b"P")
+    assert (link / "probe.bin").read_bytes() == b"P"

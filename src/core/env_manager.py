@@ -824,11 +824,23 @@ class EnvManager:
         enabled_count = sum(1 for e in envs if e.shared_model_enabled)
 
         if sync and enabled_count > 0:
+            from src.core.shared_model_bridge import SharedModelBridge
+            bridge = SharedModelBridge(self.config, self._resolve_model_path)
             for env in envs:
-                if env.shared_model_enabled:
-                    comfyui_path = self.environments_dir / env.name / "ComfyUI"
-                    if comfyui_path.exists():
-                        self._generate_extra_model_paths(comfyui_path)
+                if not env.shared_model_enabled:
+                    continue
+                env_dir = self.environments_dir / env.name
+                try:
+                    bridge.disable(env_dir)
+                except Exception as exc:
+                    logger.warning("disable failed for %s during path switch: %s", env.name, exc)
+                try:
+                    bridge.enable(env_dir)
+                except Exception as exc:
+                    logger.warning("enable failed for %s during path switch: %s", env.name, exc)
+                comfyui_path = env_dir / "ComfyUI"
+                if comfyui_path.exists():
+                    self._generate_extra_model_paths(comfyui_path)
 
         return {"enabled_count": enabled_count}
 
