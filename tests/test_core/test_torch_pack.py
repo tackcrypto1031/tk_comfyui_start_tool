@@ -184,3 +184,53 @@ def test_refresh_schema_mismatch_does_not_write(tmp_path, monkeypatch):
     assert result["ok"] is False
     assert "schema" in result["error"].lower()
     assert not remote.exists()
+
+
+def test_switch_pack_skips_orphan_installed_addon(tmp_path, monkeypatch):
+    """switch_pack should not fail when installed_addons contains an unknown id."""
+    import shutil as _shutil
+    from src.core import torch_pack as tp
+    from src.core.torch_pack import switch_pack
+    from src.models.environment import Environment
+
+    # Seed shipped torch_packs.json + addons.json in tmp_path
+    (tmp_path / "data").mkdir()
+    _shutil.copy("data/torch_packs.json", tmp_path / "data" / "torch_packs.json")
+    _shutil.copy("data/addons.json", tmp_path / "data" / "addons.json")
+
+    env_dir = tmp_path / "envs" / "main"
+    (env_dir / "ComfyUI" / "custom_nodes").mkdir(parents=True)
+    (env_dir / "venv").mkdir()
+
+    env = Environment(
+        name="main",
+        created_at="2026-04-20T00:00:00Z",
+        path=str(env_dir),
+        python_version="3.12",
+        pytorch_version="2.9.1+cu130",
+        cuda_tag="cu130",
+        torch_pack="torch-2.9.1-cu130",
+        installed_addons=[{
+            "id": "ghost-unknown",
+            "installed_at": "x",
+            "torch_pack_at_install": None,
+        }],
+    )
+    env.save_meta()
+
+    # Mock pkg_ops + SnapshotManager to avoid touching venv / network
+    monkeypatch.setattr(tp.pkg_ops, "run_install", lambda **kw: None)
+    monkeypatch.setattr(tp.pkg_ops, "freeze", lambda **kw: {})
+    monkeypatch.setattr(tp.SnapshotManager, "create_snapshot", lambda self, n, trigger="": None)
+
+    config = {
+        "base_dir": str(tmp_path),
+        "environments_dir": str(tmp_path / "envs"),
+        "snapshots_dir": str(tmp_path / "snapshots"),
+    }
+    result = switch_pack(config, "main", "torch-2.8.0-cu128",
+                         confirm_addon_removal=False)
+
+    # Orphan id should NOT be treated as pack-pinned; switch proceeds.
+    assert result["ok"] is True
+    assert result["removed_addons"] == []

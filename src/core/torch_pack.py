@@ -146,7 +146,7 @@ class TorchPackManager:
 
 import shutil  # noqa: E402 — stdlib, safe to import here
 
-from src.core.addons import find_addon  # noqa: E402
+from src.core.addon_registry import AddonRegistry  # noqa: E402
 from src.core.snapshot_manager import SnapshotManager  # noqa: E402
 from src.models.environment import Environment  # noqa: E402
 from src.utils import pkg_ops  # noqa: E402
@@ -187,11 +187,15 @@ def switch_pack(
         return {"ok": False, "error": f"unknown pack '{target_pack_id}'",
                 "noop": False, "removed_addons": []}
 
-    # Identify pack-pinned add-ons — wheel/source is bound to the current
-    # torch version, so we must uninstall before swapping torch.
+    addon_registry = AddonRegistry(
+        shipped_path=base_dir / "data" / "addons.json",
+        remote_path=base_dir / "tools" / "addons_remote.json",
+        override_path=base_dir / "tools" / "addons_override.json",
+    )
+    # Identify pack-pinned add-ons — orphan ids (not in registry) are skipped.
     compiled_addons = []
     for entry in env.installed_addons:
-        addon = find_addon(entry.get("id", ""))
+        addon = addon_registry.find(entry.get("id", ""))
         if addon and addon.pack_pinned:
             compiled_addons.append(entry["id"])
 
@@ -224,7 +228,7 @@ def switch_pack(
     # Remove compiled add-ons
     for aid in compiled_addons:
         _report("addon", 15, f"Removing compiled add-on: {aid}")
-        addon = find_addon(aid)
+        addon = addon_registry.find(aid)
         if addon and addon.kind == "pip" and addon.pip_project_name:
             pkg_ops.run_install(
                 venv_path=venv_path,
