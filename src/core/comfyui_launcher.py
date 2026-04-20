@@ -240,11 +240,19 @@ class ComfyUILauncher:
         if extra_args:
             cmd.extend(extra_args)
 
+        # Inject HF / torch / insightface cache redirection env vars
+        env_vars = self._build_cache_env_vars()
+        # Pre-launch shared-model sync + verify (best-effort)
+        try:
+            self._pre_launch_shared_model_check(env_dir)
+        except Exception as exc:
+            logger.warning("Pre-launch shared model check failed for %s: %s", env_name, exc)
+
         # Start process with log file so we can debug ComfyUI output
         log_file = str(env_dir / "comfyui.log")
         try:
             proc = process_manager.start_process(
-                cmd, cwd=str(env_dir / "ComfyUI"), log_file=log_file
+                cmd, cwd=str(env_dir / "ComfyUI"), log_file=log_file, env=env_vars,
             )
         except Exception:
             # Popen itself failed — clean up the reservation.

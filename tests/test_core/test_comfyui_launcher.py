@@ -684,6 +684,56 @@ class TestListRunning:
         assert result[0]["status"] == "restarting"
 
 
+def test_start_passes_cache_env_vars_to_subprocess(tmp_path, monkeypatch):
+    from src.core.comfyui_launcher import ComfyUILauncher
+    from src.utils import process_manager
+
+    env_dir = tmp_path / "envs/test"
+    (env_dir / "ComfyUI").mkdir(parents=True)
+    (env_dir / "venv/Scripts").mkdir(parents=True)
+    (env_dir / "venv/Scripts/python.exe").write_text("", encoding="utf-8")
+    (env_dir / "env_meta.json").write_text(
+        '{"name":"test","created_at":"2026-04-20T00:00:00","shared_model_enabled":false}',
+        encoding="utf-8",
+    )
+
+    captured = {}
+
+    class _FakeProc:
+        pid = 99999
+        returncode = None
+        def poll(self): return None
+
+    def _fake_start_process(cmd, cwd=None, env=None, **kw):
+        captured["env"] = env
+        return _FakeProc()
+
+    monkeypatch.setattr(process_manager, "start_process", _fake_start_process)
+    monkeypatch.setattr(process_manager, "is_port_in_use", lambda *_a, **_k: False)
+    monkeypatch.setattr(process_manager, "find_available_port",
+                        lambda port, exclude=None: port)
+    monkeypatch.setattr(process_manager, "is_process_running", lambda *_a: True)
+
+    config = {
+        "environments_dir": str(tmp_path / "envs"),
+        "models_dir": str(tmp_path / "models"),
+        "snapshots_dir": str(tmp_path / "snapshots"),
+        "auto_open_browser": False,
+        "model_subdirs": [],
+        "shared_model_subdirs_excluded": ["configs"],
+    }
+    launcher = ComfyUILauncher(config)
+    launcher._post_spawn_sanity_delay = 0
+
+    monkeypatch.setattr(launcher, "_ensure_manager_ready", lambda *_a, **_k: None)
+
+    launcher.start("test", port=9000, auto_open=False)
+
+    assert "env" in captured and captured["env"] is not None
+    assert "HF_HOME" in captured["env"]
+    assert "INSIGHTFACE_HOME" in captured["env"]
+
+
 def test_build_cache_env_vars_has_all_keys(tmp_path, monkeypatch):
     from src.core import comfyui_launcher
     from src.core.comfyui_launcher import ComfyUILauncher
