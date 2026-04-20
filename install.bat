@@ -1,6 +1,6 @@
-﻿@echo off
+@echo off
 chcp 65001 >nul 2>&1
-setlocal
+setlocal enabledelayedexpansion
 
 echo ================================================
 echo   TK ComfyUI Start Tool - 環境安裝程式
@@ -31,22 +31,23 @@ if exist "%PYTHON_DIR%\python.exe" (
     goto :check_git
 )
 
-echo       下載 Python %PYTHON_VERSION%...
+echo       Downloading Python %PYTHON_VERSION%...
 curl -L --progress-bar -o "%TEMP_DIR%\python-installer.exe" "%PYTHON_URL%"
 if errorlevel 1 (
-    echo       curl 失敗，嘗試 PowerShell...
+    echo       curl failed, trying PowerShell...
     powershell -Command "Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%TEMP_DIR%\python-installer.exe'"
 )
 if not exist "%TEMP_DIR%\python-installer.exe" (
     echo.
-    echo       [錯誤] Python 下載失敗！
-    echo       請手動下載: %PYTHON_URL%
-    echo       下載後放到 %TEMP_DIR%\python-installer.exe 並重新執行本程式
+    echo       [ERROR] Python download failed.
+    echo       Download manually: %PYTHON_URL%
+    echo       Save as: %TEMP_DIR%\python-installer.exe
+    echo       Then re-run install.bat
     pause
     exit /b 1
 )
 
-echo       安裝 Python %PYTHON_VERSION%（靜默模式）...
+echo       Installing Python %PYTHON_VERSION% (silent mode)...
 set "PY_INSTALL_LOG=%TEMP_DIR%\python-install.log"
 if exist "%PY_INSTALL_LOG%" del /q "%PY_INSTALL_LOG%" >nul 2>&1
 "%TEMP_DIR%\python-installer.exe" /quiet /log "%PY_INSTALL_LOG%" ^
@@ -57,19 +58,19 @@ if exist "%PY_INSTALL_LOG%" del /q "%PY_INSTALL_LOG%" >nul 2>&1
 set "PY_EXIT=%errorlevel%"
 
 if not exist "%PYTHON_DIR%\python.exe" (
-    echo       [WARN] Silent install did not create python.exe ^(exit=%PY_EXIT%^)
-    echo       Retrying with visible progress window (may prompt for permission)...
+    echo       [WARN] Silent install did not create python.exe ^(exit=!PY_EXIT!^)
+    echo       Retrying with visible progress window. If UAC prompts, click Yes.
     "%TEMP_DIR%\python-installer.exe" /passive /log "%PY_INSTALL_LOG%" ^
         TargetDir="%PYTHON_DIR%" ^
         InstallAllUsers=0 Include_launcher=0 Include_test=0 ^
         AssociateFiles=0 Shortcuts=0 Include_doc=0 ^
         Include_tcltk=0 PrependPath=0 CompileAll=0
-    set "PY_EXIT=%errorlevel%"
+    set "PY_EXIT=!errorlevel!"
 )
 
 if not exist "%PYTHON_DIR%\python.exe" (
     echo.
-    echo       [ERROR] Python install failed ^(final exit=%PY_EXIT%^)
+    echo       [ERROR] Python install failed ^(final exit=!PY_EXIT!^)
     echo       Target dir: %PYTHON_DIR%
     echo       Common causes:
     echo         - antivirus blocked the installer
@@ -86,7 +87,7 @@ if not exist "%PYTHON_DIR%\python.exe" (
     pause
     exit /b 1
 )
-echo       Python %PYTHON_VERSION% 安裝完成。
+echo       Python %PYTHON_VERSION% installed.
 
 :: ===== Step 2: Git =====
 :check_git
@@ -204,6 +205,16 @@ if "%GPU_DETECTED%"=="1" (
 echo.
 echo ================================================
 echo.
-echo 正在啟動工具...
+if not exist "%PYTHON_DIR%\pythonw.exe" (
+    echo [ERROR] pythonw.exe missing after install. Aborting launch.
+    pause
+    exit /b 1
+)
+echo Launching tool...
 timeout /t 3 /nobreak >nul
 call "%ROOT%start.bat"
+if errorlevel 1 (
+    echo.
+    echo [ERROR] start.bat reported a problem. See launcher-startup.log.
+    pause
+)
