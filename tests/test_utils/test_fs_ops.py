@@ -230,3 +230,23 @@ def test_size_mtime_returns_tuple(tmp_path):
     size, mtime = fs_ops.size_mtime(p)
     assert size == 4
     assert isinstance(mtime, float)
+
+
+# ---------------------------------------------------------------------------
+# Task 4: cross-process file lock
+# ---------------------------------------------------------------------------
+
+def test_acquire_shared_lock_blocks_second_caller(tmp_path):
+    lock_path = tmp_path / ".shared_lock"
+    with fs_ops.acquire_shared_lock(lock_path, timeout=0.5):
+        with pytest.raises(TimeoutError):
+            with fs_ops.acquire_shared_lock(lock_path, timeout=0.5):
+                pass
+
+
+def test_acquire_shared_lock_releases_after_ctx(tmp_path):
+    lock_path = tmp_path / ".shared_lock"
+    with fs_ops.acquire_shared_lock(lock_path, timeout=0.5):
+        pass
+    with fs_ops.acquire_shared_lock(lock_path, timeout=0.5):
+        pass

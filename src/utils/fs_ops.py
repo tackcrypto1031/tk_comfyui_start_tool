@@ -220,3 +220,45 @@ def size_mtime(path: Path) -> tuple[int, float]:
     """Return (size_bytes, mtime_unix) for a file."""
     st = Path(path).stat()
     return st.st_size, st.st_mtime
+
+
+# ---------------------------------------------------------------------------
+# Task 4: Cross-process file lock
+# ---------------------------------------------------------------------------
+
+import contextlib
+import time
+
+
+@contextlib.contextmanager
+def acquire_shared_lock(lock_path: Path, timeout: float = 10.0, poll: float = 0.1):
+    """Simple cross-process lockfile using exclusive-create semantics.
+
+    Writes lock_path with O_CREAT|O_EXCL; if it already exists the caller
+    waits until it is removed or timeout elapses.  Removes the file on exit.
+    """
+    lock_path = Path(lock_path)
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    deadline = time.monotonic() + timeout
+    fd = None
+    while True:
+        try:
+            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode())
+            break
+        except FileExistsError:
+            if time.monotonic() >= deadline:
+                raise TimeoutError(f"Could not acquire lock: {lock_path}")
+            time.sleep(poll)
+    try:
+        yield
+    finally:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except Exception:
+                pass
+        try:
+            os.unlink(str(lock_path))
+        except FileNotFoundError:
+            pass
