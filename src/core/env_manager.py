@@ -116,7 +116,11 @@ class EnvManager:
             remote = vc.list_remote_versions(self.comfyui_url)
             tags = remote.get("tags", [])
             if tags:
-                return tags[0]  # VersionController sorts newest first
+                # VersionController sorts newest first; entry may be a dict {name, date, hash} or a plain string
+                first = tags[0]
+                if isinstance(first, dict):
+                    return first.get("name") or "master"
+                return str(first)
         except Exception as exc:
             logger.warning("Failed to fetch latest ComfyUI tag: %s", exc)
         return "master"
