@@ -1,4 +1,5 @@
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,7 @@ from src.models.environment import Environment
 def _setup(tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
+    shutil.copy("data/addons.json", data_dir / "addons.json")
     (data_dir / "torch_packs.json").write_text(json.dumps({
         "schema_version": 1, "last_updated": "2026-04-19", "remote_url": "",
         "recommended_python": "3.12.10", "recommended_uv_version": "0.9.7",
