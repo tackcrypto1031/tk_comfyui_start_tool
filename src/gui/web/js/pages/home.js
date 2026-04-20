@@ -140,6 +140,7 @@
             branch: e.branch || e.comfyui_branch || 'master',
             lastUsed: e.lastUsed || e.last_used || e.created_at || '—',
             torch_pack: e.torch_pack || null,
+            installed_addons: Array.isArray(e.installed_addons) ? e.installed_addons : [],
         };
     }
 
@@ -581,7 +582,22 @@
         ]).then(function(results) {
             var addonsResult = results[0];
             var packsResult = results[1];
-            _addonState.addons = (addonsResult && addonsResult.addons) || addonsResult || [];
+            var rawAddons = (addonsResult && addonsResult.addons) || addonsResult || [];
+            // Merge per-env installed state: list_addons() returns the global
+            // registry; whether each addon is installed lives on the env
+            // (env_meta.json → installed_addons). Flag each registry entry
+            // whose id appears in the active env's installed_addons list.
+            var installedIds = {};
+            var activeEnvForAddons = state.activeEnv;
+            if (activeEnvForAddons && Array.isArray(activeEnvForAddons.installed_addons)) {
+                activeEnvForAddons.installed_addons.forEach(function(entry) {
+                    var id = entry && (entry.id || entry);
+                    if (id) installedIds[id] = true;
+                });
+            }
+            _addonState.addons = rawAddons.map(function(a) {
+                return Object.assign({}, a, { installed: !!installedIds[a.id] });
+            });
             _addonState.packs = (packsResult && packsResult.packs) || packsResult || [];
             _addonState.envName = envName;
 
