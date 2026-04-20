@@ -1,28 +1,25 @@
 {
-  "version": "0.4.0",
+  "version": "0.5.0",
   "min_python": "3.10",
-  "release_notes": "推薦模式建環境 + Torch-Pack 切換 + uv 遷移",
+  "release_notes": "Add-on registry editor + one-click Pack switch for incompatible add-ons",
   "changes": [
-    "新增推薦模式:建環境時自動依 GPU 選擇 PyTorch/CUDA 組合,無需手動選版本",
-    "新增 Torch-Pack 引擎切換(版本頁 → PyTorch 引擎分頁)",
-    "新增可選擴充:SageAttention / FlashAttention / InsightFace / Nunchaku / Trellis 2",
-    "套件安裝改用 uv(顯著加快環境建置速度)",
-    "env_meta.json 新增 torch_pack 與 installed_addons 欄位"
+    "新增 Add-on 不相容時「一鍵切換 Pack 並安裝」流程",
+    "新增切換 Pack 後 add-on 重裝提示",
+    "新增 Add-on Registry 編輯器(Settings 頁)——可自訂相容 Pack 與 wheel URL",
+    "Add-on 定義改存 data/addons.json,支援遠端熱更新與使用者本地 override"
   ],
   "changes_i18n": {
     "en": [
-      "Added Recommended mode: environment creation auto-selects PyTorch/CUDA combo based on GPU — no more manual version picking",
-      "Added Torch-Pack engine switcher (Versions page → PyTorch Engine tab)",
-      "Added optional curated add-ons: SageAttention / FlashAttention / InsightFace / Nunchaku / Trellis 2",
-      "Package operations now use uv (significantly faster env creation)",
-      "env_meta.json gains torch_pack and installed_addons fields"
+      "Added one-click 'switch Pack and install' flow for add-ons incompatible with current env",
+      "Added post-switch reinstall prompt for removed pack-pinned add-ons",
+      "Added Add-on Registry editor (Settings page) — edit compatible packs and wheel URLs per add-on",
+      "Add-on definitions moved to data/addons.json with remote refresh and local override support"
     ],
     "zh-TW": [
-      "新增推薦模式:建環境時自動依 GPU 選擇 PyTorch/CUDA 組合,無需手動選版本",
-      "新增 Torch-Pack 引擎切換(版本頁 → PyTorch 引擎分頁)",
-      "新增可選擴充:SageAttention / FlashAttention / InsightFace / Nunchaku / Trellis 2",
-      "套件安裝改用 uv(顯著加快環境建置速度)",
-      "env_meta.json 新增 torch_pack 與 installed_addons 欄位"
+      "新增 Add-on 不相容時「一鍵切換 Pack 並安裝」流程",
+      "新增切換 Pack 後 add-on 重裝提示",
+      "新增 Add-on Registry 編輯器(Settings 頁)——可自訂相容 Pack 與 wheel URL",
+      "Add-on 定義改存 data/addons.json,支援遠端熱更新與使用者本地 override"
     ]
   }
 }
