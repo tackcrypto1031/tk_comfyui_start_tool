@@ -955,6 +955,34 @@ class Bridge(QObject):
 
         self._run_async(request_id, _do)
 
+    @Slot(str, str, "QVariantList")
+    def reinstall_addons(
+        self, request_id: str, env_name: str, addon_ids,
+    ) -> None:
+        """Reinstall a batch of add-ons. Per-id success reported; does not abort on failure."""
+        def _do():
+            base_dir = Path(self.config.get("base_dir", "."))
+            mgr = self._torch_pack_mgr()
+            uv_version = mgr.get_recommended_uv_version() or "0.9.7"
+            pkg_mgr = self.config.get("package_manager", "uv")
+            env_dir = self.environments_dir / env_name
+            total = max(len(addon_ids), 1)
+            results = []
+            for idx, aid in enumerate(addon_ids):
+                pct = int((idx / total) * 100)
+                self.push_progress(request_id, "reinstall", pct, f"Installing {aid}...")
+                try:
+                    _install_addon(
+                        self.config, str(aid), env_dir,
+                        base_dir / "tools", uv_version, pkg_mgr,
+                    )
+                    results.append({"id": str(aid), "ok": True, "error": ""})
+                except Exception as exc:
+                    results.append({"id": str(aid), "ok": False, "error": str(exc)})
+            self.push_progress(request_id, "done", 100, f"Reinstalled {len(addon_ids)} add-ons.")
+            return {"results": results}
+        self._run_async(request_id, _do)
+
     @Slot(result=str)
     def list_addons(self) -> str:
         """Return the effective add-on registry (shipped + remote + override merged)."""
