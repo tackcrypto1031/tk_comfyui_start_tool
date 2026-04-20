@@ -6,7 +6,8 @@ from pathlib import Path
 from PySide6.QtCore import QObject, Slot, Signal, QThread
 from src.utils.fs_ops import save_config
 from src.core.torch_pack import TorchPackManager, switch_pack as _switch_pack
-from src.core.addons import ADDONS, install_addon as _install_addon, uninstall_addon as _uninstall_addon
+from src.core.addons import install_addon as _install_addon, uninstall_addon as _uninstall_addon
+from src.core.addon_registry import AddonRegistry
 
 # Set up file logging for debugging
 _log_path = Path(__file__).parent.parent.parent / "debug.log"
@@ -827,6 +828,14 @@ class Bridge(QObject):
             remote_path=base / "tools" / "torch_packs_remote.json",
         )
 
+    def _addon_registry(self) -> AddonRegistry:
+        base_dir = Path(self.config.get("base_dir", "."))
+        return AddonRegistry(
+            shipped_path=base_dir / "data" / "addons.json",
+            remote_path=base_dir / "tools" / "addons_remote.json",
+            override_path=base_dir / "tools" / "addons_override.json",
+        )
+
     @Slot(result=str)
     def list_torch_packs(self) -> str:
         """Return all Torch-Packs from shipped (or remote-override) list."""
@@ -878,61 +887,57 @@ class Bridge(QObject):
 
     @Slot(result=str)
     def list_addons(self) -> str:
-        """Return the curated add-on registry."""
+        """Return the effective add-on registry (shipped + remote + override merged)."""
         try:
-            items = [
-                {
+            items = []
+            for a in self._addon_registry().list_addons():
+                items.append({
                     "id": a.id, "label": a.label, "description": a.description,
                     "kind": a.kind,
                     "compatible_packs": list(a.compatible_packs),
+                    "wheels_by_pack": dict(a.wheels_by_pack) if a.wheels_by_pack else None,
                     "requires_compile": a.requires_compile,
                     "pack_pinned": a.pack_pinned,
-                    "risk_note": a.risk_note or "",
-                }
-                for a in ADDONS
-            ]
-            return json.dumps({"ok": True, "addons": items})
+                    "risk_note": a.risk_note,
+                })
+            return json.dumps({"ok": True, "addons": items}, ensure_ascii=False)
         except Exception as exc:
             logger.error(f"list_addons error: {exc}")
             return json.dumps({"ok": False, "error": str(exc)})
 
     @Slot(str, str, str)
     def install_addon(self, request_id: str, env_name: str, addon_id: str) -> None:
-        """Install a curated add-on into an environment (async).
-
-        Uses the async request_id pattern — poll via poll_result().
-        """
-        def _install():
-            env_dir = Path(self.config["environments_dir"]) / env_name
-            tools_dir = Path(self.config.get("base_dir", ".")) / "tools"
-            uv_ver = self._torch_pack_mgr().get_recommended_uv_version() or "0.9.7"
-            result = _install_addon(
-                addon_id=addon_id, env_dir=env_dir, tools_dir=tools_dir,
-                uv_version=uv_ver,
-                package_manager=self.config.get("package_manager", "uv"),
-                progress_callback=lambda msg:
-                    self.push_progress(request_id, msg, 0, ""),
+        """Install an add-on into an env (async)."""
+        def _do():
+            env_dir = self.environments_dir / env_name
+            base_dir = Path(self.config.get("base_dir", "."))
+            mgr = self._torch_pack_mgr()
+            uv_version = mgr.get_recommended_uv_version() or "0.9.7"
+            pkg_mgr = self.config.get("package_manager", "uv")
+            return _install_addon(
+                self.config, addon_id, env_dir, base_dir / "tools",
+                uv_version, pkg_mgr,
+                progress_callback=lambda msg: self.push_progress(
+                    request_id, "install", 60, msg if isinstance(msg, str) else str(msg)
+                ),
             )
-            return {"ok": True, **result}
-        self._run_async(request_id, _install)
+        self._run_async(request_id, _do)
 
     @Slot(str, str, str)
     def uninstall_addon(self, request_id: str, env_name: str, addon_id: str) -> None:
-        """Uninstall a curated add-on from an environment (async).
-
-        Uses the async request_id pattern — poll via poll_result().
-        """
-        def _uninstall():
-            env_dir = Path(self.config["environments_dir"]) / env_name
-            tools_dir = Path(self.config.get("base_dir", ".")) / "tools"
-            uv_ver = self._torch_pack_mgr().get_recommended_uv_version() or "0.9.7"
+        """Uninstall an add-on from an env (async)."""
+        def _do():
+            env_dir = self.environments_dir / env_name
+            base_dir = Path(self.config.get("base_dir", "."))
+            mgr = self._torch_pack_mgr()
+            uv_version = mgr.get_recommended_uv_version() or "0.9.7"
+            pkg_mgr = self.config.get("package_manager", "uv")
             _uninstall_addon(
-                addon_id=addon_id, env_dir=env_dir, tools_dir=tools_dir,
-                uv_version=uv_ver,
-                package_manager=self.config.get("package_manager", "uv"),
+                self.config, addon_id, env_dir, base_dir / "tools",
+                uv_version, pkg_mgr,
             )
-            return {"ok": True}
-        self._run_async(request_id, _uninstall)
+            return {"ok": True, "id": addon_id}
+        self._run_async(request_id, _do)
 
     @Slot(result=str)
     def detect_gpu_for_recommended(self) -> str:
