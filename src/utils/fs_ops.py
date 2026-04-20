@@ -42,6 +42,7 @@ _HARDCODED_DEFAULTS = {
         "auto_analyze_on_install": True,
     },
     "ui_flags": {},
+    "shared_model_subdirs_excluded": ["configs"],
 }
 
 

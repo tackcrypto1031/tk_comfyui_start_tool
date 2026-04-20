@@ -250,3 +250,9 @@ def test_acquire_shared_lock_releases_after_ctx(tmp_path):
         pass
     with fs_ops.acquire_shared_lock(lock_path, timeout=0.5):
         pass
+
+
+def test_default_config_has_shared_model_subdirs_excluded():
+    from src.utils.fs_ops import get_default_config
+    defaults = get_default_config(None)
+    assert defaults["shared_model_subdirs_excluded"] == ["configs"]

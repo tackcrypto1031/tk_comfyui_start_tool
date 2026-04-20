@@ -67,5 +67,6 @@
   "shared_model_mode": "default",
   "custom_model_path": "",
   "package_manager": "uv",
-  "ui_flags": {}
+  "ui_flags": {},
+  "shared_model_subdirs_excluded": ["configs"]
 }
