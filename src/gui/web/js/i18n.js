@@ -14,7 +14,7 @@ const I18N = (function() {
 
             // Sidebar
             "sidebar_environments": "Environments",
-            "sidebar_launch": "Launch",
+            "sidebar_launch": "Running List",
             "sidebar_plugins": "Plugins",
             "sidebar_versions": "Versions",
             "sidebar_snapshots": "Snapshots",
@@ -74,7 +74,7 @@ const I18N = (function() {
             "cmd_action_open_output": "Open output folder",
             "cmd_action_open_models": "Open models folder",
             "cmd_nav_home": "Go to Home",
-            "cmd_nav_launcher": "Go to Launcher",
+            "cmd_nav_launcher": "Go to Running List",
             "cmd_nav_environments": "Go to Environments",
             "cmd_nav_plugins": "Go to Plugins",
             "cmd_nav_versions": "Go to Versions",
@@ -542,7 +542,7 @@ const I18N = (function() {
 
             // Sidebar
             "sidebar_environments": "環境管理",
-            "sidebar_launch": "啟動器",
+            "sidebar_launch": "運行列表",
             "sidebar_plugins": "插件管理",
             "sidebar_versions": "版本控制",
             "sidebar_snapshots": "快照管理",
@@ -602,7 +602,7 @@ const I18N = (function() {
             "cmd_action_open_output": "開啟 output 資料夾",
             "cmd_action_open_models": "開啟 models 資料夾",
             "cmd_nav_home": "前往 首頁",
-            "cmd_nav_launcher": "前往 啟動器",
+            "cmd_nav_launcher": "前往 運行列表",
             "cmd_nav_environments": "前往 環境管理",
             "cmd_nav_plugins": "前往 插件管理",
             "cmd_nav_versions": "前往 版本控制",

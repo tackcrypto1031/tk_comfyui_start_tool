@@ -629,7 +629,7 @@ const App = (function() {
         }
 
         items.push({ group: t('cmd_group_nav'), icon: 'home', label: t('cmd_nav_home'), fn: function() { navigate('home'); } });
-        items.push({ group: t('cmd_group_nav'), icon: 'rocket_launch', label: t('cmd_nav_launcher'), fn: function() { navigate('launcher'); } });
+        items.push({ group: t('cmd_group_nav'), icon: 'monitor_heart', label: t('cmd_nav_launcher'), fn: function() { navigate('launcher'); } });
         items.push({ group: t('cmd_group_nav'), icon: 'dns', label: t('cmd_nav_environments'), fn: function() { navigate('environments'); } });
         items.push({ group: t('cmd_group_nav'), icon: 'extension', label: t('cmd_nav_plugins'), fn: function() { navigate('plugins'); } });
         items.push({ group: t('cmd_group_nav'), icon: 'history', label: t('cmd_nav_versions'), fn: function() { navigate('versions'); } });

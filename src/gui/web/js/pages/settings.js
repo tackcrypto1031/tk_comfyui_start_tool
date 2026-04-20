@@ -28,6 +28,46 @@
                     '</div>' +
                 '</div>' +
 
+                // Primary launch params (moved from launcher page)
+                '<div class="ti-card" id="settings-launch-params">' +
+                    '<div class="ti-card-head">' +
+                        '<span class="material-symbols-outlined">terminal</span>' +
+                        '<span class="ti-card-title">' + (t('launch_params') || '啟動參數') + '</span>' +
+                    '</div>' +
+                    '<div class="ti-card-body">' +
+                        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 24px">' +
+                            '<div class="ti-field">' +
+                                '<label>' + t('launch_port') + '</label>' +
+                                '<input type="number" id="ls-port" class="ls-control text-input mono" min="1024" max="65535" placeholder="8188">' +
+                            '</div>' +
+                            '<div class="ti-field">' +
+                                '<label>' + t('launch_vram_mode') + '</label>' +
+                                '<select id="ls-vram-mode" class="ls-control select">' +
+                                    '<option value="gpu_only">' + t('launch_vram_gpu_only') + '</option>' +
+                                    '<option value="high">' + t('launch_vram_high') + '</option>' +
+                                    '<option value="normal">' + t('launch_vram_normal') + '</option>' +
+                                    '<option value="low">' + t('launch_vram_low') + '</option>' +
+                                    '<option value="no">' + t('launch_vram_no') + '</option>' +
+                                    '<option value="cpu">' + t('launch_vram_cpu') + '</option>' +
+                                '</select>' +
+                            '</div>' +
+                            '<div class="ti-field" style="grid-column:1 / -1">' +
+                                '<label>' + (t('launch_cross_attention') || '精度') + '</label>' +
+                                '<select id="ls-cross-attention" class="ls-control select">' +
+                                    '<option value="auto">' + t('launch_cross_attn_auto') + '</option>' +
+                                    '<option value="pytorch">' + t('launch_cross_attn_pytorch') + '</option>' +
+                                    '<option value="split">' + t('launch_cross_attn_split') + '</option>' +
+                                    '<option value="quad">' + t('launch_cross_attn_quad') + '</option>' +
+                                    '<option value="sage">' + t('launch_cross_attn_sage') + '</option>' +
+                                    '<option value="flash">' + t('launch_cross_attn_flash') + '</option>' +
+                                    '<option value="disable_xformers">' + t('launch_cross_attn_disable_xformers') + '</option>' +
+                                '</select>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div style="height:16px"></div>' +
+
                 // Advanced Settings
                 '<div class="ti-card" id="settings-advanced">' +
                     '<div class="ti-card-head">' +
@@ -262,7 +302,7 @@
         });
 
         // Advanced settings change listeners
-        document.querySelectorAll('#settings-advanced .ls-control, #settings-diagnostics #ls-auto-diagnostics').forEach(function(el) {
+        document.querySelectorAll('#settings-launch-params .ls-control, #settings-advanced .ls-control, #settings-diagnostics #ls-auto-diagnostics').forEach(function(el) {
             if (el.id === 'ls-listen-enable') return;  // handled separately
             var evtType = (el.tagName === 'SELECT' || el.type === 'checkbox') ? 'change' : 'input';
             el.addEventListener(evtType, onSettingChanged);
@@ -404,6 +444,12 @@
         BridgeAPI.getLaunchSettings(envName).then(function(settings) {
             currentLaunchSettings = settings || {};
             var el;
+            el = document.getElementById('ls-port');
+            if (el) el.value = settings.port || 8188;
+            el = document.getElementById('ls-vram-mode');
+            if (el) el.value = settings.vram_mode || 'normal';
+            el = document.getElementById('ls-cross-attention');
+            if (el) el.value = settings.cross_attention || 'auto';
             el = document.getElementById('ls-reserve-vram');
             if (el) el.value = (settings.reserve_vram != null && settings.reserve_vram !== '') ? settings.reserve_vram : '';
             el = document.getElementById('ls-async-offload');
@@ -493,6 +539,12 @@
         _syncListenControls();
         var patch = {};
         var el;
+        el = document.getElementById('ls-port');
+        if (el) patch.port = el.value ? parseInt(el.value) : 8188;
+        el = document.getElementById('ls-vram-mode');
+        if (el) patch.vram_mode = el.value;
+        el = document.getElementById('ls-cross-attention');
+        if (el) patch.cross_attention = el.value;
         el = document.getElementById('ls-reserve-vram');
         if (el) patch.reserve_vram = el.value !== '' ? parseFloat(el.value) : null;
         el = document.getElementById('ls-async-offload');
