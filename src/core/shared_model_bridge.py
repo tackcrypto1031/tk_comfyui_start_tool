@@ -269,6 +269,72 @@ class SharedModelBridge:
                     return
             self._create_link(env_sub, shared_sub, mechanism)
 
+    def verify(self, env_path: Path) -> VerifyReport:
+        """Check all managed subdirs. Repair dangling junctions when possible."""
+        env_path = Path(env_path)
+        shared = self._resolve_shared()
+        models_dir = self._models_dir(env_path)
+        if not models_dir.exists():
+            return VerifyReport(ok=True)
+
+        try:
+            env_meta = Environment.load_meta(str(env_path))
+        except FileNotFoundError:
+            return VerifyReport(ok=True)
+        mechanism = env_meta.shared_model_mechanism
+        if mechanism not in ("junction", "symlink"):
+            return VerifyReport(ok=True)
+
+        repaired: list[str] = []
+        problems: list[str] = []
+
+        for subdir in self._active_subdirs():
+            link = models_dir / subdir
+            target = shared / subdir
+            if fs_ops.is_junction(link) or link.is_symlink():
+                if not target.exists():
+                    try:
+                        if fs_ops.is_junction(link):
+                            fs_ops.remove_junction(link)
+                        else:
+                            link.unlink()
+                        target.mkdir(parents=True, exist_ok=True)
+                        self._create_link(link, target, mechanism)
+                        repaired.append(f"rebuilt {subdir}")
+                    except Exception as exc:
+                        problems.append(f"{subdir}: {exc}")
+            elif link.exists() and link.is_dir():
+                problems.append(f"{subdir}: expected junction, found real directory")
+            else:
+                try:
+                    target.mkdir(parents=True, exist_ok=True)
+                    self._create_link(link, target, mechanism)
+                    repaired.append(f"created {subdir}")
+                except Exception as exc:
+                    problems.append(f"{subdir}: {exc}")
+
+        return VerifyReport(ok=(not problems), repaired=repaired, problems=problems)
+
+    def safe_remove_env(self, env_path: Path) -> None:
+        """Remove every junction under env before shutil.rmtree'ing env_path."""
+        env_path = Path(env_path)
+        models_dir = self._models_dir(env_path)
+        if models_dir.exists():
+            for child in list(models_dir.iterdir()):
+                if fs_ops.is_junction(child):
+                    try:
+                        fs_ops.remove_junction(child)
+                    except Exception as exc:
+                        logger.warning("safe_remove_env: failed to remove junction %s: %s",
+                                       child, exc)
+                elif child.is_symlink():
+                    try:
+                        child.unlink()
+                    except Exception as exc:
+                        logger.warning("safe_remove_env: failed to remove symlink %s: %s",
+                                       child, exc)
+        shutil.rmtree(str(env_path), ignore_errors=False)
+
     def disable(self, env_path: Path) -> DisableResult:
         """Remove all junctions under env/ComfyUI/models/ (shared files untouched)."""
         env_path = Path(env_path)

@@ -221,3 +221,31 @@ def test_attach_subdir_migrates_and_links(tmp_path):
     from src.utils import fs_ops
     assert fs_ops.is_junction(new_sub)
     assert (shared / "insightface/det.onnx").read_bytes() == b"O" * 5
+
+
+def test_verify_repairs_dangling_junction(tmp_path):
+    shared = tmp_path / "shared"
+    bridge = make_bridge(shared)
+    env = _make_env(tmp_path)
+    bridge.enable(env)
+
+    from src.utils import fs_ops
+    link = env / "ComfyUI/models/checkpoints"
+    fs_ops.remove_junction(link)
+
+    report = bridge.verify(env)
+    assert fs_ops.is_junction(link)
+    assert any("checkpoints" in r for r in report.repaired)
+
+
+def test_safe_remove_env_does_not_delete_shared_contents(tmp_path):
+    shared = tmp_path / "shared"
+    bridge = make_bridge(shared)
+    env = _make_env(tmp_path)
+    (env / "ComfyUI/models/checkpoints").mkdir()
+    (env / "ComfyUI/models/checkpoints/a.safetensors").write_bytes(b"A" * 10)
+    bridge.enable(env)
+
+    bridge.safe_remove_env(env)
+    assert not env.exists()
+    assert (shared / "checkpoints/a.safetensors").read_bytes() == b"A" * 10
