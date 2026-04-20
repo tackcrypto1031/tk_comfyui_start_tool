@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "last_updated": "2026-04-20",
+  "remote_url": "https://raw.githubusercontent.com/tackcrypto1031/tk_comfyui_start_tool/master/data/addons.json",
+  "addons": [
+    {
+      "id": "sage-attention",
+      "label": "SageAttention v2.2.0",
+      "description": "Attention acceleration — larger batch, lower VRAM",
+      "kind": "pip",
+      "compatible_packs": [
+        "torch-2.9.1-cu130",
+        "torch-2.8.0-cu128",
+        "torch-2.7.1-cu128"
+      ],
+      "wheels_by_pack": {
+        "torch-2.9.1-cu130": "https://github.com/woct0rdho/SageAttention/releases/download/v2.2.0-windows.post3/sageattention-2.2.0+cu130torch2.9.0.post3-cp39-abi3-win_amd64.whl",
+        "torch-2.8.0-cu128": "https://github.com/woct0rdho/SageAttention/releases/download/v2.2.0-windows.post3/sageattention-2.2.0+cu128torch2.8.0.post3-cp39-abi3-win_amd64.whl",
+        "torch-2.7.1-cu128": "https://github.com/woct0rdho/SageAttention/releases/download/v2.2.0-windows.post3/sageattention-2.2.0+cu128torch2.7.1.post3-cp39-abi3-win_amd64.whl"
+      },
+      "pip_spec": null,
+      "pip_project_name": "sageattention",
+      "source_repo": null,
+      "source_ref": null,
+      "source_post_install": null,
+      "requires_compile": false,
+      "pack_pinned": true,
+      "risk_note": "Prebuilt Windows wheel (woct0rdho fork), matched to your Torch-Pack."
+    },
+    {
+      "id": "insightface",
+      "label": "InsightFace 0.7.3",
+      "description": "Face nodes (IPAdapter FaceID, ReActor)",
+      "kind": "pip",
+      "compatible_packs": [
+        "torch-2.9.1-cu130",
+        "torch-2.8.0-cu128",
+        "torch-2.7.1-cu128"
+      ],
+      "wheels_by_pack": {
+        "torch-2.9.1-cu130": "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp312-cp312-win_amd64.whl",
+        "torch-2.8.0-cu128": "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp312-cp312-win_amd64.whl",
+        "torch-2.7.1-cu128": "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp312-cp312-win_amd64.whl"
+      },
+      "pip_spec": "insightface==0.7.3",
+      "pip_project_name": "insightface",
+      "source_repo": null,
+      "source_ref": null,
+      "source_post_install": null,
+      "requires_compile": false,
+      "pack_pinned": false,
+      "risk_note": null
+    },
+    {
+      "id": "nunchaku",
+      "label": "Nunchaku v1.2.1",
+      "description": "Quantized inference (4-bit FLUX)",
+      "kind": "pip",
+      "compatible_packs": [
+        "torch-2.9.1-cu130",
+        "torch-2.8.0-cu128"
+      ],
+      "wheels_by_pack": {
+        "torch-2.9.1-cu130": "https://github.com/nunchaku-ai/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch2.9-cp312-cp312-win_amd64.whl",
+        "torch-2.8.0-cu128": "https://github.com/nunchaku-ai/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu12.8torch2.8-cp312-cp312-win_amd64.whl"
+      },
+      "pip_spec": null,
+      "pip_project_name": "nunchaku",
+      "source_repo": null,
+      "source_ref": null,
+      "source_post_install": null,
+      "requires_compile": false,
+      "pack_pinned": true,
+      "risk_note": null
+    },
+    {
+      "id": "trellis2",
+      "label": "Trellis 2.0",
+      "description": "3D generation nodes",
+      "kind": "custom_node",
+      "compatible_packs": [
+        "torch-2.8.0-cu128"
+      ],
+      "wheels_by_pack": null,
+      "pip_spec": null,
+      "pip_project_name": null,
+      "source_repo": "https://github.com/microsoft/TRELLIS.2.git",
+      "source_ref": "main",
+      "source_post_install": ["pip", "install", "-r", "requirements.txt"],
+      "requires_compile": true,
+      "pack_pinned": true,
+      "risk_note": "Only works on the Torch 2.8.0 + CUDA 12.8 Pack. First install compiles CUDA ops (~20 min) and downloads ~4B weights."
+    }
+  ]
+}
