@@ -23,6 +23,22 @@ def bridge_config(tmp_path):
         ],
         "pinned_deps": {},
     }), encoding="utf-8")
+    (data_dir / "addons.json").write_text(json.dumps({
+        "schema_version": 1, "last_updated": "2026-04-20", "remote_url": "",
+        "addons": [
+            {
+                "id": "sage-attention",
+                "label": "SageAttention v2.2.0",
+                "description": "Attention acceleration",
+                "kind": "pip",
+                "compatible_packs": ["torch-2.9.1-cu130"],
+                "wheels_by_pack": {
+                    "torch-2.9.1-cu130": "https://example.com/sage.whl"
+                },
+                "install_requires": [],
+            },
+        ],
+    }), encoding="utf-8")
     return {
         "environments_dir": str(tmp_path / "envs"),
         "models_dir": str(tmp_path / "models"),
