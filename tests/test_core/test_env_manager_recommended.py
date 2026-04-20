@@ -139,7 +139,7 @@ def test_create_recommended_addon_failure_does_not_delete_env(
         "src.core.env_manager.EnvManager._ensure_python",
         lambda self, version: "py",
     )
-    def _boom(**kw):
+    def _boom(*args, **kw):
         raise RuntimeError("compile failed")
     monkeypatch.setattr("src.core.env_manager.addons.install_addon", _boom)
 
