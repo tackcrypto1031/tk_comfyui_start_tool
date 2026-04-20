@@ -755,3 +755,20 @@ def test_set_shared_model_path_rewires_junctions(tmp_path):
     probe.parent.mkdir(exist_ok=True)
     probe.write_bytes(b"P")
     assert (link / "probe.bin").read_bytes() == b"P"
+
+
+def test_write_comfyui_git_exclude_rules(tmp_path):
+    from src.core.env_manager import EnvManager
+    config = {
+        "environments_dir": str(tmp_path / "envs"),
+        "models_dir": str(tmp_path / "models"),
+        "snapshots_dir": str(tmp_path / "snapshots"),
+    }
+    mgr = EnvManager(config)
+    comfy = tmp_path / "envs/t/ComfyUI"
+    (comfy / ".git/info").mkdir(parents=True)
+
+    mgr._write_comfyui_git_exclude(comfy)
+
+    content = (comfy / ".git/info/exclude").read_text(encoding="utf-8")
+    assert "models/*/put_*_here" in content

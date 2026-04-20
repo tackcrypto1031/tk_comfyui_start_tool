@@ -382,6 +382,9 @@ class EnvManager:
                 ),
             )
 
+            # Write local git exclude rules for junction placeholder suppression
+            self._write_comfyui_git_exclude(comfyui_path)
+
             # 3. Install PyTorch with CUDA support (must be BEFORE requirements.txt)
             _report("pytorch", 35, "Detecting GPU...")
             if not cuda_tag:
@@ -760,6 +763,25 @@ class EnvManager:
 
         return result
 
+    def _write_comfyui_git_exclude(self, comfyui_path: Path) -> None:
+        """Add local-only git exclude rules to avoid churn from junction-induced
+        placeholder file removal (e.g. models/checkpoints/put_checkpoints_here).
+        """
+        exclude_path = comfyui_path / ".git" / "info" / "exclude"
+        exclude_path.parent.mkdir(parents=True, exist_ok=True)
+        marker = "# tack-launcher: suppress models/*/put_*_here"
+        existing = ""
+        if exclude_path.exists():
+            existing = exclude_path.read_text(encoding="utf-8")
+            if marker in existing:
+                return
+        exclude_path.write_text(
+            (existing.rstrip() + "\n\n" if existing else "")
+            + marker + "\n"
+            + "models/*/put_*_here\n",
+            encoding="utf-8",
+        )
+
     def toggle_shared_model(self, env_name: str, enabled: bool) -> None:
         """Enable or disable shared model for a single environment.
 
@@ -779,6 +801,7 @@ class EnvManager:
             # Belt-and-suspenders: write yaml too
             comfyui_path = env_dir / "ComfyUI"
             if comfyui_path.exists():
+                self._write_comfyui_git_exclude(comfyui_path)
                 self._generate_extra_model_paths(comfyui_path)
         else:
             bridge.disable(env_dir)
