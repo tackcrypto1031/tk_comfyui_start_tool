@@ -2,6 +2,7 @@
 import configparser
 import json
 import logging
+import os
 import threading
 import time
 import requests
@@ -9,6 +10,8 @@ from pathlib import Path
 
 from src.utils import git_ops, pip_ops, process_manager
 from src.utils.net_ops import get_local_lan_ip
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +58,47 @@ class ComfyUILauncher:
         # concurrent launches within the same process cannot race between
         # find_available_port and writing the reservation pid file.
         self._start_lock = threading.Lock()
+
+    def _build_cache_env_vars(self) -> dict:
+        """Return a copy of os.environ with HF/torch/insightface cache vars
+        redirected to <project>/cache/*.
+
+        This solves the 'D' problem: huggingface_hub.snapshot_download,
+        torch.hub.load, insightface etc. normally write to ~/.cache, one
+        copy per user account. We redirect them to a project-scoped cache
+        so all environments share and the project is portable.
+        """
+        cache_root = (_PROJECT_ROOT / "cache").resolve()
+        env = os.environ.copy()
+        hf_hub = cache_root / "huggingface" / "hub"
+        env["HF_HOME"] = str(cache_root / "huggingface")
+        env["HUGGINGFACE_HUB_CACHE"] = str(hf_hub)
+        env["HF_HUB_CACHE"] = str(hf_hub)
+        env["TRANSFORMERS_CACHE"] = str(hf_hub)
+        env["DIFFUSERS_CACHE"] = str(cache_root / "diffusers")
+        env["TORCH_HOME"] = str(cache_root / "torch")
+        env["XDG_CACHE_HOME"] = str(cache_root)
+        env["INSIGHTFACE_HOME"] = str(cache_root / "insightface")
+        for sub in ("huggingface/hub", "torch", "diffusers", "insightface"):
+            (cache_root / sub).mkdir(parents=True, exist_ok=True)
+        return env
+
+    def _pre_launch_shared_model_check(self, env_dir: Path) -> None:
+        """Run sync_shared_model_subdirs + bridge.verify before launching ComfyUI."""
+        from src.core.env_manager import EnvManager
+        from src.core.shared_model_bridge import SharedModelBridge
+        mgr = EnvManager(self.config)
+        try:
+            mgr.sync_shared_model_subdirs()
+        except Exception as exc:
+            logger.warning("sync_shared_model_subdirs failed: %s", exc)
+        bridge = SharedModelBridge(self.config, mgr._resolve_model_path)
+        try:
+            report = bridge.verify(env_dir)
+            if report.problems:
+                logger.warning("Shared-model verify problems: %s", report.problems)
+        except Exception as exc:
+            logger.warning("bridge.verify failed: %s", exc)
 
     def _claimed_ports(self, exclude_env: Path = None) -> set:
         """Return the set of ports currently claimed by any env's pid file.

@@ -682,3 +682,31 @@ class TestListRunning:
         assert len(result) == 1
         assert result[0]["env_name"] == "main"
         assert result[0]["status"] == "restarting"
+
+
+def test_build_cache_env_vars_has_all_keys(tmp_path, monkeypatch):
+    from src.core import comfyui_launcher
+    from src.core.comfyui_launcher import ComfyUILauncher
+
+    config = {
+        "environments_dir": str(tmp_path / "envs"),
+        "auto_open_browser": False,
+    }
+    launcher = ComfyUILauncher(config)
+    fake_root = tmp_path / "project"
+    fake_root.mkdir()
+    monkeypatch.setattr(comfyui_launcher, "_PROJECT_ROOT", fake_root)
+
+    env = launcher._build_cache_env_vars()
+
+    cache_root = (fake_root / "cache").resolve()
+    assert env["HF_HOME"] == str(cache_root / "huggingface")
+    assert env["HUGGINGFACE_HUB_CACHE"] == str(cache_root / "huggingface" / "hub")
+    assert env["HF_HUB_CACHE"] == str(cache_root / "huggingface" / "hub")
+    assert env["TRANSFORMERS_CACHE"] == str(cache_root / "huggingface" / "hub")
+    assert env["DIFFUSERS_CACHE"] == str(cache_root / "diffusers")
+    assert env["TORCH_HOME"] == str(cache_root / "torch")
+    assert env["XDG_CACHE_HOME"] == str(cache_root)
+    assert env["INSIGHTFACE_HOME"] == str(cache_root / "insightface")
+    assert (cache_root / "huggingface/hub").is_dir()
+    assert (cache_root / "torch").is_dir()
