@@ -1,5 +1,6 @@
 """Tests for fs_ops utility functions."""
 import json
+import os
 import pytest
 from pathlib import Path
 
@@ -171,3 +172,32 @@ def test_is_junction_false_for_real_dir(tmp_path):
     d = tmp_path / "real"
     d.mkdir()
     assert fs_ops.is_junction(d) is False
+
+
+def test_same_volume_same_drive(tmp_path):
+    a = tmp_path / "a"
+    b = tmp_path / "b"
+    a.mkdir()
+    b.mkdir()
+    assert fs_ops.same_volume(a, b) is True
+
+
+def test_same_volume_different_drive():
+    c = Path("C:/")
+    d = Path("D:/")
+    if not d.exists():
+        pytest.skip("D:/ not available on this runner")
+    assert fs_ops.same_volume(c, d) is False
+
+
+def test_create_symlink_dir_falls_back_when_unsupported(tmp_path, monkeypatch):
+    target = tmp_path / "real"
+    target.mkdir()
+    link = tmp_path / "link"
+
+    def _raise(*_args, **_kwargs):
+        raise OSError(1314, "A required privilege is not held by the client")
+
+    monkeypatch.setattr(os, "symlink", _raise)
+    with pytest.raises(OSError):
+        fs_ops.create_symlink_dir(link, target)

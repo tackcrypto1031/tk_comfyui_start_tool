@@ -166,3 +166,32 @@ def remove_junction(path: Path) -> None:
     if not is_junction(p):
         raise ValueError(f"Not a junction: {p}")
     os.rmdir(str(p))
+
+
+# ---------------------------------------------------------------------------
+# Symlink primitives and volume helpers
+# ---------------------------------------------------------------------------
+
+def same_volume(a: Path, b: Path) -> bool:
+    """Return True if both paths reside on the same Windows volume (drive)."""
+    if not IS_WINDOWS:
+        return True  # Non-Windows: treat as same volume (moot — we won't junction)
+    try:
+        da = Path(a).resolve().drive.upper()
+        db = Path(b).resolve().drive.upper()
+    except Exception:
+        return False
+    return bool(da and da == db)
+
+
+def create_symlink_dir(link: Path, target: Path) -> None:
+    """Create a directory symlink (needs Developer Mode or admin on Windows).
+
+    Raises OSError on failure so callers can fall back to yaml_only mode.
+    """
+    link = Path(link)
+    target = Path(target)
+    if link.exists() or link.is_symlink():
+        raise FileExistsError(f"Link path already exists: {link}")
+    link.parent.mkdir(parents=True, exist_ok=True)
+    os.symlink(str(target.resolve()), str(link), target_is_directory=True)
