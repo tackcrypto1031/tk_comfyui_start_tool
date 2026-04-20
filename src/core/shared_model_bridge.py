@@ -239,3 +239,46 @@ class SharedModelBridge:
             fs_ops.create_symlink_dir(link, target)
         else:
             raise ValueError(f"Unsupported link mechanism: {mechanism}")
+
+    def disable(self, env_path: Path) -> DisableResult:
+        """Remove all junctions under env/ComfyUI/models/ (shared files untouched)."""
+        env_path = Path(env_path)
+        models_dir = self._models_dir(env_path)
+        shared = self._resolve_shared()
+        lock_path = shared / ".shared_lock"
+        removed = 0
+        errors: list[str] = []
+
+        with fs_ops.acquire_shared_lock(lock_path, timeout=30):
+            if models_dir.exists():
+                for child in list(models_dir.iterdir()):
+                    if fs_ops.is_junction(child) or child.is_symlink():
+                        try:
+                            if fs_ops.is_junction(child):
+                                fs_ops.remove_junction(child)
+                            else:
+                                child.unlink()
+                            child.mkdir(parents=True, exist_ok=True)
+                            removed += 1
+                        except Exception as exc:
+                            errors.append(f"{child.name}: {exc}")
+
+            # Rename extra_model_paths.yaml to .disabled (preserve legacy behavior)
+            comfy = env_path / "ComfyUI"
+            yaml_active = comfy / "extra_model_paths.yaml"
+            yaml_disabled = comfy / "extra_model_paths.yaml.disabled"
+            if yaml_active.exists():
+                if yaml_disabled.exists():
+                    yaml_disabled.unlink()
+                yaml_active.rename(yaml_disabled)
+
+            try:
+                env_meta = Environment.load_meta(str(env_path))
+                env_meta.path = str(env_path)
+                env_meta.shared_model_enabled = False
+                env_meta.shared_model_mechanism = "none"
+                env_meta.save_meta()
+            except FileNotFoundError:
+                pass
+
+        return DisableResult(junctions_removed=removed, errors=errors)

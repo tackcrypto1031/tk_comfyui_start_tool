@@ -187,3 +187,19 @@ def test_enable_resumes_from_migrating_state(tmp_path):
 
     e2 = Environment.load_meta(str(env))
     assert e2.shared_model_migration_state == "done"
+
+
+def test_disable_removes_junctions_and_keeps_shared(tmp_path):
+    shared = tmp_path / "shared"
+    bridge = make_bridge(shared)
+    env = _make_env(tmp_path)
+    (env / "ComfyUI/models/checkpoints").mkdir()
+    (env / "ComfyUI/models/checkpoints/a.safetensors").write_bytes(b"A" * 10)
+    bridge.enable(env)
+
+    result = bridge.disable(env)
+    assert result.junctions_removed >= 1
+    assert (env / "ComfyUI/models/checkpoints").is_dir()
+    from src.utils import fs_ops
+    assert not fs_ops.is_junction(env / "ComfyUI/models/checkpoints")
+    assert (shared / "checkpoints/a.safetensors").read_bytes() == b"A" * 10
