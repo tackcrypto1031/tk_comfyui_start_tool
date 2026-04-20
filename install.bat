@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 chcp 65001 >nul 2>&1
 setlocal
 
@@ -47,15 +47,42 @@ if not exist "%TEMP_DIR%\python-installer.exe" (
 )
 
 echo       安裝 Python %PYTHON_VERSION%（靜默模式）...
-"%TEMP_DIR%\python-installer.exe" /quiet TargetDir="%PYTHON_DIR%" ^
+set "PY_INSTALL_LOG=%TEMP_DIR%\python-install.log"
+if exist "%PY_INSTALL_LOG%" del /q "%PY_INSTALL_LOG%" >nul 2>&1
+"%TEMP_DIR%\python-installer.exe" /quiet /log "%PY_INSTALL_LOG%" ^
+    TargetDir="%PYTHON_DIR%" ^
     InstallAllUsers=0 Include_launcher=0 Include_test=0 ^
     AssociateFiles=0 Shortcuts=0 Include_doc=0 ^
     Include_tcltk=0 PrependPath=0 CompileAll=0
+set "PY_EXIT=%errorlevel%"
+
+if not exist "%PYTHON_DIR%\python.exe" (
+    echo       [WARN] Silent install did not create python.exe ^(exit=%PY_EXIT%^)
+    echo       Retrying with visible progress window (may prompt for permission)...
+    "%TEMP_DIR%\python-installer.exe" /passive /log "%PY_INSTALL_LOG%" ^
+        TargetDir="%PYTHON_DIR%" ^
+        InstallAllUsers=0 Include_launcher=0 Include_test=0 ^
+        AssociateFiles=0 Shortcuts=0 Include_doc=0 ^
+        Include_tcltk=0 PrependPath=0 CompileAll=0
+    set "PY_EXIT=%errorlevel%"
+)
 
 if not exist "%PYTHON_DIR%\python.exe" (
     echo.
-    echo       [錯誤] Python 安裝失敗！
-    echo       請嘗試手動安裝 Python %PYTHON_VERSION% 到 %PYTHON_DIR%
+    echo       [ERROR] Python install failed ^(final exit=%PY_EXIT%^)
+    echo       Target dir: %PYTHON_DIR%
+    echo       Common causes:
+    echo         - antivirus blocked the installer
+    echo         - missing Visual C++ Redistributable
+    echo         - UAC prompt cancelled
+    echo       Manual fallback: download and extract to the target dir above:
+    echo         %PYTHON_URL%
+    if exist "%PY_INSTALL_LOG%" (
+        echo.
+        echo       ---- Last 30 lines of installer log ----
+        powershell -NoProfile -Command "Get-Content -LiteralPath '%PY_INSTALL_LOG%' -Tail 30"
+        echo       ----------------------------------------
+    )
     pause
     exit /b 1
 )
