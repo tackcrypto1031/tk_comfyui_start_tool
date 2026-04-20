@@ -583,6 +583,27 @@ class EnvManager:
                 f"Cannot delete the default environment '{name}' without --force"
             )
 
+        # Remove any NTFS junctions under models/ first — without this step,
+        # shutil.rmtree would follow the reparse point and delete shared model
+        # files belonging to other environments.
+        from src.core.shared_model_bridge import SharedModelBridge
+        from src.utils import fs_ops
+        models_dir = env_dir / "ComfyUI" / "models"
+        if models_dir.exists():
+            for child in list(models_dir.iterdir()):
+                if fs_ops.is_junction(child):
+                    try:
+                        fs_ops.remove_junction(child)
+                    except Exception as exc:
+                        logger.warning("delete_environment: junction cleanup failed for %s: %s",
+                                       child, exc)
+                elif child.is_symlink():
+                    try:
+                        child.unlink()
+                    except Exception as exc:
+                        logger.warning("delete_environment: symlink cleanup failed for %s: %s",
+                                       child, exc)
+
         # Remove the environment directory (handle read-only .git files on Windows)
         def _on_rm_error(func, path, exc_info):
             """Handle read-only files during deletion (e.g., .git objects on Windows)."""

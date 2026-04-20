@@ -687,3 +687,35 @@ def test_remove_environment_does_not_wipe_shared_models(tmp_path):
     mgr.remove_environment("victim")
     assert not env_dir.exists()
     assert (tmp_path / "models/checkpoints/keep.safetensors").exists()
+
+
+@pytest.mark.skipif(platform.system() != "Windows", reason="junction test")
+def test_delete_environment_does_not_wipe_shared_models(tmp_path):
+    """delete_environment (UI/CLI entry point) must not follow junctions
+    into the shared models directory and delete other envs' files."""
+    from src.core.env_manager import EnvManager
+
+    config = {
+        "environments_dir": str(tmp_path / "envs"),
+        "models_dir": str(tmp_path / "models"),
+        "snapshots_dir": str(tmp_path / "snapshots"),
+        "shared_model_mode": "default",
+        "custom_model_path": "",
+        "model_subdirs": ["checkpoints"],
+        "shared_model_subdirs_excluded": ["configs"],
+    }
+    mgr = EnvManager(config)
+
+    env_dir = tmp_path / "envs/victim"
+    (env_dir / "ComfyUI/models/checkpoints").mkdir(parents=True)
+    (env_dir / "ComfyUI/models/checkpoints/keep.safetensors").write_bytes(b"K" * 10)
+    (env_dir / "env_meta.json").write_text(
+        '{"name":"victim","created_at":"2026-04-20T00:00:00","shared_model_enabled":false}',
+        encoding="utf-8",
+    )
+    mgr.toggle_shared_model("victim", True)
+
+    mgr.delete_environment("victim", force=True)
+
+    assert not env_dir.exists()
+    assert (tmp_path / "models/checkpoints/keep.safetensors").read_bytes() == b"K" * 10
