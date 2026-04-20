@@ -1,25 +1,22 @@
 {
-  "version": "0.5.0",
+  "version": "0.5.1",
   "min_python": "3.10",
-  "release_notes": "Add-on registry editor + one-click Pack switch for incompatible add-ons",
+  "release_notes": "啟動器簡化為運行列表、啟動參數移至設置分頁、修復首頁 Add-on 卡片偵測",
   "changes": [
-    "新增 Add-on 不相容時「一鍵切換 Pack 並安裝」流程",
-    "新增切換 Pack 後 add-on 重裝提示",
-    "新增 Add-on Registry 編輯器(Settings 頁)——可自訂相容 Pack 與 wheel URL",
-    "Add-on 定義改存 data/addons.json,支援遠端熱更新與使用者本地 override"
+    "啟動器分頁精簡為純「運行列表」,側邊欄環境切換已涵蓋原本的啟動器功能",
+    "啟動參數(埠號 / VRAM 模式 / Cross-attention)整合至設置分頁的「啟動參數」卡片",
+    "修復首頁 Add-on 卡片未正確反映已安裝狀態的問題 —— 已安裝的 SageAttention / InsightFace / Nunchaku 現在會顯示「解除安裝」而非「安裝」"
   ],
   "changes_i18n": {
     "en": [
-      "Added one-click 'switch Pack and install' flow for add-ons incompatible with current env",
-      "Added post-switch reinstall prompt for removed pack-pinned add-ons",
-      "Added Add-on Registry editor (Settings page) — edit compatible packs and wheel URLs per add-on",
-      "Add-on definitions moved to data/addons.json with remote refresh and local override support"
+      "Launcher tab simplified to a pure 'Running List' — the sidebar env pill already covers env switching",
+      "Launch params (Port / VRAM mode / Cross-attention) merged into a 'Launch Params' card on the Settings page",
+      "Fixed Home page Add-on cards not reflecting installed state — installed SageAttention / InsightFace / Nunchaku now show 'Uninstall' instead of 'Install'"
     ],
     "zh-TW": [
-      "新增 Add-on 不相容時「一鍵切換 Pack 並安裝」流程",
-      "新增切換 Pack 後 add-on 重裝提示",
-      "新增 Add-on Registry 編輯器(Settings 頁)——可自訂相容 Pack 與 wheel URL",
-      "Add-on 定義改存 data/addons.json,支援遠端熱更新與使用者本地 override"
+      "啟動器分頁精簡為純「運行列表」,側邊欄環境切換已涵蓋原本的啟動器功能",
+      "啟動參數(埠號 / VRAM 模式 / Cross-attention)整合至設置分頁的「啟動參數」卡片",
+      "修復首頁 Add-on 卡片未正確反映已安裝狀態的問題 —— 已安裝的 SageAttention / InsightFace / Nunchaku 現在會顯示「解除安裝」而非「安裝」"
     ]
   }
 }
