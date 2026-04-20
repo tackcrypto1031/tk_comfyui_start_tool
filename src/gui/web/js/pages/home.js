@@ -139,6 +139,7 @@
             commit: e.commit || e.comfyui_commit || e.head_commit || '',
             branch: e.branch || e.comfyui_branch || 'master',
             lastUsed: e.lastUsed || e.last_used || e.created_at || '—',
+            torch_pack: e.torch_pack || null,
         };
     }
 
@@ -584,13 +585,13 @@
             _addonState.packs = (packsResult && packsResult.packs) || packsResult || [];
             _addonState.envName = envName;
 
-            // Determine current pack from the active env's cuda/pytorch info
-            // The env carries pack_pinned or current_pack_id — fall back to first pack
+            // Determine current pack from env.torch_pack (set by Python Environment dataclass).
+            // Fall back to cuda_tag heuristic for legacy envs that predate torch_pack.
             var activeEnv = state.activeEnv;
-            var currentPackId = (activeEnv && activeEnv.current_pack_id) || null;
+            var currentPackId = activeEnv && activeEnv.torch_pack ? activeEnv.torch_pack : null;
             if (!currentPackId && _addonState.packs.length > 0) {
-                // Try to match by cuda tag from the env
-                var envCuda = (activeEnv && (activeEnv.cuda || '')) .toLowerCase();
+                // Legacy fallback: match by cuda tag substring
+                var envCuda = (activeEnv && (activeEnv.cuda || '')).toLowerCase();
                 var matched = _addonState.packs.find(function(p) {
                     return p.cuda_tag && envCuda && envCuda.indexOf(p.cuda_tag.toLowerCase()) !== -1;
                 });
@@ -650,8 +651,17 @@
                     safeText(t('plugin_install')) + '</button>';
             } else {
                 // Needs pack switch — Task 12: needs-switch state
-                // Find the first compatible pack
-                needsSwitchPackId = compatPacks[0];
+                // GPU-aware selection: prefer the compatible pack whose cuda_tag matches the env's cuda string
+                var activeEnvForSwitch = state.activeEnv;
+                if (activeEnvForSwitch && activeEnvForSwitch.cuda && Array.isArray(packs)) {
+                    var envCudaForSwitch = activeEnvForSwitch.cuda.toLowerCase();
+                    var bestMatch = packs.find(function(p) {
+                        return compatPacks.indexOf(p.id) !== -1
+                            && p.cuda_tag && envCudaForSwitch.indexOf(p.cuda_tag.toLowerCase()) !== -1;
+                    });
+                    if (bestMatch) needsSwitchPackId = bestMatch.id;
+                }
+                if (!needsSwitchPackId) needsSwitchPackId = compatPacks[0]; // fallback
                 needsSwitchPackLabel = packMap[needsSwitchPackId] || needsSwitchPackId || '?';
                 var btnLabel = t('addonCard.installNeedsSwitch').replace('{pack}', needsSwitchPackLabel);
                 btnHtml = '<button class="btn btn-secondary addon-btn addon-needs-switch" data-action="needs-switch" ' +
@@ -747,7 +757,11 @@
             '</div>';
 
         var etaHtml = '<div style="font-size:11px;color:var(--text-4);margin-top:10px;font-style:italic">' +
-            safeText(t('addonSwitch.etaHeader')) + '</div>';
+            safeText(t('addonSwitch.etaHeader'));
+        if (addon.requires_compile) {
+            etaHtml += ' +20min (CUDA compile)';
+        }
+        etaHtml += '</div>';
 
         var riskHtml = addon.risk_note
             ? '<div style="font-size:11px;color:var(--warn);margin-top:8px">' +
@@ -820,6 +834,11 @@
                 App.hideProgress(progressId, 'success');
                 App.showToast(addonLabel + ' installed on ' + targetPackLabel + '.', 'success');
                 renderAddons();
+                if (result && result.removed_addons && result.removed_addons.length) {
+                    // TODO Batch 6: open AddonReinstallDialog(env, removed_addons, newPackId, justInstalledAddonId)
+                    // for now, just log so the wire exists for Batch 6 to hook into.
+                    console.log('[addon] removed during switch:', result.removed_addons);
+                }
             }
         }).catch(function(e) {
             App.hideProgress(progressId, 'error');
