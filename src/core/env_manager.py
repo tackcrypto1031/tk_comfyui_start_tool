@@ -745,6 +745,19 @@ class EnvManager:
                     self._generate_extra_model_paths(comfyui_path)
                     result["synced_envs"] += 1
 
+        if new:
+            from src.core.shared_model_bridge import SharedModelBridge
+            bridge = SharedModelBridge(self.config, self._resolve_model_path)
+            for env in self.list_environments():
+                if not getattr(env, "shared_model_enabled", True):
+                    continue
+                env_dir = self.environments_dir / env.name
+                for sub in new:
+                    try:
+                        bridge.attach_subdir(env_dir, sub)
+                    except Exception as exc:
+                        logger.warning("attach_subdir(%s, %s) failed: %s", env.name, sub, exc)
+
         return result
 
     def toggle_shared_model(self, env_name: str, enabled: bool) -> None:
