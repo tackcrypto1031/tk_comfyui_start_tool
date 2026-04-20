@@ -127,3 +127,47 @@ def test_default_config_has_ui_flags():
     cfg = get_default_config()
     assert "ui_flags" in cfg
     assert cfg["ui_flags"] == {}
+
+
+import platform
+
+from src.utils import fs_ops
+
+_skip_non_windows = pytest.mark.skipif(
+    platform.system() != "Windows",
+    reason="Junction primitives are Windows-specific (NTFS reparse points).",
+)
+
+
+@_skip_non_windows
+def test_create_junction_and_detect(tmp_path):
+    target = tmp_path / "real"
+    target.mkdir()
+    (target / "hello.txt").write_text("hi", encoding="utf-8")
+
+    link = tmp_path / "link"
+    fs_ops.create_junction(link, target)
+
+    assert fs_ops.is_junction(link) is True
+    assert (link / "hello.txt").read_text(encoding="utf-8") == "hi"
+
+
+@_skip_non_windows
+def test_remove_junction_preserves_target(tmp_path):
+    target = tmp_path / "real"
+    target.mkdir()
+    (target / "keep.txt").write_text("k", encoding="utf-8")
+
+    link = tmp_path / "link"
+    fs_ops.create_junction(link, target)
+    fs_ops.remove_junction(link)
+
+    assert not link.exists()
+    assert (target / "keep.txt").read_text(encoding="utf-8") == "k"
+
+
+@_skip_non_windows
+def test_is_junction_false_for_real_dir(tmp_path):
+    d = tmp_path / "real"
+    d.mkdir()
+    assert fs_ops.is_junction(d) is False

@@ -1,5 +1,11 @@
 """File system operations and config management."""
+import ctypes
 import json
+import os
+import platform
+import stat
+import subprocess
+import sys
 from pathlib import Path
 
 _HARDCODED_DEFAULTS = {
@@ -99,3 +105,66 @@ def ensure_dirs(config: dict) -> None:
     models_dir = Path(config["models_dir"])
     for subdir in config.get("model_subdirs", []):
         (models_dir / subdir).mkdir(parents=True, exist_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# NTFS junction primitives (Windows-only)
+# ---------------------------------------------------------------------------
+
+IS_WINDOWS = platform.system() == "Windows"
+
+_FILE_ATTRIBUTE_REPARSE_POINT = 0x400
+_SUBPROCESS_CREATE_NO_WINDOW = 0x08000000
+
+
+def create_junction(link: Path, target: Path) -> None:
+    """Create an NTFS junction at `link` pointing to directory `target`.
+
+    Uses `mklink /J` via cmd.exe — no admin required, same-volume NTFS only.
+    Raises OSError on failure; callers should fall back to create_symlink_dir.
+    """
+    if not IS_WINDOWS:
+        raise OSError("Junctions are only supported on Windows")
+    link = Path(link)
+    target = Path(target)
+    if link.exists() or is_junction(link):
+        raise FileExistsError(f"Link path already exists: {link}")
+    link.parent.mkdir(parents=True, exist_ok=True)
+    result = subprocess.run(
+        ["cmd", "/c", "mklink", "/J", str(link), str(target.resolve())],
+        capture_output=True,
+        text=True,
+        creationflags=_SUBPROCESS_CREATE_NO_WINDOW,
+    )
+    if result.returncode != 0:
+        raise OSError(
+            f"mklink /J failed ({result.returncode}): {result.stderr.strip() or result.stdout.strip()}"
+        )
+
+
+def is_junction(path: Path) -> bool:
+    """Return True if path is an NTFS junction (directory reparse point)."""
+    if not IS_WINDOWS:
+        return False
+    p = Path(path)
+    if not p.exists() and not p.is_symlink():
+        return False
+    try:
+        attrs = ctypes.windll.kernel32.GetFileAttributesW(str(p))
+    except Exception:
+        return False
+    if attrs == 0xFFFFFFFF:
+        return False
+    return bool(attrs & _FILE_ATTRIBUTE_REPARSE_POINT)
+
+
+def remove_junction(path: Path) -> None:
+    """Remove a junction WITHOUT deleting target contents.
+
+    On Windows, Path.rmdir() on a reparse point only removes the link.
+    shutil.rmtree would follow the reparse point and delete target contents.
+    """
+    p = Path(path)
+    if not is_junction(p):
+        raise ValueError(f"Not a junction: {p}")
+    os.rmdir(str(p))
