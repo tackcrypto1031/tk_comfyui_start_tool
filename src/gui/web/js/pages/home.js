@@ -835,9 +835,7 @@
                 App.showToast(addonLabel + ' installed on ' + targetPackLabel + '.', 'success');
                 renderAddons();
                 if (result && result.removed_addons && result.removed_addons.length) {
-                    // TODO Batch 6: open AddonReinstallDialog(env, removed_addons, newPackId, justInstalledAddonId)
-                    // for now, just log so the wire exists for Batch 6 to hook into.
-                    console.log('[addon] removed during switch:', result.removed_addons);
+                    maybeShowReinstallDialog(envName, result.removed_addons, targetPackId, targetPackLabel, addon.id);
                 }
             }
         }).catch(function(e) {
@@ -882,6 +880,89 @@
                     class: 'btn-ghost',
                     onClick: function() {
                         renderAddons();
+                    }
+                },
+            ],
+        });
+    }
+
+    function maybeShowReinstallDialog(envName, removedAddonIds, newPackId, newPackLabel, justInstalledId) {
+        // Filter to addons that are compatible with the new pack and weren't just installed
+        var eligible = (_addonState.addons || []).filter(function(a) {
+            if (a.id === justInstalledId) return false;
+            if (removedAddonIds.indexOf(a.id) === -1) return false;
+            var compatPacks = a.compatible_packs || [];
+            return compatPacks.indexOf(newPackId) !== -1;
+        });
+
+        if (!eligible.length) return;
+
+        // Build checkbox list HTML
+        var checkboxesHtml = '<div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">';
+        eligible.forEach(function(a) {
+            var desc = a.description ? ' \u2014 ' + safeText(a.description) : '';
+            checkboxesHtml +=
+                '<label style="display:flex;align-items:baseline;gap:8px;cursor:pointer;font-size:13px;">' +
+                '<input type="checkbox" class="reinstall-cb" data-id="' + safeText(a.id) + '" checked style="flex-shrink:0;margin-top:2px;">' +
+                '<span>' + safeText(a.label || a.id) + desc + '</span>' +
+                '</label>';
+        });
+        checkboxesHtml += '</div>';
+
+        var bodyHtml =
+            '<p style="font-size:13px;color:var(--text-1)">' +
+                safeText(t('addonReinstall.body').replace('{pack}', newPackLabel)) +
+            '</p>' +
+            checkboxesHtml;
+
+        // Use static confirm label showing total eligible count (dynamic label requires
+        // post-render DOM wiring; acceptable fallback per spec)
+        var confirmLabel = t('addonReinstall.confirm').replace('{n}', String(eligible.length));
+
+        App.showModal({
+            title: t('addonReinstall.title'),
+            body: bodyHtml,
+            buttons: [
+                {
+                    text: t('addonReinstall.skip'),
+                    class: 'btn-ghost',
+                    onClick: function() { /* close, do nothing */ }
+                },
+                {
+                    text: confirmLabel,
+                    class: 'btn-primary',
+                    closeModal: false,
+                    onClick: function() {
+                        var overlay = document.getElementById('modal-overlay');
+                        var checked = [];
+                        var cbs = overlay ? overlay.querySelectorAll('.reinstall-cb') : [];
+                        for (var i = 0; i < cbs.length; i++) {
+                            if (cbs[i].checked) checked.push(cbs[i].getAttribute('data-id'));
+                        }
+                        App.hideModal ? App.hideModal() : (function() {
+                            document.getElementById('modal-overlay').classList.add('hidden');
+                        })();
+                        if (!checked.length) return;
+
+                        var progressId = 'reinstall-' + Date.now();
+                        App.showProgress(progressId, t('addonReinstall.title'));
+                        BridgeAPI.reinstallAddons(envName, checked, function(msg) {
+                            App.updateProgress(progressId, msg.step || t('addonReinstall.title'), msg.percent || 0, msg.detail || '');
+                        }).then(function(result) {
+                            App.hideProgress(progressId, 'success');
+                            var results = (result && result.results) || [];
+                            var total = results.length;
+                            var ok = results.filter(function(r) { return r.ok; }).length;
+                            var toastKey = ok === total ? 'addonReinstall.toastSuccess' : 'addonReinstall.toastPartial';
+                            App.showToast(
+                                t(toastKey).replace('{done}', String(ok)).replace('{total}', String(total)),
+                                ok === total ? 'success' : 'warning'
+                            );
+                            renderAddons();
+                        }).catch(function(e) {
+                            App.hideProgress(progressId, 'error');
+                            App.showToast(t('error') + ': ' + String(e), 'error');
+                        });
                     }
                 },
             ],

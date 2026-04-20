@@ -262,5 +262,8 @@ var BridgeAPI = (function() {
         switchPackAndInstallAddon: function(envName, targetPackId, addonId, onProgress) {
             return callAsync('switch_pack_and_install_addon', envName, targetPackId, addonId, {onProgress: onProgress, timeoutMinutes: 60});
         },
+        reinstallAddons: function(envName, addonIds, onProgress) {
+            return callAsync('reinstall_addons', envName, JSON.stringify(addonIds), {onProgress: onProgress, timeoutMinutes: 30});
+        },
     };
 })();
