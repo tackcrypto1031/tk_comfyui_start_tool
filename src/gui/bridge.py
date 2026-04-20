@@ -885,6 +885,76 @@ class Bridge(QObject):
             )
         self._run_async(request_id, _switch)
 
+    @Slot(str, str, str, str)
+    def switch_pack_and_install_addon(
+        self, request_id: str, env_name: str,
+        target_pack_id: str, addon_id: str,
+    ) -> None:
+        """Two-stage: switch Pack, then install addon. Async.
+
+        Progress 0-60% is the switch; 60-100% is the install.
+        """
+        def _do():
+            base_dir = Path(self.config.get("base_dir", "."))
+            mgr = self._torch_pack_mgr()
+            uv_version = mgr.get_recommended_uv_version() or "0.9.7"
+            pkg_mgr = self.config.get("package_manager", "uv")
+            env_dir = self.environments_dir / env_name
+
+            # Stage 1: switch (0-60%)
+            def _stage1(step, pct, detail=""):
+                scaled = int(pct * 0.6)
+                self.push_progress(request_id, f"switch:{step}", scaled, detail)
+
+            switch_result = _switch_pack(
+                config=self.config, env_name=env_name,
+                target_pack_id=target_pack_id,
+                confirm_addon_removal=True,
+                progress_callback=_stage1,
+            )
+            if not switch_result.get("ok"):
+                return {
+                    "ok": False, "noop": False,
+                    "removed_addons": switch_result.get("removed_addons", []),
+                    "installed_addon": None,
+                    "failed_at": "switch",
+                    "error": switch_result.get("error", ""),
+                }
+
+            # Stage 2: install addon (60-100%)
+            self.push_progress(request_id, "install:start", 60,
+                               f"Installing {addon_id}...")
+
+            def _stage2(msg):
+                text = msg if isinstance(msg, str) else str(msg)
+                self.push_progress(request_id, "install:progress", 80, text)
+
+            try:
+                _install_addon(
+                    self.config, addon_id, env_dir,
+                    base_dir / "tools", uv_version, pkg_mgr,
+                    progress_callback=_stage2,
+                )
+            except Exception as exc:
+                return {
+                    "ok": False, "noop": False,
+                    "removed_addons": switch_result.get("removed_addons", []),
+                    "installed_addon": None,
+                    "failed_at": "install",
+                    "error": str(exc),
+                }
+
+            self.push_progress(request_id, "done", 100, "Switch + install complete.")
+            return {
+                "ok": True, "noop": switch_result.get("noop", False),
+                "removed_addons": switch_result.get("removed_addons", []),
+                "installed_addon": addon_id,
+                "failed_at": "",
+                "error": "",
+            }
+
+        self._run_async(request_id, _do)
+
     @Slot(result=str)
     def list_addons(self) -> str:
         """Return the effective add-on registry (shipped + remote + override merged)."""
