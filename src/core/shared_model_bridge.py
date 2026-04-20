@@ -85,3 +85,79 @@ class SharedModelBridge:
             except Exception:
                 pass
         return "symlink"
+
+    _PLACEHOLDER_PREFIX = "put_"
+    _PLACEHOLDER_SUFFIX = "_here"
+
+    def _is_placeholder(self, name: str) -> bool:
+        return name.startswith(self._PLACEHOLDER_PREFIX) and name.endswith(self._PLACEHOLDER_SUFFIX)
+
+    def _unique_rename_target(self, base: Path) -> Path:
+        """Return a non-existent path shaped like <stem>.envlocal[.N]<suffix>."""
+        stem = base.stem
+        suffix = base.suffix
+        parent = base.parent
+        candidate = parent / f"{stem}.envlocal{suffix}"
+        counter = 1
+        while candidate.exists():
+            candidate = parent / f"{stem}.envlocal.{counter}{suffix}"
+            counter += 1
+        return candidate
+
+    def migrate_files(self, env_sub: Path, shared_sub: Path,
+                      progress_cb: Optional[Callable[[dict], bool]] = None) -> dict:
+        """Move files from env_sub into shared_sub using size+mtime+hash conflict rules.
+
+        Returns dict with counters. If progress_cb returns False, stops early
+        (leaving env_sub partially populated — next call will resume).
+        """
+        env_sub = Path(env_sub)
+        shared_sub = Path(shared_sub)
+        shared_sub.mkdir(parents=True, exist_ok=True)
+        stats = {"migrated": 0, "renamed": 0, "skipped_identical": 0, "placeholders_removed": 0}
+
+        files = [p for p in env_sub.rglob("*") if p.is_file()]
+        total = len(files)
+        for idx, src in enumerate(files):
+            rel = src.relative_to(env_sub)
+            if self._is_placeholder(src.name):
+                src.unlink()
+                stats["placeholders_removed"] += 1
+                continue
+            dest = shared_sub / rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
+
+            if not dest.exists():
+                shutil.move(str(src), str(dest))
+                stats["migrated"] += 1
+            else:
+                src_size, src_mtime = fs_ops.size_mtime(src)
+                dest_size, dest_mtime = fs_ops.size_mtime(dest)
+                if src_size != dest_size:
+                    renamed_dest = self._unique_rename_target(dest)
+                    shutil.move(str(src), str(renamed_dest))
+                    stats["renamed"] += 1
+                elif abs(src_mtime - dest_mtime) < 1.0:
+                    src.unlink()
+                    stats["skipped_identical"] += 1
+                else:
+                    if fs_ops.hash_file(src) == fs_ops.hash_file(dest):
+                        src.unlink()
+                        stats["skipped_identical"] += 1
+                    else:
+                        renamed_dest = self._unique_rename_target(dest)
+                        shutil.move(str(src), str(renamed_dest))
+                        stats["renamed"] += 1
+
+            if progress_cb is not None:
+                pct = int((idx + 1) / max(total, 1) * 100)
+                cont = progress_cb({
+                    "file": str(rel),
+                    "done": idx + 1,
+                    "total": total,
+                    "pct": pct,
+                })
+                if cont is False:
+                    stats["cancelled"] = True
+                    break
+        return stats
