@@ -1,22 +1,25 @@
 {
-  "version": "0.5.2",
+  "version": "0.6.0",
   "min_python": "3.10",
-  "release_notes": "修復舊版本(含 0.2.9)升級因 config.json 衝突失敗的問題",
+  "release_notes": "共用模型從讀取共用升級到下載也共用",
   "changes": [
-    "修復自動更新:舊版本升級時 config.json 會被自動備份並還原,不再因「local changes would be overwritten by merge」而中止",
-    "config.json 改為使用者私有檔,不再納入 git 追蹤;新增 config.default.json 作為新安裝的種子模板",
-    "fs_ops.load_config() 優先從 config.default.json 載入預設值,repo 更新的預設項(如擴充的 model_subdirs)會自動補進既有設定"
+    "共用模型環境:節點自動下載的模型現在會直接寫入共用資料夾(透過 NTFS junction)",
+    "HuggingFace、torch.hub、insightface 等快取改指向專案內的 cache 目錄,多環境共用",
+    "啟用共用後,節點寫死路徑的下載也會落在共用區(過去只有讀取共用)",
+    "舊環境可透過把共用開關關掉再打開自動升級到新機制"
   ],
   "changes_i18n": {
     "en": [
-      "Fixed auto-updater: config.json is now backed up and restored around git pull, so upgrades from older versions (including 0.2.9) no longer abort with 'local changes would be overwritten by merge'",
-      "config.json is now user-private and no longer tracked in git; a new config.default.json ships as the seed template for fresh installs",
-      "fs_ops.load_config() now pulls defaults from config.default.json first, so repo-tuned defaults (e.g. expanded model_subdirs) flow into existing user configs automatically"
+      "Shared-model environments: node auto-downloads now land in the shared folder (via NTFS junction)",
+      "HuggingFace / torch.hub / insightface caches redirected to a project-scoped cache shared across environments",
+      "Nodes that hardcode ComfyUI/models/... paths now write into the shared folder when sharing is enabled",
+      "Existing environments upgrade automatically when the shared toggle is cycled off and on"
     ],
     "zh-TW": [
-      "修復自動更新:舊版本升級時 config.json 會被自動備份並還原,不再因「local changes would be overwritten by merge」而中止",
-      "config.json 改為使用者私有檔,不再納入 git 追蹤;新增 config.default.json 作為新安裝的種子模板",
-      "fs_ops.load_config() 優先從 config.default.json 載入預設值,repo 更新的預設項(如擴充的 model_subdirs)會自動補進既有設定"
+      "共用模型環境:節點自動下載的模型現在會直接寫入共用資料夾(透過 NTFS junction)",
+      "HuggingFace、torch.hub、insightface 等快取改指向專案內的 cache 目錄,多環境共用",
+      "啟用共用後,節點寫死路徑的下載也會落在共用區(過去只有讀取共用)",
+      "舊環境可透過把共用開關關掉再打開自動升級到新機制"
     ]
   }
 }
