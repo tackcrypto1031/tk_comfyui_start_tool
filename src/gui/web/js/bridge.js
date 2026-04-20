@@ -259,5 +259,8 @@ var BridgeAPI = (function() {
         createRecommendedEnv: function(name, addonIds, onProgress) {
             return callAsync('create_recommended_env', name, JSON.stringify(addonIds), {onProgress: onProgress, timeoutMinutes: 60});
         },
+        switchPackAndInstallAddon: function(envName, targetPackId, addonId, onProgress) {
+            return callAsync('switch_pack_and_install_addon', envName, targetPackId, addonId, {onProgress: onProgress, timeoutMinutes: 60});
+        },
     };
 })();

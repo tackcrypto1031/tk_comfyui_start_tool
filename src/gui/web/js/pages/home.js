@@ -31,6 +31,13 @@
                     '<div class="line"></div>' +
                 '</div>' +
                 '<div id="ti-home-stats" class="ti-stats"></div>' +
+                '<div id="ti-home-addons-section">' +
+                    '<div class="ti-section-head">' +
+                        '<h2>' + safeText(t('addonRegistry.tabTitle')) + '</h2>' +
+                        '<div class="line"></div>' +
+                    '</div>' +
+                    '<div id="ti-home-addon-cards" class="ti-addon-grid"></div>' +
+                '</div>' +
                 '<div id="ti-home-logs-section" style="display:none">' +
                     '<div class="ti-section-head">' +
                         '<h2 data-i18n="home_section_logs">即時日誌</h2>' +
@@ -53,6 +60,7 @@
 
         loadEnvs().then(function() {
             renderAll();
+            renderAddons();
         });
 
         var fullLogBtn = document.getElementById('ti-home-full-log');
@@ -542,6 +550,167 @@
     }
 
     function escapeAttr(s) { return safeText(s); }
+
+    // ─── Addon Registry ───────────────────────────────────────────
+
+    // State for addon rendering
+    var _addonState = {
+        addons: [],
+        packs: [],
+        currentPackId: null,  // active pack for the current env
+        envName: null,
+    };
+
+    function renderAddons() {
+        var envName = state.activeEnv ? state.activeEnv.name : null;
+        var section = document.getElementById('ti-home-addons-section');
+        var cardsEl = document.getElementById('ti-home-addon-cards');
+        if (!section || !cardsEl) return;
+
+        if (!envName) {
+            section.style.display = 'none';
+            return;
+        }
+        section.style.display = '';
+        cardsEl.innerHTML = '<div style="font-size:12px;color:var(--text-4);padding:8px 0">' + safeText(t('loading')) + '</div>';
+
+        Promise.all([
+            BridgeAPI.listAddons(),
+            BridgeAPI.listTorchPacks(),
+        ]).then(function(results) {
+            var addonsResult = results[0];
+            var packsResult = results[1];
+            _addonState.addons = (addonsResult && addonsResult.addons) || addonsResult || [];
+            _addonState.packs = (packsResult && packsResult.packs) || packsResult || [];
+            _addonState.envName = envName;
+
+            // Determine current pack from the active env's cuda/pytorch info
+            // The env carries pack_pinned or current_pack_id — fall back to first pack
+            var activeEnv = state.activeEnv;
+            var currentPackId = (activeEnv && activeEnv.current_pack_id) || null;
+            if (!currentPackId && _addonState.packs.length > 0) {
+                // Try to match by cuda tag from the env
+                var envCuda = (activeEnv && (activeEnv.cuda || '')) .toLowerCase();
+                var matched = _addonState.packs.find(function(p) {
+                    return p.cuda_tag && envCuda && envCuda.indexOf(p.cuda_tag.toLowerCase()) !== -1;
+                });
+                currentPackId = matched ? matched.id : (_addonState.packs[0] ? _addonState.packs[0].id : null);
+            }
+            _addonState.currentPackId = currentPackId;
+
+            _renderAddonCards(cardsEl);
+        }).catch(function(e) {
+            cardsEl.innerHTML = '<div style="font-size:12px;color:var(--danger);padding:8px 0">' + safeText(t('error') + ': ' + String(e)) + '</div>';
+        });
+    }
+
+    function _renderAddonCards(cardsEl) {
+        var addons = _addonState.addons;
+        var packs = _addonState.packs;
+        var currentPackId = _addonState.currentPackId;
+        var envName = _addonState.envName;
+
+        if (!addons.length) {
+            cardsEl.innerHTML = '<div style="font-size:12px;color:var(--text-4);padding:8px 0">—</div>';
+            return;
+        }
+
+        // Build a pack id→label map for display
+        var packMap = {};
+        packs.forEach(function(p) { packMap[p.id] = p.label || p.id; });
+
+        cardsEl.innerHTML = '';
+        addons.forEach(function(addon) {
+            var card = document.createElement('div');
+            card.className = 'ti-addon-card';
+
+            var addonLabel = addon.label || addon.id || '?';
+            var addonDesc = addon.description || '';
+            var isInstalled = !!addon.installed;
+            var compatPacks = addon.compatible_packs || [];
+            var packPinned = !!addon.pack_pinned;
+            var riskNote = addon.risk_note || '';
+
+            // Determine button state
+            var btnHtml = '';
+            var needsSwitchPackId = null;
+            var needsSwitchPackLabel = '';
+
+            if (isInstalled) {
+                // Installed: show Uninstall button
+                btnHtml = '<button class="btn btn-ghost addon-btn" data-action="uninstall" style="font-size:12px;padding:4px 10px">' +
+                    safeText(t('addonCard.uninstall')) + '</button>';
+            } else if (compatPacks.length === 0) {
+                // Not compatible with any known pack
+                btnHtml = '<button class="btn btn-ghost addon-btn" disabled style="font-size:12px;padding:4px 10px;opacity:0.5">' +
+                    safeText(t('addonCard.notCompatible')) + '</button>';
+            } else if (currentPackId && compatPacks.indexOf(currentPackId) !== -1) {
+                // Compatible with current pack — direct install
+                btnHtml = '<button class="btn btn-primary addon-btn" data-action="install" style="font-size:12px;padding:4px 10px">' +
+                    safeText(t('plugin_install')) + '</button>';
+            } else {
+                // Needs pack switch — Task 12: needs-switch state
+                // Find the first compatible pack
+                needsSwitchPackId = compatPacks[0];
+                needsSwitchPackLabel = packMap[needsSwitchPackId] || needsSwitchPackId || '?';
+                var btnLabel = t('addonCard.installNeedsSwitch').replace('{pack}', needsSwitchPackLabel);
+                btnHtml = '<button class="btn btn-secondary addon-btn addon-needs-switch" data-action="needs-switch" ' +
+                    'style="font-size:12px;padding:4px 10px;border-color:oklch(0.82 0.17 128 / 0.4);color:oklch(0.82 0.17 128)">' +
+                    safeText(btnLabel) + '</button>';
+            }
+
+            var packPinnedBadge = packPinned
+                ? '<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:var(--accent-glow);color:var(--accent);font-family:var(--font-mono);margin-left:4px">' +
+                    safeText(t('addonRegistry.packPinned')) + '</span>'
+                : '';
+
+            card.innerHTML =
+                '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">' +
+                    '<div style="min-width:0">' +
+                        '<div style="font-size:13px;font-weight:500;color:var(--text-0)">' + safeText(addonLabel) + packPinnedBadge + '</div>' +
+                        (addonDesc ? '<div style="font-size:11px;color:var(--text-3);margin-top:2px;line-height:1.4">' + safeText(addonDesc) + '</div>' : '') +
+                        (riskNote ? '<div style="font-size:11px;color:var(--warn);margin-top:4px">' + safeText(t('addonSwitch.riskNote') + ' ' + riskNote) + '</div>' : '') +
+                    '</div>' +
+                    '<div style="flex-shrink:0">' + btnHtml + '</div>' +
+                '</div>';
+
+            // Bind button actions
+            var btn = card.querySelector('.addon-btn');
+            if (btn) {
+                var action = btn.getAttribute('data-action');
+                if (action === 'install') {
+                    btn.addEventListener('click', function() {
+                        _doDirectInstall(envName, addon, btn);
+                    });
+                } else if (action === 'needs-switch') {
+                    (function(targetPackId, targetPackLabel) {
+                        btn.addEventListener('click', function() {
+                            openAddonSwitchInstallDialog(envName, addon, targetPackId, targetPackLabel, packs, currentPackId, packMap);
+                        });
+                    })(needsSwitchPackId, needsSwitchPackLabel);
+                }
+            }
+
+            cardsEl.appendChild(card);
+        });
+    }
+
+    function _doDirectInstall(envName, addon, btn) {
+        if (btn) btn.disabled = true;
+        var progressId = 'addon-install-' + Date.now();
+        App.showProgress(progressId, safeText(t('addonSwitch.stage2').replace('{addon}', addon.label || addon.id)));
+        BridgeAPI.installAddon(envName, addon.id, function(msg) {
+            App.updateProgress(progressId, msg.step || '', msg.percent || 0, msg.detail || '');
+        }).then(function() {
+            App.hideProgress(progressId, 'success');
+            App.showToast(safeText(addon.label || addon.id) + ' installed.', 'success');
+            renderAddons();
+        }).catch(function(e) {
+            App.hideProgress(progressId, 'error');
+            App.showToast(t('error') + ': ' + String(e), 'error');
+            if (btn) btn.disabled = false;
+        });
+    }
 
     // Expose a small API so App / command palette can hook in
     window.HomePageAPI = {
