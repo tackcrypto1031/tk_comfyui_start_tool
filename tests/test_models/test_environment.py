@@ -190,3 +190,31 @@ class TestNewFields:
         env = Environment.load_meta(str(env_dir))
         assert env.torch_pack is None
         assert env.installed_addons == []
+
+
+class TestMechanismAndMigrationStateFields:
+    """Tests for shared_model_mechanism and shared_model_migration_state fields."""
+
+    def test_new_env_defaults_mechanism_none(self):
+        env = Environment(name="foo", created_at="2026-04-20T00:00:00")
+        assert env.shared_model_mechanism == ""
+        assert env.shared_model_migration_state == "done"
+
+    def test_load_env_without_mechanism_fields_backfills_defaults(self):
+        data = {
+            "name": "legacy",
+            "created_at": "2025-01-01T00:00:00",
+            "shared_model_enabled": True,
+        }
+        env = Environment.from_dict(data)
+        assert env.shared_model_mechanism == ""
+        assert env.shared_model_migration_state == "done"
+
+    def test_save_and_reload_preserves_mechanism(self, tmp_path):
+        env = Environment(name="new", created_at="2026-04-20T00:00:00", path=str(tmp_path))
+        env.shared_model_mechanism = "junction"
+        env.shared_model_migration_state = "done"
+        env.save_meta()
+        loaded = Environment.load_meta(str(tmp_path))
+        assert loaded.shared_model_mechanism == "junction"
+        assert loaded.shared_model_migration_state == "done"

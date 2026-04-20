@@ -59,6 +59,8 @@ class Environment:
     merge_history: list = field(default_factory=list)
     launch_settings: dict = field(default_factory=dict)
     shared_model_enabled: bool = True
+    shared_model_mechanism: str = ""  # "", "junction", "symlink", "yaml_only", "none"
+    shared_model_migration_state: str = "done"  # "pending"|"migrating"|"partial"|"done"|"failed"
     torch_pack: Optional[str] = None
     # Each entry: {"id": str, "installed_at": str (ISO8601), "torch_pack_at_install": Optional[str]}
     installed_addons: list = field(default_factory=list)
