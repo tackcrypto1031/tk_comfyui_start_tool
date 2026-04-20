@@ -4,7 +4,6 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from src.core.addons import ADDONS
 from src.core.torch_pack import TorchPackManager
 from src.models.environment import Environment
 
@@ -34,7 +33,9 @@ def migrate_env_meta_0_4_0(config: dict) -> None:
         remote_path=base_dir / "tools" / "torch_packs_remote.json",
     )
     packs = mgr.list_packs()
-    known_addon_ids = {a.id for a in ADDONS}
+    # Pre-0.4.0 registry was 5 ids; use a static set since the dynamic
+    # registry now requires config and this migration is post-marker anyway.
+    known_addon_ids = {"sage-attention", "flash-attention", "insightface", "nunchaku", "trellis2"}
 
     for entry in envs_dir.iterdir():
         meta = entry / "env_meta.json"
