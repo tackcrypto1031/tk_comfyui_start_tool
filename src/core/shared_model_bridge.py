@@ -161,3 +161,81 @@ class SharedModelBridge:
                     stats["cancelled"] = True
                     break
         return stats
+
+    def enable(self, env_path: Path, progress_cb: Optional[Callable[[dict], bool]] = None) -> EnableResult:
+        """Enable file-system-layer shared models for an env.
+
+        Idempotent. Resumable: if migration_state == 'migrating' from a prior
+        run, simply continues (each subdir is independently checked).
+        """
+        env_path = Path(env_path)
+        shared = self._resolve_shared()
+        models_dir = self._models_dir(env_path)
+        models_dir.mkdir(parents=True, exist_ok=True)
+        shared.mkdir(parents=True, exist_ok=True)
+
+        env_meta = Environment.load_meta(str(env_path))
+        env_meta.path = str(env_path)
+
+        mechanism = self.detect_capability(shared, env_path)
+        if mechanism == "yaml_only":
+            env_meta.shared_model_mechanism = "yaml_only"
+            env_meta.shared_model_migration_state = "done"
+            env_meta.save_meta()
+            return EnableResult(mechanism="yaml_only")
+
+        lock_path = shared / ".shared_lock"
+        with fs_ops.acquire_shared_lock(lock_path, timeout=30):
+            env_meta.shared_model_migration_state = "migrating"
+            env_meta.save_meta()
+
+            totals = {"migrated": 0, "renamed": 0, "skipped_identical": 0, "placeholders_removed": 0}
+            renamed_list: list[str] = []
+
+            for subdir in self._active_subdirs():
+                env_sub = models_dir / subdir
+                shared_sub = shared / subdir
+                shared_sub.mkdir(parents=True, exist_ok=True)
+
+                if not env_sub.exists():
+                    self._create_link(env_sub, shared_sub, mechanism)
+                    continue
+
+                if fs_ops.is_junction(env_sub) or env_sub.is_symlink():
+                    # Already linked — idempotent, skip
+                    continue
+
+                stats = self.migrate_files(env_sub, shared_sub, progress_cb)
+                if stats.get("cancelled"):
+                    env_meta.shared_model_migration_state = "migrating"
+                    env_meta.save_meta()
+                    return EnableResult(mechanism=mechanism, migrated_count=totals["migrated"],
+                                        renamed_files=renamed_list)
+                for k in totals:
+                    totals[k] += stats.get(k, 0)
+
+                try:
+                    shutil.rmtree(str(env_sub))
+                except OSError as exc:
+                    logger.warning("Failed to remove %s after migration: %s", env_sub, exc)
+                    continue
+                self._create_link(env_sub, shared_sub, mechanism)
+
+            env_meta.shared_model_enabled = True
+            env_meta.shared_model_mechanism = mechanism
+            env_meta.shared_model_migration_state = "done"
+            env_meta.save_meta()
+
+        return EnableResult(
+            mechanism=mechanism,
+            migrated_count=totals["migrated"],
+            renamed_files=renamed_list,
+        )
+
+    def _create_link(self, link: Path, target: Path, mechanism: str) -> None:
+        if mechanism == "junction":
+            fs_ops.create_junction(link, target)
+        elif mechanism == "symlink":
+            fs_ops.create_symlink_dir(link, target)
+        else:
+            raise ValueError(f"Unsupported link mechanism: {mechanism}")

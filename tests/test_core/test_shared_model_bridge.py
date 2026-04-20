@@ -127,3 +127,63 @@ def test_migrate_files_deletes_put_here_placeholder(tmp_path):
 
     assert not (env_sub / "put_checkpoints_here").exists()
     assert not (shared_sub / "put_checkpoints_here").exists()
+
+
+def _make_env(tmp_path, name="env"):
+    env = tmp_path / name
+    comfy = env / "ComfyUI"
+    models = comfy / "models"
+    models.mkdir(parents=True)
+    # configs/ to ensure exclusion
+    (models / "configs").mkdir()
+    (models / "configs" / "v1.yaml").write_text("x", encoding="utf-8")
+    (env / "env_meta.json").write_text(
+        '{"name":"' + name + '","created_at":"2026-04-20T00:00:00","path":"","shared_model_enabled":true}',
+        encoding="utf-8",
+    )
+    return env
+
+
+def test_enable_creates_junctions_for_active_subdirs(tmp_path):
+    shared = tmp_path / "shared"
+    bridge = make_bridge(shared)
+    env = _make_env(tmp_path)
+    (env / "ComfyUI/models/checkpoints").mkdir()
+    (env / "ComfyUI/models/checkpoints/a.safetensors").write_bytes(b"A" * 10)
+
+    result = bridge.enable(env)
+
+    assert result.mechanism == "junction"
+    assert (shared / "checkpoints/a.safetensors").read_bytes() == b"A" * 10
+
+    from src.utils import fs_ops
+    assert fs_ops.is_junction(env / "ComfyUI/models/checkpoints")
+    # configs/ must remain a real directory
+    assert not fs_ops.is_junction(env / "ComfyUI/models/configs")
+    assert (env / "ComfyUI/models/configs/v1.yaml").read_text(encoding="utf-8") == "x"
+
+
+def test_enable_is_idempotent(tmp_path):
+    shared = tmp_path / "shared"
+    bridge = make_bridge(shared)
+    env = _make_env(tmp_path)
+    bridge.enable(env)
+    result = bridge.enable(env)
+    assert result.mechanism == "junction"
+
+
+def test_enable_resumes_from_migrating_state(tmp_path):
+    shared = tmp_path / "shared"
+    bridge = make_bridge(shared)
+    env = _make_env(tmp_path)
+    from src.models.environment import Environment
+    e = Environment.load_meta(str(env))
+    e.path = str(env)
+    e.shared_model_migration_state = "migrating"
+    e.save_meta()
+
+    result = bridge.enable(env)
+    assert result.mechanism == "junction"
+
+    e2 = Environment.load_meta(str(env))
+    assert e2.shared_model_migration_state == "done"
