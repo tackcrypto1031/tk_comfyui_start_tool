@@ -3,9 +3,7 @@ import ctypes
 import json
 import os
 import platform
-import stat
 import subprocess
-import sys
 from pathlib import Path
 
 _HARDCODED_DEFAULTS = {
