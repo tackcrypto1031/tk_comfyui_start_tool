@@ -727,30 +727,27 @@ class EnvManager:
         return result
 
     def toggle_shared_model(self, env_name: str, enabled: bool) -> None:
-        """Enable or disable shared model for a single environment."""
+        """Enable or disable shared model for a single environment.
+
+        Uses SharedModelBridge for file-system-layer sharing (junction-based),
+        with automatic fallback to yaml_only when junction/symlink unsupported.
+        """
+        from src.core.shared_model_bridge import SharedModelBridge
+
         env_dir = self.environments_dir / env_name
         if not env_dir.exists():
             raise FileNotFoundError(f"Environment '{env_name}' not found")
 
-        comfyui_path = env_dir / "ComfyUI"
-        yaml_active = comfyui_path / "extra_model_paths.yaml"
-        yaml_disabled = comfyui_path / "extra_model_paths.yaml.disabled"
+        bridge = SharedModelBridge(self.config, self._resolve_model_path)
 
         if enabled:
-            # Generate fresh yaml with current path
-            self._generate_extra_model_paths(comfyui_path)
-            # Remove disabled file if it exists
-            if yaml_disabled.exists():
-                yaml_disabled.unlink()
+            bridge.enable(env_dir)
+            # Belt-and-suspenders: write yaml too
+            comfyui_path = env_dir / "ComfyUI"
+            if comfyui_path.exists():
+                self._generate_extra_model_paths(comfyui_path)
         else:
-            # Rename yaml to disabled
-            if yaml_active.exists():
-                yaml_active.rename(yaml_disabled)
-
-        # Update env_meta
-        env = Environment.load_meta(str(env_dir))
-        env.shared_model_enabled = enabled
-        env.save_meta()
+            bridge.disable(env_dir)
 
     def toggle_all_shared_model(self, enabled: bool) -> int:
         """Toggle shared model for all environments. Returns count of toggled environments."""
