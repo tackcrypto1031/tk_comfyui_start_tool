@@ -6,6 +6,7 @@ import logging
 import requests
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Literal, Optional
 
 logger = logging.getLogger(__name__)
@@ -44,8 +45,9 @@ class AddonRegistry:
         self._cache: Optional[list[Addon]] = None
 
     def list_addons(self) -> list[Addon]:
+        """Return all add-ons after applying remote and override layers."""
         if self._cache is not None:
-            return self._cache
+            return list(self._cache)
         raw = self._pick_source()
         overrides = self._load_overrides()
         merged = [
@@ -53,18 +55,21 @@ class AddonRegistry:
             for e in raw.get("addons", [])
         ]
         self._cache = merged
-        return self._cache
+        return list(self._cache)
 
     def find(self, addon_id: str) -> Optional[Addon]:
+        """Return the Addon with the given id, or None if unknown."""
         for a in self.list_addons():
             if a.id == addon_id:
                 return a
         return None
 
     def has_override(self, addon_id: str) -> bool:
+        """Return True if a local override exists for addon_id."""
         return addon_id in self._load_overrides()
 
     def save_override(self, addon_id: str, partial_fields: dict) -> None:
+        """Persist partial_fields as a local override for addon_id and invalidate cache."""
         raw = self._read_json(self.override_path) or {
             "schema_version": SCHEMA_VERSION, "overrides": {}
         }
@@ -78,6 +83,7 @@ class AddonRegistry:
         self._cache = None
 
     def clear_override(self, addon_id: Optional[str] = None) -> None:
+        """Remove the override for addon_id, or all overrides when addon_id is None."""
         raw = self._read_json(self.override_path)
         if not raw:
             return
@@ -92,6 +98,7 @@ class AddonRegistry:
         self._cache = None
 
     def get_shipped_and_override(self, addon_id: str) -> Optional[dict]:
+        """Return shipped, override, and effective views for addon_id, or None if unknown."""
         shipped_raw = self._read_json(self.shipped_path) or {}
         shipped_entry = next(
             (e for e in shipped_raw.get("addons", []) if e["id"] == addon_id), None
@@ -107,10 +114,12 @@ class AddonRegistry:
         }
 
     def get_remote_url(self) -> str:
+        """Return the URL used by refresh_remote() to pull updated add-on data."""
         shipped = self._read_json(self.shipped_path) or {}
         return shipped.get("remote_url", "")
 
     def refresh_remote(self, timeout: int = 15) -> dict:
+        """Fetch remote addons.json, write to remote_path, and invalidate cache."""
         url = self.get_remote_url()
         if not url:
             return {"ok": False, "error": "no remote_url configured"}
@@ -173,18 +182,20 @@ class AddonRegistry:
 
     @staticmethod
     def _entry_to_addon(entry: dict) -> Addon:
+        wheels = entry.get("wheels_by_pack")
+        post = entry.get("source_post_install")
         return Addon(
             id=entry["id"],
             label=entry["label"],
             description=entry["description"],
             kind=entry["kind"],
             compatible_packs=tuple(entry.get("compatible_packs") or ()),
-            wheels_by_pack=entry.get("wheels_by_pack"),
+            wheels_by_pack=MappingProxyType(dict(wheels)) if wheels else None,
             pip_spec=entry.get("pip_spec"),
             pip_project_name=entry.get("pip_project_name"),
             source_repo=entry.get("source_repo"),
             source_ref=entry.get("source_ref"),
-            source_post_install=entry.get("source_post_install"),
+            source_post_install=tuple(post) if post else None,
             requires_compile=bool(entry.get("requires_compile", False)),
             pack_pinned=bool(entry.get("pack_pinned", False)),
             risk_note=entry.get("risk_note"),

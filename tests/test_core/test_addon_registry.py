@@ -2,8 +2,6 @@
 import json
 from pathlib import Path
 
-import pytest
-
 from src.core.addon_registry import AddonRegistry, Addon
 
 
@@ -285,3 +283,28 @@ def test_refresh_remote_bad_schema_returns_error_does_not_write(tmp_path, monkey
     assert result["ok"] is False
     assert "schema_version" in result["error"]
     assert not remote.exists()
+
+
+def test_refresh_remote_success_writes_and_invalidates_cache(tmp_path, monkeypatch):
+    shipped = tmp_path / "data" / "addons.json"
+    remote = tmp_path / "tools" / "addons_remote.json"
+    _write(shipped, SHIPPED)
+
+    new_data = json.loads(json.dumps(SHIPPED))
+    new_data["addons"][0]["label"] = "Sage (from remote)"
+
+    class Resp:
+        def raise_for_status(self): pass
+        def json(self): return new_data
+
+    import src.core.addon_registry as mod
+    monkeypatch.setattr(mod.requests, "get", lambda *a, **kw: Resp())
+
+    reg = AddonRegistry(shipped, remote, tmp_path / "o.json")
+    reg.list_addons()  # populate cache with shipped
+    result = reg.refresh_remote()
+
+    assert result["ok"] is True
+    assert remote.exists()
+    # Cache was invalidated; new list reflects remote override
+    assert reg.find("sage").label == "Sage (from remote)"
