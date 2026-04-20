@@ -114,7 +114,10 @@ class SharedModelBridge:
         env_sub = Path(env_sub)
         shared_sub = Path(shared_sub)
         shared_sub.mkdir(parents=True, exist_ok=True)
-        stats = {"migrated": 0, "renamed": 0, "skipped_identical": 0, "placeholders_removed": 0}
+        stats = {
+            "migrated": 0, "renamed": 0, "skipped_identical": 0,
+            "placeholders_removed": 0, "renamed_files": [],
+        }
 
         files = [p for p in env_sub.rglob("*") if p.is_file()]
         total = len(files)
@@ -137,6 +140,7 @@ class SharedModelBridge:
                     renamed_dest = self._unique_rename_target(dest)
                     shutil.move(str(src), str(renamed_dest))
                     stats["renamed"] += 1
+                    stats["renamed_files"].append(str(renamed_dest.name))
                 elif abs(src_mtime - dest_mtime) < 1.0:
                     src.unlink()
                     stats["skipped_identical"] += 1
@@ -148,6 +152,7 @@ class SharedModelBridge:
                         renamed_dest = self._unique_rename_target(dest)
                         shutil.move(str(src), str(renamed_dest))
                         stats["renamed"] += 1
+                        stats["renamed_files"].append(str(renamed_dest.name))
 
             if progress_cb is not None:
                 pct = int((idx + 1) / max(total, 1) * 100)
@@ -213,6 +218,7 @@ class SharedModelBridge:
                                         renamed_files=renamed_list)
                 for k in totals:
                     totals[k] += stats.get(k, 0)
+                renamed_list.extend(stats.get("renamed_files", []))
 
                 try:
                     shutil.rmtree(str(env_sub))
@@ -316,24 +322,29 @@ class SharedModelBridge:
         return VerifyReport(ok=(not problems), repaired=repaired, problems=problems)
 
     def safe_remove_env(self, env_path: Path) -> None:
-        """Remove every junction under env before shutil.rmtree'ing env_path."""
+        """Remove every junction/symlink under env/ComfyUI/models/.
+
+        This is a junction-cleanup helper; the caller is responsible for the
+        actual directory deletion (typically via shutil.rmtree with an
+        onerror handler for Windows read-only .git objects).
+        """
         env_path = Path(env_path)
         models_dir = self._models_dir(env_path)
-        if models_dir.exists():
-            for child in list(models_dir.iterdir()):
-                if fs_ops.is_junction(child):
-                    try:
-                        fs_ops.remove_junction(child)
-                    except Exception as exc:
-                        logger.warning("safe_remove_env: failed to remove junction %s: %s",
-                                       child, exc)
-                elif child.is_symlink():
-                    try:
-                        child.unlink()
-                    except Exception as exc:
-                        logger.warning("safe_remove_env: failed to remove symlink %s: %s",
-                                       child, exc)
-        shutil.rmtree(str(env_path), ignore_errors=False)
+        if not models_dir.exists():
+            return
+        for child in list(models_dir.iterdir()):
+            if fs_ops.is_junction(child):
+                try:
+                    fs_ops.remove_junction(child)
+                except Exception as exc:
+                    logger.warning("safe_remove_env: failed to remove junction %s: %s",
+                                   child, exc)
+            elif child.is_symlink():
+                try:
+                    child.unlink()
+                except Exception as exc:
+                    logger.warning("safe_remove_env: failed to remove symlink %s: %s",
+                                   child, exc)
 
     def disable(self, env_path: Path) -> DisableResult:
         """Remove all junctions under env/ComfyUI/models/ (shared files untouched)."""

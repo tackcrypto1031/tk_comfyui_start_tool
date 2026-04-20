@@ -806,27 +806,6 @@ class EnvManager:
         else:
             bridge.disable(env_dir)
 
-    def remove_environment(self, env_name: str, force: bool = False) -> None:
-        """Remove an environment directory and its metadata.
-
-        Uses SharedModelBridge.safe_remove_env to avoid following junctions
-        into the shared models directory (which would delete shared files).
-        Snapshot directories associated with the environment are also removed.
-        """
-        env_dir = self.environments_dir / env_name
-        if not env_dir.exists():
-            if force:
-                return
-            raise FileNotFoundError(f"Environment '{env_name}' not found")
-
-        from src.core.shared_model_bridge import SharedModelBridge
-        bridge = SharedModelBridge(self.config, self._resolve_model_path)
-        bridge.safe_remove_env(env_dir)
-
-        # Also remove associated snapshots
-        snapshots_dir = Path(self.config["snapshots_dir"]) / env_name
-        if snapshots_dir.exists():
-            shutil.rmtree(str(snapshots_dir), onerror=self._on_rm_error)
 
     def toggle_all_shared_model(self, enabled: bool) -> int:
         """Toggle shared model for all environments. Returns count of toggled environments."""
