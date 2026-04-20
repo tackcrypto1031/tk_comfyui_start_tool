@@ -1890,9 +1890,9 @@ html[data-theme="tack-industrial"] #settings-diagnostics {
 
 /* Add-on cards (home page "Add-on Registry" section) */
 .ti-addon-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   margin-top: 8px;
 }
 .ti-addon-card {
@@ -1900,15 +1900,22 @@ html[data-theme="tack-industrial"] #settings-diagnostics {
   border: 1px solid var(--border-1);
   border-radius: var(--radius-lg);
   padding: 14px 16px;
+  box-sizing: border-box;
+  overflow: hidden;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 .ti-addon-card:hover {
   border-color: var(--border-3);
   background: var(--bg-2);
 }
+/* The card's inner flex row — allow wrapping so the button drops below on narrow widths */
+.ti-addon-card > div {
+  flex-wrap: wrap;
+}
 .ti-addon-card .addon-btn {
   white-space: normal;
-  text-align: left;
+  text-align: center;
   line-height: 1.35;
-  max-width: 220px;
+  max-width: 100%;
+  word-break: break-word;
 }
