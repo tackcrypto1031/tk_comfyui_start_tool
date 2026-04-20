@@ -712,6 +712,189 @@
         });
     }
 
+    // ─── Task 13: AddonSwitchInstallDialog ────────────────────────
+
+    function openAddonSwitchInstallDialog(envName, addon, targetPackId, targetPackLabel, packs, currentPackId, packMap) {
+        var currentPackLabel = (currentPackId && packMap[currentPackId]) || currentPackId || '—';
+        var addonLabel = addon.label || addon.id;
+
+        // Build side-effects list
+        var removedPinned = [];
+        // Find addons that are pack_pinned and compatible only with current pack (will be removed)
+        (_addonState.addons || []).forEach(function(a) {
+            if (a.pack_pinned && a.installed) {
+                var compatPacks = a.compatible_packs || [];
+                if (compatPacks.indexOf(targetPackId) === -1) {
+                    removedPinned.push(a.label || a.id);
+                }
+            }
+        });
+
+        var sideEffectsHtml =
+            '<div style="font-size:12px;color:var(--text-2);margin-top:10px">' +
+                '<div style="font-size:11px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;color:var(--text-4);margin-bottom:6px">' +
+                    safeText(t('addonSwitch.sideEffectsHeader')) +
+                '</div>' +
+                '<div style="line-height:1.8">' +
+                    '<div>' + safeText(t('addonSwitch.snapshot')) + '</div>' +
+                    '<div>' + safeText(t('addonSwitch.reinstallTorch')) + '</div>' +
+                    '<div>' + safeText(t('addonSwitch.reapplyPinned')) + '</div>' +
+                    (removedPinned.length > 0
+                        ? '<div style="color:var(--warn)">' + safeText(t('addonSwitch.removePinned').replace('{list}', removedPinned.join(', '))) + '</div>'
+                        : '') +
+                    '<div style="color:var(--accent)">' + safeText(t('addonSwitch.installTarget').replace('{addon}', addonLabel)) + '</div>' +
+                '</div>' +
+            '</div>';
+
+        var etaHtml = '<div style="font-size:11px;color:var(--text-4);margin-top:10px;font-style:italic">' +
+            safeText(t('addonSwitch.etaHeader')) + '</div>';
+
+        var riskHtml = addon.risk_note
+            ? '<div style="font-size:11px;color:var(--warn);margin-top:8px">' +
+                safeText(t('addonSwitch.riskNote') + ' ' + addon.risk_note) + '</div>'
+            : '';
+
+        var bodyHtml =
+            '<div>' +
+                '<div style="font-size:13px;color:var(--text-1)">' +
+                    safeText(t('addonSwitch.currentEnv').replace('{env}', envName).replace('{pack}', currentPackLabel)) +
+                '</div>' +
+                '<div style="font-size:13px;color:var(--accent);margin-top:2px">' +
+                    safeText(t('addonSwitch.targetPack').replace('{pack}', targetPackLabel)) +
+                '</div>' +
+                sideEffectsHtml +
+                etaHtml +
+                riskHtml +
+            '</div>';
+
+        App.showModal({
+            title: t('addonSwitch.title').replace('{addon}', addonLabel),
+            body: bodyHtml,
+            buttons: [
+                { text: t('addonSwitch.cancel'), class: 'btn-secondary' },
+                {
+                    text: t('addonSwitch.confirm'),
+                    class: 'btn-primary',
+                    closeModal: true,
+                    onClick: function() {
+                        _runSwitchAndInstall(envName, addon, targetPackId, targetPackLabel);
+                    }
+                },
+            ],
+        });
+    }
+
+    function _runSwitchAndInstall(envName, addon, targetPackId, targetPackLabel) {
+        var addonLabel = addon.label || addon.id;
+        var progressId = 'switch-install-' + Date.now();
+
+        // Stage tracking: 0-60% = switch, 60-100% = install
+        App.showProgress(progressId, safeText(t('addonSwitch.stage1')));
+
+        BridgeAPI.switchPackAndInstallAddon(envName, targetPackId, addon.id, function(msg) {
+            var rawPct = typeof msg.percent === 'number' ? msg.percent : 0;
+            var stagePct, stageLabel;
+            // Backend reports 0-100 for each stage; we'll use failed_at or step prefix to determine stage
+            // If the step name contains 'install' or percent is above the midpoint of total, we're in stage 2
+            if (msg.stage === 2 || (msg.step && msg.step.indexOf('install') !== -1)) {
+                stagePct = 60 + Math.round(rawPct * 0.4);
+                stageLabel = t('addonSwitch.stage2').replace('{addon}', addonLabel);
+            } else {
+                stagePct = Math.round(rawPct * 0.6);
+                stageLabel = t('addonSwitch.stage1');
+            }
+            App.updateProgress(progressId, stageLabel, stagePct, msg.detail || '');
+        }).then(function(result) {
+            // result: {ok, noop, removed_addons, installed_addon, failed_at, error}
+            if (result && result.failed_at === 'switch') {
+                // Switch failed
+                App.hideProgress(progressId, 'error');
+                App.showToast(t('addonSwitch.failedSwitchTitle') + ': ' + (result.error || ''), 'error');
+            } else if (result && result.failed_at === 'install') {
+                // Pack switched but install failed — show 3-button recovery dialog
+                App.hideProgress(progressId, 'error');
+                _showInstallFailureDialog(envName, addon, targetPackId, targetPackLabel, result);
+            } else {
+                // Full success
+                App.updateProgress(progressId, t('addonSwitch.stage2').replace('{addon}', addonLabel), 100, '');
+                App.hideProgress(progressId, 'success');
+                App.showToast(addonLabel + ' installed on ' + targetPackLabel + '.', 'success');
+                renderAddons();
+            }
+        }).catch(function(e) {
+            App.hideProgress(progressId, 'error');
+            App.showToast(t('error') + ': ' + String(e), 'error');
+        });
+    }
+
+    function _showInstallFailureDialog(envName, addon, targetPackId, targetPackLabel, result) {
+        var addonLabel = addon.label || addon.id;
+        var errMsg = result.error || '?';
+
+        var bodyHtml =
+            '<p style="font-size:13px;color:var(--text-1)">' +
+                safeText(t('addonSwitch.failedInstallMessage')
+                    .replace('{pack}', targetPackLabel)
+                    .replace('{addon}', addonLabel)
+                    .replace('{error}', errMsg)) +
+            '</p>';
+
+        // We need a 3-button dialog. App.showModal supports arbitrary buttons.
+        App.showModal({
+            title: t('addonSwitch.failedInstallTitle'),
+            body: bodyHtml,
+            buttons: [
+                {
+                    text: t('addonSwitch.restoreSnapshot'),
+                    class: 'btn-secondary',
+                    onClick: function() {
+                        _restoreLatestSnapshot(envName);
+                    }
+                },
+                {
+                    text: t('addonSwitch.retryInstall'),
+                    class: 'btn-primary',
+                    onClick: function() {
+                        _doDirectInstall(envName, addon, null);
+                    }
+                },
+                {
+                    text: t('addonSwitch.keepCurrent'),
+                    class: 'btn-ghost',
+                    onClick: function() {
+                        renderAddons();
+                    }
+                },
+            ],
+        });
+    }
+
+    function _restoreLatestSnapshot(envName) {
+        BridgeAPI.listSnapshots(envName).then(function(result) {
+            var snapshots = (result && result.snapshots) || result || [];
+            if (!snapshots.length) {
+                App.showToast(t('snapshot_select_to_restore'), 'error');
+                return;
+            }
+            // Use the most recent snapshot (first in list)
+            var snap = snapshots[0];
+            var progressId = 'restore-' + Date.now();
+            App.showProgress(progressId, t('snapshot_restoring'));
+            BridgeAPI.restoreSnapshot(envName, snap.id, function(msg) {
+                App.updateProgress(progressId, msg.step || '', msg.percent || 0, msg.detail || '');
+            }).then(function() {
+                App.hideProgress(progressId, 'success');
+                App.showToast(t('snapshot_restored').replace('{}', snap.id), 'success');
+                renderAddons();
+            }).catch(function(e) {
+                App.hideProgress(progressId, 'error');
+                App.showToast(t('error') + ': ' + String(e), 'error');
+            });
+        }).catch(function(e) {
+            App.showToast(t('error') + ': ' + String(e), 'error');
+        });
+    }
+
     // Expose a small API so App / command palette can hook in
     window.HomePageAPI = {
         getActiveEnv: function() { return state.activeEnv; },
