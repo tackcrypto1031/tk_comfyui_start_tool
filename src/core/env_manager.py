@@ -300,6 +300,7 @@ class EnvManager:
                 _report("addon", pct, f"Installing add-on: {aid}...")
                 try:
                     addons.install_addon(
+                        self.config,
                         addon_id=aid,
                         env_dir=env_dir,
                         tools_dir=self._tools_dir(),

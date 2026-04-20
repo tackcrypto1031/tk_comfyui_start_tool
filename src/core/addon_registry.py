@@ -7,7 +7,7 @@ import requests
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import Literal, Optional
+from typing import Literal, Mapping, Optional, Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +21,12 @@ class Addon:
     description: str
     kind: Literal["pip", "custom_node"]
     compatible_packs: tuple[str, ...]
-    wheels_by_pack: Optional[dict] = None
+    wheels_by_pack: Optional[Mapping[str, str]] = None
     pip_spec: Optional[str] = None
     pip_project_name: Optional[str] = None
     source_repo: Optional[str] = None
     source_ref: Optional[str] = None
-    source_post_install: Optional[list] = None
+    source_post_install: Optional[Sequence[str]] = None
     requires_compile: bool = False
     pack_pinned: bool = False
     risk_note: Optional[str] = None
