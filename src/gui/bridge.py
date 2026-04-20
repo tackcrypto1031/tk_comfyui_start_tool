@@ -1038,6 +1038,68 @@ class Bridge(QObject):
         self._run_async(request_id, _do)
 
     @Slot(result=str)
+    def list_addons_with_override_status(self) -> str:
+        """Registry tab: list all addons with has_override flag."""
+        try:
+            reg = self._addon_registry()
+            items = []
+            for a in reg.list_addons():
+                items.append({
+                    "id": a.id, "label": a.label, "kind": a.kind,
+                    "pack_pinned": a.pack_pinned,
+                    "has_override": reg.has_override(a.id),
+                })
+            return json.dumps({"ok": True, "addons": items}, ensure_ascii=False)
+        except Exception as exc:
+            logger.error(f"list_addons_with_override_status error: {exc}")
+            return json.dumps({"ok": False, "error": str(exc)})
+
+    @Slot(str, result=str)
+    def get_addon_for_edit(self, addon_id: str) -> str:
+        """Return {shipped, override, effective} view for editor init."""
+        try:
+            view = self._addon_registry().get_shipped_and_override(addon_id)
+            if view is None:
+                return json.dumps({"ok": False, "error": f"unknown addon: {addon_id}"})
+            return json.dumps({"ok": True, **view}, ensure_ascii=False)
+        except Exception as exc:
+            logger.error(f"get_addon_for_edit error: {exc}")
+            return json.dumps({"ok": False, "error": str(exc)})
+
+    @Slot(str, str, result=str)
+    def save_addon_override(self, addon_id: str, fields_json: str) -> str:
+        """Write a partial override for addon_id. Returns {ok, error}."""
+        try:
+            fields = json.loads(fields_json)
+            if not isinstance(fields, dict):
+                raise ValueError("fields must be a JSON object")
+            self._addon_registry().save_override(addon_id, fields)
+            return json.dumps({"ok": True, "error": ""})
+        except Exception as exc:
+            logger.error(f"save_addon_override error: {exc}")
+            return json.dumps({"ok": False, "error": str(exc)})
+
+    @Slot(str, result=str)
+    def clear_addon_override(self, addon_id: str) -> str:
+        """Empty string → wipe all; non-empty → wipe single id. Returns {ok, error}."""
+        try:
+            target = addon_id if addon_id else None
+            self._addon_registry().clear_override(target)
+            return json.dumps({"ok": True, "error": ""})
+        except Exception as exc:
+            logger.error(f"clear_addon_override error: {exc}")
+            return json.dumps({"ok": False, "error": str(exc)})
+
+    @Slot(result=str)
+    def refresh_addons_remote(self) -> str:
+        """Pull remote addons.json; returns {ok, error}."""
+        try:
+            return json.dumps(self._addon_registry().refresh_remote())
+        except Exception as exc:
+            logger.error(f"refresh_addons_remote error: {exc}")
+            return json.dumps({"ok": False, "error": str(exc)})
+
+    @Slot(result=str)
     def detect_gpu_for_recommended(self) -> str:
         """Pre-flight GPU check used by the Create Recommended dialog."""
         try:
