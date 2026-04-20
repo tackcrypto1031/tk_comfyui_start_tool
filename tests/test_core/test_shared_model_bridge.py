@@ -203,3 +203,21 @@ def test_disable_removes_junctions_and_keeps_shared(tmp_path):
     from src.utils import fs_ops
     assert not fs_ops.is_junction(env / "ComfyUI/models/checkpoints")
     assert (shared / "checkpoints/a.safetensors").read_bytes() == b"A" * 10
+
+
+def test_attach_subdir_migrates_and_links(tmp_path):
+    shared = tmp_path / "shared"
+    bridge = make_bridge(shared)
+    env = _make_env(tmp_path)
+    bridge.enable(env)  # baseline junctions for config subdirs
+
+    # Node created a new subdir not yet in config
+    new_sub = env / "ComfyUI/models/insightface"
+    new_sub.mkdir()
+    (new_sub / "det.onnx").write_bytes(b"O" * 5)
+
+    bridge.attach_subdir(env, "insightface")
+
+    from src.utils import fs_ops
+    assert fs_ops.is_junction(new_sub)
+    assert (shared / "insightface/det.onnx").read_bytes() == b"O" * 5

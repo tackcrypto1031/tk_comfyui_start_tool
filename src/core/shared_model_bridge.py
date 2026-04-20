@@ -240,6 +240,35 @@ class SharedModelBridge:
         else:
             raise ValueError(f"Unsupported link mechanism: {mechanism}")
 
+    def attach_subdir(self, env_path: Path, subdir: str,
+                      progress_cb: Optional[Callable[[dict], bool]] = None) -> None:
+        """Enable a single subdir (used for newly discovered dirs)."""
+        if subdir in self._excluded_subdirs():
+            return
+        env_path = Path(env_path)
+        shared = self._resolve_shared()
+        env_meta = Environment.load_meta(str(env_path))
+        env_meta.path = str(env_path)
+        mechanism = env_meta.shared_model_mechanism or self.detect_capability(shared, env_path)
+        if mechanism == "yaml_only":
+            return  # Nothing FS-layer to do
+
+        env_sub = self._models_dir(env_path) / subdir
+        shared_sub = shared / subdir
+        shared_sub.mkdir(parents=True, exist_ok=True)
+
+        with fs_ops.acquire_shared_lock(shared / ".shared_lock", timeout=30):
+            if fs_ops.is_junction(env_sub) or env_sub.is_symlink():
+                return  # already linked
+            if env_sub.exists():
+                self.migrate_files(env_sub, shared_sub, progress_cb)
+                try:
+                    shutil.rmtree(str(env_sub))
+                except OSError as exc:
+                    logger.warning("attach_subdir rmtree failed for %s: %s", env_sub, exc)
+                    return
+            self._create_link(env_sub, shared_sub, mechanism)
+
     def disable(self, env_path: Path) -> DisableResult:
         """Remove all junctions under env/ComfyUI/models/ (shared files untouched)."""
         env_path = Path(env_path)
