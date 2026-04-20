@@ -1,73 +1,28 @@
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
 from src.core.addons import (
-    ADDONS,
-    Addon,
     IncompatiblePackError,
-    find_addon,
     install_addon,
     uninstall_addon,
 )
+from src.core.addon_registry import AddonRegistry, Addon
 from src.models.environment import Environment
 
 
-# ---------------------------------------------------------------------------
-# Registry shape
-# ---------------------------------------------------------------------------
-
-def test_registry_has_expected_ids():
-    ids = {a.id for a in ADDONS}
-    # FlashAttention removed: no reliable Windows wheel path.
-    assert ids == {"sage-attention", "insightface", "nunchaku", "trellis2"}
+def _seed_shipped(base_dir: Path) -> None:
+    """Write a minimal data/addons.json matching the real shipped file."""
+    shipped = base_dir / "data" / "addons.json"
+    shipped.parent.mkdir(parents=True, exist_ok=True)
+    shipped.write_text(Path("data/addons.json").read_text(encoding="utf-8"), encoding="utf-8")
 
 
-def test_find_existing():
-    addon = find_addon("sage-attention")
-    assert addon is not None
-    assert addon.kind == "pip"
-
-
-def test_find_missing():
-    assert find_addon("ghost") is None
-
-
-def test_pip_addon_has_wheels_and_project_name():
-    insight = find_addon("insightface")
-    assert insight.kind == "pip"
-    assert insight.pip_project_name == "insightface"
-    assert insight.wheels_by_pack  # has prebuilt wheels per pack
-    # Same wheel across all packs (torch-agnostic)
-    assert len(set(insight.wheels_by_pack.values())) == 1
-
-
-def test_custom_node_addon_has_source_ref():
-    trellis = find_addon("trellis2")
-    assert trellis.kind == "custom_node"
-    assert trellis.source_repo
-    assert trellis.source_ref  # pinned ref, not floating master
-    assert trellis.source_post_install == ["pip", "install", "-r", "requirements.txt"]
-
-
-def test_trellis_gated_to_cu128_pack():
-    trellis = find_addon("trellis2")
-    assert trellis.compatible_packs == ("torch-2.8.0-cu128",)
-
-
-def test_sage_attention_has_per_pack_wheels():
-    sage = find_addon("sage-attention")
-    assert set(sage.wheels_by_pack.keys()) == {
-        "torch-2.9.1-cu130", "torch-2.8.0-cu128", "torch-2.7.1-cu128",
-    }
-    # All three are distinct — wheel is torch-specific.
-    assert len(set(sage.wheels_by_pack.values())) == 3
-
-
-def test_nunchaku_not_compatible_with_torch_2_7():
-    nunchaku = find_addon("nunchaku")
-    assert "torch-2.7.1-cu128" not in nunchaku.compatible_packs
+def _config(tmp_path: Path) -> dict:
+    _seed_shipped(tmp_path)
+    return {"base_dir": str(tmp_path), "environments_dir": str(tmp_path / "envs")}
 
 
 # ---------------------------------------------------------------------------
@@ -103,6 +58,7 @@ def test_install_pip_addon_uses_wheel_for_current_pack(tmp_path, monkeypatch):
     monkeypatch.setattr("src.core.addons.pkg_ops.run_install", _fake_install)
 
     result = install_addon(
+        _config(tmp_path),
         addon_id="sage-attention",
         env_dir=env_dir,
         tools_dir=tmp_path / "tools",
@@ -131,8 +87,7 @@ def test_install_pip_addon_falls_back_to_pip_spec(tmp_path, monkeypatch):
 
     monkeypatch.setattr("src.core.addons.pkg_ops.run_install", _fake_install)
 
-    # Patch the addon's wheels_by_pack in place to simulate a missing wheel
-    # for the current pack while retaining pip_spec.
+    # Patch the registry to return a stub addon with no wheel for current pack
     stub = Addon(
         id="insightface", label="InsightFace", description="face",
         kind="pip",
@@ -141,9 +96,15 @@ def test_install_pip_addon_falls_back_to_pip_spec(tmp_path, monkeypatch):
         pip_spec="insightface==0.7.3",
         pip_project_name="insightface",
     )
-    monkeypatch.setattr("src.core.addons.ADDONS", [stub])
+
+    class _StubRegistry:
+        def find(self, addon_id):
+            return stub if addon_id == "insightface" else None
+
+    monkeypatch.setattr("src.core.addons._registry", lambda config: _StubRegistry())
 
     install_addon(
+        _config(tmp_path),
         addon_id="insightface",
         env_dir=env_dir,
         tools_dir=tmp_path / "tools",
@@ -174,6 +135,7 @@ def test_install_custom_node_addon(tmp_path, monkeypatch):
     monkeypatch.setattr("src.core.addons.pkg_ops.run_install", _fake_install)
 
     install_addon(
+        _config(tmp_path),
         addon_id="trellis2",
         env_dir=env_dir,
         tools_dir=tmp_path / "tools",
@@ -207,6 +169,7 @@ def test_incompatible_pack_raises(tmp_path, monkeypatch):
 
     with pytest.raises(IncompatiblePackError):
         install_addon(
+            _config(tmp_path),
             addon_id="trellis2",
             env_dir=env_dir,
             tools_dir=tmp_path / "tools",
@@ -221,6 +184,7 @@ def test_unknown_addon_raises(tmp_path):
     env_dir = _make_env(tmp_path)
     with pytest.raises(ValueError):
         install_addon(
+            _config(tmp_path),
             addon_id="ghost",
             env_dir=env_dir,
             tools_dir=tmp_path / "tools",
@@ -251,6 +215,7 @@ def test_uninstall_pip_addon(tmp_path, monkeypatch):
     monkeypatch.setattr("src.core.addons.pkg_ops.run_install", _fake_install)
 
     uninstall_addon(
+        _config(tmp_path),
         addon_id="insightface",
         env_dir=env_dir,
         tools_dir=tmp_path / "tools",
@@ -284,6 +249,7 @@ def test_uninstall_custom_node_addon(tmp_path, monkeypatch):
     monkeypatch.setattr("src.core.addons.pkg_ops.run_install", _fake_install)
 
     uninstall_addon(
+        _config(tmp_path),
         addon_id="trellis2",
         env_dir=env_dir,
         tools_dir=tmp_path / "tools",
@@ -292,5 +258,40 @@ def test_uninstall_custom_node_addon(tmp_path, monkeypatch):
     assert not node_dir.exists()
     # custom_node uninstall is tree-removal only, no pip call.
     assert calls == []
+    env = Environment.load_meta(str(env_dir))
+    assert env.installed_addons == []
+
+
+def test_uninstall_orphan_addon_generic_cleanup(tmp_path, monkeypatch):
+    """Uninstalling an id not in registry removes the dir + meta entry."""
+    env_dir = _make_env(tmp_path)
+    node_dir = env_dir / "ComfyUI" / "custom_nodes" / "orphan-addon"
+    node_dir.mkdir(parents=True)
+    (node_dir / "file.py").write_text("x")
+    env = Environment.load_meta(str(env_dir))
+    env.installed_addons.append({
+        "id": "orphan-addon",
+        "installed_at": "2026-04-19T00:00:00Z",
+        "torch_pack_at_install": None,
+    })
+    env.save_meta()
+
+    calls = []
+
+    def _fake_install(venv_path, args, tools_dir, uv_version,
+                      package_manager="uv", progress_callback=None):
+        calls.append(args)
+
+    monkeypatch.setattr("src.core.addons.pkg_ops.run_install", _fake_install)
+
+    uninstall_addon(
+        _config(tmp_path),
+        addon_id="orphan-addon",
+        env_dir=env_dir,
+        tools_dir=tmp_path / "tools",
+        uv_version="0.9.7",
+    )
+    assert not node_dir.exists()
+    assert calls == []  # no pip call for orphan
     env = Environment.load_meta(str(env_dir))
     assert env.installed_addons == []
