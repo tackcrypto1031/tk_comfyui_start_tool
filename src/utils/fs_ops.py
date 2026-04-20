@@ -195,3 +195,28 @@ def create_symlink_dir(link: Path, target: Path) -> None:
         raise FileExistsError(f"Link path already exists: {link}")
     link.parent.mkdir(parents=True, exist_ok=True)
     os.symlink(str(target.resolve()), str(link), target_is_directory=True)
+
+
+# ---------------------------------------------------------------------------
+# Task 3: File hashing and stat helpers
+# ---------------------------------------------------------------------------
+
+import hashlib
+
+
+def hash_file(path: Path, algo: str = "sha256", chunk: int = 1 << 20) -> str:
+    """Compute hex digest of a file's contents, streaming in chunks."""
+    h = hashlib.new(algo)
+    with open(path, "rb") as fh:
+        while True:
+            block = fh.read(chunk)
+            if not block:
+                break
+            h.update(block)
+    return h.hexdigest()
+
+
+def size_mtime(path: Path) -> tuple[int, float]:
+    """Return (size_bytes, mtime_unix) for a file."""
+    st = Path(path).stat()
+    return st.st_size, st.st_mtime

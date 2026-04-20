@@ -201,3 +201,32 @@ def test_create_symlink_dir_falls_back_when_unsupported(tmp_path, monkeypatch):
     monkeypatch.setattr(os, "symlink", _raise)
     with pytest.raises(OSError):
         fs_ops.create_symlink_dir(link, target)
+
+
+# ---------------------------------------------------------------------------
+# Task 3: hash_file + size_mtime
+# ---------------------------------------------------------------------------
+
+import hashlib
+
+
+def test_hash_file_matches_hashlib(tmp_path):
+    p = tmp_path / "file.bin"
+    data = b"hello world" * 1000
+    p.write_bytes(data)
+    expected = hashlib.sha256(data).hexdigest()
+    assert fs_ops.hash_file(p) == expected
+
+
+def test_hash_file_empty(tmp_path):
+    p = tmp_path / "empty.bin"
+    p.write_bytes(b"")
+    assert fs_ops.hash_file(p) == hashlib.sha256(b"").hexdigest()
+
+
+def test_size_mtime_returns_tuple(tmp_path):
+    p = tmp_path / "f.txt"
+    p.write_text("abcd", encoding="utf-8")
+    size, mtime = fs_ops.size_mtime(p)
+    assert size == 4
+    assert isinstance(mtime, float)
