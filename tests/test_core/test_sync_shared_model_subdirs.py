@@ -280,7 +280,12 @@ import platform
 
 
 @pytest.mark.skipif(platform.system() != "Windows", reason="junction test")
-def test_sync_attaches_new_subdir_as_junction(tmp_path):
+def test_sync_attaches_new_subdir_as_junction(tmp_path, monkeypatch):
+    # Isolate: sync_shared_model_subdirs calls save_config("config.json")
+    # (relative path) when it discovers new subdirs. Without stubbing + chdir
+    # this would overwrite the real user config.json.
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("src.utils.fs_ops.save_config", lambda *a, **k: None)
     from src.core.env_manager import EnvManager
     config = {
         "environments_dir": str(tmp_path / "envs"),

@@ -84,14 +84,16 @@ class ComfyUILauncher:
         return env
 
     def _pre_launch_shared_model_check(self, env_dir: Path) -> None:
-        """Run sync_shared_model_subdirs + bridge.verify before launching ComfyUI."""
+        """Verify shared-model junctions before launching ComfyUI.
+
+        Subdir discovery is NOT done here — it happens at app startup
+        (launcher.py) and via the Rescan button (gui/bridge.py). Doing it
+        here would persist the config, which is undesirable on a hot path
+        and surprising if the CWD isn't the project root.
+        """
         from src.core.env_manager import EnvManager
         from src.core.shared_model_bridge import SharedModelBridge
         mgr = EnvManager(self.config)
-        try:
-            mgr.sync_shared_model_subdirs()
-        except Exception as exc:
-            logger.warning("sync_shared_model_subdirs failed: %s", exc)
         bridge = SharedModelBridge(self.config, mgr._resolve_model_path)
         try:
             report = bridge.verify(env_dir)
