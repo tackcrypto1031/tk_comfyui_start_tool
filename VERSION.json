@@ -1,22 +1,22 @@
 {
-  "version": "0.5.1",
+  "version": "0.5.2",
   "min_python": "3.10",
-  "release_notes": "啟動器簡化為運行列表、啟動參數移至設置分頁、修復首頁 Add-on 卡片偵測",
+  "release_notes": "修復舊版本(含 0.2.9)升級因 config.json 衝突失敗的問題",
   "changes": [
-    "啟動器分頁精簡為純「運行列表」,側邊欄環境切換已涵蓋原本的啟動器功能",
-    "啟動參數(埠號 / VRAM 模式 / Cross-attention)整合至設置分頁的「啟動參數」卡片",
-    "修復首頁 Add-on 卡片未正確反映已安裝狀態的問題 —— 已安裝的 SageAttention / InsightFace / Nunchaku 現在會顯示「解除安裝」而非「安裝」"
+    "修復自動更新:舊版本升級時 config.json 會被自動備份並還原,不再因「local changes would be overwritten by merge」而中止",
+    "config.json 改為使用者私有檔,不再納入 git 追蹤;新增 config.default.json 作為新安裝的種子模板",
+    "fs_ops.load_config() 優先從 config.default.json 載入預設值,repo 更新的預設項(如擴充的 model_subdirs)會自動補進既有設定"
   ],
   "changes_i18n": {
     "en": [
-      "Launcher tab simplified to a pure 'Running List' — the sidebar env pill already covers env switching",
-      "Launch params (Port / VRAM mode / Cross-attention) merged into a 'Launch Params' card on the Settings page",
-      "Fixed Home page Add-on cards not reflecting installed state — installed SageAttention / InsightFace / Nunchaku now show 'Uninstall' instead of 'Install'"
+      "Fixed auto-updater: config.json is now backed up and restored around git pull, so upgrades from older versions (including 0.2.9) no longer abort with 'local changes would be overwritten by merge'",
+      "config.json is now user-private and no longer tracked in git; a new config.default.json ships as the seed template for fresh installs",
+      "fs_ops.load_config() now pulls defaults from config.default.json first, so repo-tuned defaults (e.g. expanded model_subdirs) flow into existing user configs automatically"
     ],
     "zh-TW": [
-      "啟動器分頁精簡為純「運行列表」,側邊欄環境切換已涵蓋原本的啟動器功能",
-      "啟動參數(埠號 / VRAM 模式 / Cross-attention)整合至設置分頁的「啟動參數」卡片",
-      "修復首頁 Add-on 卡片未正確反映已安裝狀態的問題 —— 已安裝的 SageAttention / InsightFace / Nunchaku 現在會顯示「解除安裝」而非「安裝」"
+      "修復自動更新:舊版本升級時 config.json 會被自動備份並還原,不再因「local changes would be overwritten by merge」而中止",
+      "config.json 改為使用者私有檔,不再納入 git 追蹤;新增 config.default.json 作為新安裝的種子模板",
+      "fs_ops.load_config() 優先從 config.default.json 載入預設值,repo 更新的預設項(如擴充的 model_subdirs)會自動補進既有設定"
     ]
   }
 }

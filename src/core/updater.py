@@ -223,6 +223,38 @@ def do_update(progress_callback=None) -> dict:
 
     env = _build_git_env()
 
+    # Preserve the user's config.json across the pull. Older versions tracked
+    # it in git, which caused "local changes would be overwritten" aborts
+    # whenever upstream edited config.json. We back it up, discard any tracked
+    # dirty state so git pull can proceed, then restore the user's file after.
+    config_path = _ROOT / "config.json"
+    config_backup: bytes | None = None
+    if config_path.exists():
+        try:
+            config_backup = config_path.read_bytes()
+        except OSError as e:
+            logger.warning("failed to back up config.json before update: %s", e)
+
+    if has_git_dir and config_backup is not None:
+        ls_proc = subprocess.run(
+            [git, "ls-files", "--error-unmatch", "config.json"],
+            cwd=str(_ROOT),
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=10,
+        )
+        if ls_proc.returncode == 0:
+            # Tracked upstream — reset to index so pull won't conflict.
+            subprocess.run(
+                [git, "checkout", "--", "config.json"],
+                cwd=str(_ROOT),
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=10,
+            )
+
     if has_git_dir:
         # Normal git pull
         proc = subprocess.run(
@@ -234,6 +266,13 @@ def do_update(progress_callback=None) -> dict:
             timeout=120,
         )
         if proc.returncode != 0:
+            # Restore backup before raising so the user isn't left with
+            # upstream defaults overwriting their settings.
+            if config_backup is not None:
+                try:
+                    config_path.write_bytes(config_backup)
+                except OSError:
+                    pass
             raise RuntimeError(f"git pull failed: {proc.stderr.strip()}")
     else:
         # Convert zip directory to git repo
@@ -264,6 +303,14 @@ def do_update(progress_callback=None) -> dict:
                     "Please back up local files and retry update."
                 )
             raise RuntimeError(f"git checkout failed: {stderr}")
+
+    # Restore user's config.json after the pull. fs_ops.load_config will fill
+    # any new keys from config.default.json on next launch.
+    if config_backup is not None:
+        try:
+            config_path.write_bytes(config_backup)
+        except OSError as e:
+            logger.warning("failed to restore config.json after update: %s", e)
 
     _progress("pull", 40, "Code updated.")
 

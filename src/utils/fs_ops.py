@@ -2,52 +2,71 @@
 import json
 from pathlib import Path
 
-
-def get_default_config() -> dict:
-    """Return default configuration."""
-    return {
-        "default_env": "main",
-        "python_path": None,
-        "comfyui_repo_url": "https://github.com/comfyanonymous/ComfyUI.git",
-        "base_dir": ".",
-        "environments_dir": "./environments",
-        "models_dir": "./models",
-        "shared_model_mode": "default",
-        "custom_model_path": "",
-        "snapshots_dir": "./snapshots",
-        "max_snapshots": 20,
-        "auto_snapshot": True,
-        "auto_open_browser": True,
-        "default_port": 8188,
-        "theme": "dark",
-        "language": "zh-TW",
-        "color_scheme": "tack-industrial",
-        "log_level": "INFO",
-        "model_subdirs": [
-            "audio_encoders", "checkpoints", "clip", "clip_vision", "configs",
-            "controlnet", "diffusers", "diffusion_models", "embeddings", "gligen",
-            "hypernetworks", "latent_upscale_models", "loras", "model_patches",
-            "photomaker", "style_models", "text_encoders", "unet",
-            "upscale_models", "vae", "vae_approx",
+_HARDCODED_DEFAULTS = {
+    "default_env": "main",
+    "python_path": None,
+    "comfyui_repo_url": "https://github.com/comfyanonymous/ComfyUI.git",
+    "base_dir": ".",
+    "environments_dir": "./environments",
+    "models_dir": "./models",
+    "shared_model_mode": "default",
+    "custom_model_path": "",
+    "snapshots_dir": "./snapshots",
+    "max_snapshots": 20,
+    "auto_snapshot": True,
+    "auto_open_browser": True,
+    "default_port": 8188,
+    "theme": "dark",
+    "language": "zh-TW",
+    "color_scheme": "tack-industrial",
+    "log_level": "INFO",
+    "model_subdirs": [
+        "audio_encoders", "checkpoints", "clip", "clip_vision", "configs",
+        "controlnet", "diffusers", "diffusion_models", "embeddings", "gligen",
+        "hypernetworks", "latent_upscale_models", "loras", "model_patches",
+        "photomaker", "style_models", "text_encoders", "unet",
+        "upscale_models", "vae", "vae_approx",
+    ],
+    "conflict_analyzer": {
+        "critical_packages": [
+            "torch", "torchvision", "torchaudio",
+            "numpy", "scipy", "transformers",
+            "safetensors", "Pillow", "xformers",
+            "opencv-python", "opencv-python-headless",
+            "accelerate", "onnxruntime", "onnxruntime-gpu",
         ],
-        "conflict_analyzer": {
-            "critical_packages": [
-                "torch", "torchvision", "torchaudio",
-                "numpy", "scipy", "transformers",
-                "safetensors", "Pillow", "xformers",
-                "opencv-python", "opencv-python-headless",
-                "accelerate", "onnxruntime", "onnxruntime-gpu",
-            ],
-            "auto_analyze_on_install": True,
-        },
-        "ui_flags": {},
-    }
+        "auto_analyze_on_install": True,
+    },
+    "ui_flags": {},
+}
+
+
+def _default_template_path(user_config_path: Path) -> Path:
+    """Resolve config.default.json next to the user's config.json."""
+    return user_config_path.parent / "config.default.json"
+
+
+def get_default_config(user_config_path: str | Path | None = None) -> dict:
+    """Return default configuration.
+
+    Prefers config.default.json (shipped with repo) when available so
+    repo-tuned defaults (expanded model_subdirs, pytorch_index_url, etc.)
+    flow through to users seeding a fresh config.
+    """
+    if user_config_path is not None:
+        template = _default_template_path(Path(user_config_path))
+        if template.exists():
+            try:
+                return json.loads(template.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                pass
+    return dict(_HARDCODED_DEFAULTS)
 
 
 def load_config(path: str) -> dict:
     """Load config from JSON file. Creates default if missing, fills missing keys."""
     config_path = Path(path)
-    defaults = get_default_config()
+    defaults = get_default_config(config_path)
 
     if config_path.exists():
         data = json.loads(config_path.read_text(encoding="utf-8"))
@@ -57,7 +76,7 @@ def load_config(path: str) -> dict:
                 data[key] = value
         return data
 
-    # Create default config file
+    # Seed user config from defaults on first run
     save_config(defaults, path)
     return defaults
 

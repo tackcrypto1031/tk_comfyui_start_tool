@@ -36,6 +36,9 @@ snapshots/
 # Runtime state
 state/
 
+# User-specific runtime config (seeded from config.default.json on first run)
+config.json
+
 # OMC orchestration state
 .omc/
 .omx/
