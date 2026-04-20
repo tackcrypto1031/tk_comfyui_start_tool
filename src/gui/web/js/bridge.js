@@ -265,5 +265,12 @@ var BridgeAPI = (function() {
         reinstallAddons: function(envName, addonIds, onProgress) {
             return callAsync('reinstall_addons', envName, JSON.stringify(addonIds), {onProgress: onProgress, timeoutMinutes: 30});
         },
+
+        // Addon Registry editor (Task 15/16)
+        listAddonsWithOverrideStatus: function() { return callSlot('list_addons_with_override_status'); },
+        getAddonForEdit: function(addonId) { return callSlot('get_addon_for_edit', addonId); },
+        saveAddonOverride: function(addonId, fieldsJson) { return callSlot('save_addon_override', addonId, fieldsJson); },
+        clearAddonOverride: function(addonIdOrEmpty) { return callSlot('clear_addon_override', addonIdOrEmpty); },
+        refreshAddonsRemote: function() { return callSlot('refresh_addons_remote'); },
     };
 })();
