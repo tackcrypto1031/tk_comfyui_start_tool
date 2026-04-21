@@ -15,7 +15,14 @@ set "GIT_DIR=%TOOLS_DIR%\git"
 set "TEMP_DIR=%TOOLS_DIR%\_temp"
 
 set "PYTHON_VERSION=3.12.8"
-set "PYTHON_URL=https://www.python.org/ftp/python/%PYTHON_VERSION%/python-%PYTHON_VERSION%-amd64.exe"
+:: Use the embeddable zip distribution (not the WiX .exe bundle).
+:: The WiX bundle installer refuses to write TargetDir when the same version
+:: is already registered on the machine (WixBundleInstalled=1) and exits 0
+:: without producing python.exe, leaving tools\python\ empty. The embeddable
+:: zip has no registry check and always extracts — matching the pattern
+:: already used by src/core/version_manager.download_python().
+set "PYTHON_URL=https://www.python.org/ftp/python/%PYTHON_VERSION%/python-%PYTHON_VERSION%-embed-amd64.zip"
+set "GET_PIP_URL=https://bootstrap.pypa.io/get-pip.py"
 
 set "GIT_VERSION=2.47.1"
 set "GIT_URL=https://github.com/git-for-windows/git/releases/download/v%GIT_VERSION%.windows.1/PortableGit-%GIT_VERSION%-64-bit.7z.exe"
@@ -31,59 +38,66 @@ if exist "%PYTHON_DIR%\python.exe" (
     goto :check_git
 )
 
-echo       Downloading Python %PYTHON_VERSION%...
-curl -L --progress-bar -o "%TEMP_DIR%\python-installer.exe" "%PYTHON_URL%"
+echo       Downloading Python %PYTHON_VERSION% (embeddable)...
+set "PY_ZIP=%TEMP_DIR%\python-%PYTHON_VERSION%-embed.zip"
+if exist "%PY_ZIP%" del /q "%PY_ZIP%" >nul 2>&1
+curl -L --progress-bar -o "%PY_ZIP%" "%PYTHON_URL%"
 if errorlevel 1 (
     echo       curl failed, trying PowerShell...
-    powershell -Command "Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%TEMP_DIR%\python-installer.exe'"
+    powershell -NoProfile -Command "Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%PY_ZIP%'"
 )
-if not exist "%TEMP_DIR%\python-installer.exe" (
+if not exist "%PY_ZIP%" (
     echo.
     echo       [ERROR] Python download failed.
     echo       Download manually: %PYTHON_URL%
-    echo       Save as: %TEMP_DIR%\python-installer.exe
+    echo       Save as: %PY_ZIP%
     echo       Then re-run install.bat
     pause
     exit /b 1
 )
 
-echo       Installing Python %PYTHON_VERSION% (silent mode)...
-set "PY_INSTALL_LOG=%TEMP_DIR%\python-install.log"
-if exist "%PY_INSTALL_LOG%" del /q "%PY_INSTALL_LOG%" >nul 2>&1
-"%TEMP_DIR%\python-installer.exe" /quiet /log "%PY_INSTALL_LOG%" ^
-    TargetDir="%PYTHON_DIR%" ^
-    InstallAllUsers=0 Include_launcher=0 Include_test=0 ^
-    AssociateFiles=0 Shortcuts=0 Include_doc=0 ^
-    Include_tcltk=0 PrependPath=0 CompileAll=0
-set "PY_EXIT=%errorlevel%"
-
-if not exist "%PYTHON_DIR%\python.exe" (
-    echo       [WARN] Silent install did not create python.exe ^(exit=!PY_EXIT!^)
-    echo       Retrying with visible progress window. If UAC prompts, click Yes.
-    "%TEMP_DIR%\python-installer.exe" /passive /log "%PY_INSTALL_LOG%" ^
-        TargetDir="%PYTHON_DIR%" ^
-        InstallAllUsers=0 Include_launcher=0 Include_test=0 ^
-        AssociateFiles=0 Shortcuts=0 Include_doc=0 ^
-        Include_tcltk=0 PrependPath=0 CompileAll=0
-    set "PY_EXIT=!errorlevel!"
-)
-
+echo       Extracting Python %PYTHON_VERSION% to %PYTHON_DIR%...
+if not exist "%PYTHON_DIR%" mkdir "%PYTHON_DIR%"
+powershell -NoProfile -Command "Expand-Archive -LiteralPath '%PY_ZIP%' -DestinationPath '%PYTHON_DIR%' -Force"
 if not exist "%PYTHON_DIR%\python.exe" (
     echo.
-    echo       [ERROR] Python install failed ^(final exit=!PY_EXIT!^)
+    echo       [ERROR] Python extraction failed.
     echo       Target dir: %PYTHON_DIR%
-    echo       Common causes:
-    echo         - antivirus blocked the installer
-    echo         - missing Visual C++ Redistributable
-    echo         - UAC prompt cancelled
-    echo       Manual fallback: download and extract to the target dir above:
-    echo         %PYTHON_URL%
-    if exist "%PY_INSTALL_LOG%" (
-        echo.
-        echo       ---- Last 30 lines of installer log ----
-        powershell -NoProfile -Command "Get-Content -LiteralPath '%PY_INSTALL_LOG%' -Tail 30"
-        echo       ----------------------------------------
-    )
+    echo       Zip file:   %PY_ZIP%
+    echo       Try extracting manually and re-run install.bat.
+    pause
+    exit /b 1
+)
+
+echo       Enabling site-packages in python._pth...
+:: Embeddable builds ship with `#import site` commented out in python3XX._pth,
+:: which prevents pip-installed packages (e.g. PySide6) from being importable.
+:: Uncomment it so Lib\site-packages\ is on sys.path.
+powershell -NoProfile -Command "Get-ChildItem -LiteralPath '%PYTHON_DIR%' -Filter 'python*._pth' | ForEach-Object { (Get-Content -LiteralPath $_.FullName) -replace '^#import site', 'import site' | Set-Content -LiteralPath $_.FullName -Encoding UTF8 }"
+
+echo       Bootstrapping pip via get-pip.py...
+set "GET_PIP=%TEMP_DIR%\get-pip.py"
+if exist "%GET_PIP%" del /q "%GET_PIP%" >nul 2>&1
+curl -L --progress-bar -o "%GET_PIP%" "%GET_PIP_URL%"
+if errorlevel 1 (
+    echo       curl failed, trying PowerShell...
+    powershell -NoProfile -Command "Invoke-WebRequest -Uri '%GET_PIP_URL%' -OutFile '%GET_PIP%'"
+)
+if not exist "%GET_PIP%" (
+    echo.
+    echo       [ERROR] get-pip.py download failed.
+    echo       Download manually: %GET_PIP_URL%
+    echo       Save as: %GET_PIP%
+    echo       Then re-run install.bat
+    pause
+    exit /b 1
+)
+"%PYTHON_DIR%\python.exe" "%GET_PIP%"
+if errorlevel 1 (
+    echo.
+    echo       [ERROR] pip bootstrap failed.
+    echo       Try running manually:
+    echo         "%PYTHON_DIR%\python.exe" "%GET_PIP%"
     pause
     exit /b 1
 )

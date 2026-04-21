@@ -1,25 +1,19 @@
 {
-  "version": "0.6.0",
+  "version": "0.6.1",
   "min_python": "3.10",
-  "release_notes": "共用模型從讀取共用升級到下載也共用",
+  "release_notes": "修正已裝過 Python 3.12.8 的電腦 install.bat 安裝失敗",
   "changes": [
-    "共用模型環境:節點自動下載的模型現在會直接寫入共用資料夾(透過 NTFS junction)",
-    "HuggingFace、torch.hub、insightface 等快取改指向專案內的 cache 目錄,多環境共用",
-    "啟用共用後,節點寫死路徑的下載也會落在共用區(過去只有讀取共用)",
-    "舊環境可透過把共用開關關掉再打開自動升級到新機制"
+    "修復在已安裝 Python 3.12.8 的電腦上 install.bat 不會建立 embedded Python 的問題(改用 embeddable zip 發行版)",
+    "install.bat 不再依賴 WiX 安裝器,改為直接解壓 zip 並以 get-pip.py 啟用 pip,避免系統已註冊同版本時被跳過"
   ],
   "changes_i18n": {
     "en": [
-      "Shared-model environments: node auto-downloads now land in the shared folder (via NTFS junction)",
-      "HuggingFace / torch.hub / insightface caches redirected to a project-scoped cache shared across environments",
-      "Nodes that hardcode ComfyUI/models/... paths now write into the shared folder when sharing is enabled",
-      "Existing environments upgrade automatically when the shared toggle is cycled off and on"
+      "Fix install.bat failing to create the embedded Python on machines that already have Python 3.12.8 registered (switched to the embeddable zip distribution)",
+      "install.bat no longer relies on the WiX bundle installer — extracts the embeddable zip and bootstraps pip via get-pip.py, so it is no longer skipped when the same Python version is already registered system-wide"
     ],
     "zh-TW": [
-      "共用模型環境:節點自動下載的模型現在會直接寫入共用資料夾(透過 NTFS junction)",
-      "HuggingFace、torch.hub、insightface 等快取改指向專案內的 cache 目錄,多環境共用",
-      "啟用共用後,節點寫死路徑的下載也會落在共用區(過去只有讀取共用)",
-      "舊環境可透過把共用開關關掉再打開自動升級到新機制"
+      "修復在已安裝 Python 3.12.8 的電腦上 install.bat 不會建立 embedded Python 的問題(改用 embeddable zip 發行版)",
+      "install.bat 不再依賴 WiX 安裝器,改為直接解壓 zip 並以 get-pip.py 啟用 pip,避免系統已註冊同版本時被跳過"
     ]
   }
 }
