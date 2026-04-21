@@ -328,33 +328,46 @@ class Bridge(QObject):
 
     # ── Launcher ──
 
-    @Slot(str, int, result=str)
-    def start_comfyui(self, env_name, port):
-        """Start ComfyUI with launch_settings applied as CLI args."""
-        from src.models.environment import Environment
-        from src.core.launch_config import build_launch_args, extract_launch_params
+    @Slot(str, str, int)
+    def start_comfyui(self, request_id, env_name, port):
+        """Start ComfyUI with launch_settings applied as CLI args (async).
 
-        try:
-            env = Environment.load_meta(str(self.environments_dir / env_name))
-            # Use get_effective_launch_settings() so that legacy env_meta.json files
-            # that have a raw "listen" IP but no "listen_enabled" key are migrated
-            # correctly (listen_enabled is derived from the listen string).  A plain
-            # {**LAUNCH_SETTINGS_DEFAULTS, **env.launch_settings} merge would return
-            # listen_enabled=False for those envs, silently falling back to localhost.
-            settings = env.get_effective_launch_settings()
-            extra_args = build_launch_args(settings)
-            params = extract_launch_params(settings)
+        Runs on a worker thread so the UI stays responsive. ``launcher.start``
+        performs several blocking operations (``pip freeze`` to verify
+        comfyui-manager, shared-model junction verification, ``subprocess.Popen``,
+        and a post-spawn sanity sleep) that together take ~5s on Windows — doing
+        them on the Qt UI thread was the cause of the visible freeze after the
+        "Run ComfyUI" click.
+        """
+        def _start():
+            from src.models.environment import Environment
+            from src.core.launch_config import build_launch_args, extract_launch_params
 
-            # Port: UI input takes precedence; fall back to settings if UI sends 0
-            effective_port = int(port) if int(port) != 0 else params["port"]
-            auto_open = params["auto_open"]
+            try:
+                env = Environment.load_meta(str(self.environments_dir / env_name))
+                # Use get_effective_launch_settings() so that legacy env_meta.json
+                # files that have a raw "listen" IP but no "listen_enabled" key
+                # are migrated correctly (listen_enabled is derived from the
+                # listen string).  A plain {**LAUNCH_SETTINGS_DEFAULTS,
+                # **env.launch_settings} merge would return
+                # listen_enabled=False for those envs, silently falling back to
+                # localhost.
+                settings = env.get_effective_launch_settings()
+                extra_args = build_launch_args(settings)
+                params = extract_launch_params(settings)
 
-            return self._safe_call(
-                self.launcher.start, env_name, effective_port, extra_args, auto_open
-            )
-        except FileNotFoundError:
-            # Fallback: no env_meta.json — launch with defaults
-            return self._safe_call(self.launcher.start, env_name, int(port))
+                # Port: UI input takes precedence; fall back to settings if UI sends 0
+                effective_port = int(port) if int(port) != 0 else params["port"]
+                auto_open = params["auto_open"]
+
+                return self.launcher.start(
+                    env_name, effective_port, extra_args, auto_open
+                )
+            except FileNotFoundError:
+                # Fallback: no env_meta.json — launch with defaults
+                return self.launcher.start(env_name, int(port))
+
+        self._run_async(request_id, _start)
 
     @Slot(str, result=str)
     def stop_comfyui(self, env_name):
@@ -421,17 +434,23 @@ class Bridge(QObject):
         packages = json.loads(packages_json)
         self._run_async(request_id, self.diagnostics.install_missing_packages, env_name, packages)
 
-    @Slot(int, result=str)
-    def open_browser(self, port):
-        """Open browser to the running env's URL.
+    @Slot(str, int)
+    def open_browser(self, request_id, port):
+        """Open browser to the running env's URL (async).
+
+        Runs on a worker thread: ``launcher.list_running()`` performs a psutil
+        process/port scan across every env (slow on Windows), and
+        ``webbrowser.open()`` invokes ShellExecute (another 1-2s on first call).
+        Doing both on the Qt UI thread was the cause of the visible 3-5s freeze
+        after clicking "Open Webpage".
 
         If the running env was started with --listen on a non-loopback IP,
         list_running() reports a lan_url — we open that so the address bar
         shows an IP another machine can reach. Otherwise fall back to
         localhost.
         """
-        import webbrowser
-        try:
+        def _open():
+            import webbrowser
             target = f"http://localhost:{port}"
             try:
                 for entry in self.launcher.list_running() or []:
@@ -441,9 +460,9 @@ class Bridge(QObject):
             except Exception:
                 pass  # any lookup error → keep localhost fallback
             webbrowser.open(target)
-            return json.dumps({"success": True})
-        except Exception as e:
-            return json.dumps({"error": str(e)})
+            return {"success": True, "url": target}
+
+        self._run_async(request_id, _open)
 
     # ── Snapshots ──
 

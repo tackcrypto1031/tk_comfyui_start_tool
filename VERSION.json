@@ -1,28 +1,19 @@
 {
-  "version": "0.6.4",
+  "version": "0.6.5",
   "min_python": "3.10",
-  "release_notes": "完善中英介面切換,修正首頁等多處未翻譯的中文字串",
+  "release_notes": "修復點擊「運行 ComfyUI」與「開啟網頁」時整個工具卡住數秒的問題",
   "changes": [
-    "完善語言切換:首頁 hero 副標、當前環境標籤、環境 pill 狀態文字,切換英文時正確顯示",
-    "側邊欄分區標題(工作區/管理/其他)與指令面板 placeholder 現已支援中英切換",
-    "版本管理頁的「當前 commit」、「已是最新」、「個 commit 落後」與空狀態提示支援中英切換",
-    "插件管理頁搜尋框 placeholder、狀態 chip(啟用/停用/更新)、啟用比例支援中英切換",
-    "快照與環境列表的數量標籤改為使用 i18n"
+    "首頁點「運行 ComfyUI」不再卡住 UI 約 5 秒(pip freeze、junction 驗證、Popen 等移到背景執行緒)",
+    "運行列表與首頁點「開啟網頁」不再卡住 UI 約 3-5 秒(list_running 掃描與 webbrowser.open 移到背景執行緒)"
   ],
   "changes_i18n": {
     "en": [
-      "Fix missing translations on the Home page hero, current-env label, and env pill status — English mode now displays all UI strings in English",
-      "Sidebar section headers (Workspace/Manage/Other) and command palette placeholder are now localized",
-      "Versions page: current commit label, 'Up to date', 'commits behind', and empty-state hint now switch with language",
-      "Plugins page: search placeholder, status chips (enabled/disabled/update), and enabled ratio are now localized",
-      "Snapshot count and environment count summaries now use i18n keys"
+      "Home page 'Run ComfyUI' no longer freezes the UI for ~5s — pip freeze, shared-model junction verification, and subprocess launch now run on a worker thread",
+      "Home page and running list 'Open Webpage' no longer freezes the UI for 3-5s — list_running psutil scan and webbrowser.open now run on a worker thread"
     ],
     "zh-TW": [
-      "完善語言切換:首頁 hero 副標、當前環境標籤、環境 pill 狀態文字,切換英文時正確顯示",
-      "側邊欄分區標題(工作區/管理/其他)與指令面板 placeholder 現已支援中英切換",
-      "版本管理頁的「當前 commit」、「已是最新」、「個 commit 落後」與空狀態提示支援中英切換",
-      "插件管理頁搜尋框 placeholder、狀態 chip(啟用/停用/更新)、啟用比例支援中英切換",
-      "快照與環境列表的數量標籤改為使用 i18n"
+      "首頁點「運行 ComfyUI」不再卡住 UI 約 5 秒(pip freeze、junction 驗證、Popen 等移到背景執行緒)",
+      "運行列表與首頁點「開啟網頁」不再卡住 UI 約 3-5 秒(list_running 掃描與 webbrowser.open 移到背景執行緒)"
     ]
   }
 }

@@ -155,11 +155,19 @@ var BridgeAPI = (function() {
         updateComfyUI: function(envName) { return callAsync('update_comfyui', envName); },
 
         // Launcher
-        startComfyUI: function(envName, port) { return callSlot('start_comfyui', envName, port); },
+        // start_comfyui is async: launcher.start() runs pip_ops.freeze (subprocess),
+        // shared-model verify, Popen, and a 0.5s sanity sleep — ~5s of blocking
+        // work moved off the Qt UI thread.  Use a generous timeout to cover
+        // cold-start scenarios where first-time package checks can take longer.
+        startComfyUI: function(envName, port) {
+            return callAsync('start_comfyui', envName, port || 0, {timeoutMinutes: 5});
+        },
         stopComfyUI: function(envName) { return callSlot('stop_comfyui', envName); },
         getLaunchStatus: function(envName) { return callSlot('get_launch_status', envName); },
         listRunning: function() { return callSlot('list_running'); },
-        openBrowser: function(port) { return callSlot('open_browser', port); },
+        // open_browser is async: it calls list_running() (psutil scan) and then
+        // webbrowser.open() (ShellExecute on Windows) — 3-5s on the UI thread.
+        openBrowser: function(port) { return callAsync('open_browser', port); },
 
         // Launch Settings
         getLaunchSettings: function(envName) { return callSlot('get_launch_settings', envName); },
