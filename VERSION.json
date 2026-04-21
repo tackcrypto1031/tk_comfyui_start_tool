@@ -1,19 +1,19 @@
 {
-  "version": "0.6.2",
+  "version": "0.6.3",
   "min_python": "3.10",
-  "release_notes": "修正 install.bat embeddable 安裝時 python._pth 被加上 BOM 導致啟動失敗",
+  "release_notes": "修正 embeddable Python 下 launcher.py/cli.py 找不到 src 套件的問題",
   "changes": [
-    "修復 install.bat 改用 embeddable zip 後,python._pth 被寫入 UTF-8 BOM,造成 python.exe 啟動時找不到 stdlib(ModuleNotFoundError: No module named 'encodings')",
-    "修復在已安裝 Python 3.12.8 的電腦上 install.bat 不會建立 embedded Python 的問題(改用 embeddable zip 發行版)"
+    "修復 embeddable Python 啟動時,launcher.py 與 cli.py 因 safe_path=1 不會自動將專案根目錄加入 sys.path,導致 ModuleNotFoundError: No module named 'src'",
+    "修復 install.bat 改用 embeddable zip 後,python._pth 被寫入 UTF-8 BOM,造成 python.exe 啟動失敗"
   ],
   "changes_i18n": {
     "en": [
-      "Fix install.bat writing a UTF-8 BOM into python._pth after switching to the embeddable zip, which broke python.exe startup with 'ModuleNotFoundError: No module named encodings'",
-      "Fix install.bat failing to create the embedded Python on machines that already have Python 3.12.8 registered (switched to the embeddable zip distribution)"
+      "Fix ModuleNotFoundError: No module named 'src' when launching under the embeddable Python — launcher.py and cli.py now explicitly put the project root on sys.path (embeddable's ._pth sets safe_path=1 which suppresses the default script-dir entry)",
+      "Fix install.bat writing a UTF-8 BOM into python._pth which broke python.exe startup with 'ModuleNotFoundError: No module named encodings'"
     ],
     "zh-TW": [
-      "修復 install.bat 改用 embeddable zip 後,python._pth 被寫入 UTF-8 BOM,造成 python.exe 啟動時找不到 stdlib(ModuleNotFoundError: No module named 'encodings')",
-      "修復在已安裝 Python 3.12.8 的電腦上 install.bat 不會建立 embedded Python 的問題(改用 embeddable zip 發行版)"
+      "修復 embeddable Python 啟動時,launcher.py 與 cli.py 因 safe_path=1 不會自動將專案根目錄加入 sys.path,導致 ModuleNotFoundError: No module named 'src'",
+      "修復 install.bat 改用 embeddable zip 後,python._pth 被寫入 UTF-8 BOM,造成 python.exe 啟動失敗"
     ]
   }
 }

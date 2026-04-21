@@ -4,8 +4,16 @@ import sys
 import ctypes
 from pathlib import Path
 
+# Ensure project root is on sys.path so `src.*` imports work under the
+# embeddable Python distribution used by install.bat. The embeddable build
+# ships a ._pth file that sets safe_path=1, which suppresses the default
+# "script directory on sys.path" behavior.
+_root = Path(__file__).resolve().parent
+_root_str = str(_root)
+if _root_str not in sys.path:
+    sys.path.insert(0, _root_str)
+
 # Set up embedded tools paths (must be before any gitpython import)
-_root = Path(__file__).parent
 _tools_git = _root / "tools" / "git" / "cmd" / "git.exe"
 if _tools_git.exists():
     os.environ["GIT_PYTHON_GIT_EXECUTABLE"] = str(_tools_git)

@@ -1,6 +1,13 @@
 """CLI entry point for tack_comfyui_start_tool."""
 import json
+import sys
 from pathlib import Path
+
+# Ensure project root is on sys.path when invoked directly under the
+# embeddable Python (safe_path=1 suppresses the default script-dir entry).
+_root_str = str(Path(__file__).resolve().parent)
+if _root_str not in sys.path:
+    sys.path.insert(0, _root_str)
 
 import click
 from rich.console import Console
