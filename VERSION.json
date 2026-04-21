@@ -1,19 +1,19 @@
 {
-  "version": "0.6.1",
+  "version": "0.6.2",
   "min_python": "3.10",
-  "release_notes": "修正已裝過 Python 3.12.8 的電腦 install.bat 安裝失敗",
+  "release_notes": "修正 install.bat embeddable 安裝時 python._pth 被加上 BOM 導致啟動失敗",
   "changes": [
-    "修復在已安裝 Python 3.12.8 的電腦上 install.bat 不會建立 embedded Python 的問題(改用 embeddable zip 發行版)",
-    "install.bat 不再依賴 WiX 安裝器,改為直接解壓 zip 並以 get-pip.py 啟用 pip,避免系統已註冊同版本時被跳過"
+    "修復 install.bat 改用 embeddable zip 後,python._pth 被寫入 UTF-8 BOM,造成 python.exe 啟動時找不到 stdlib(ModuleNotFoundError: No module named 'encodings')",
+    "修復在已安裝 Python 3.12.8 的電腦上 install.bat 不會建立 embedded Python 的問題(改用 embeddable zip 發行版)"
   ],
   "changes_i18n": {
     "en": [
-      "Fix install.bat failing to create the embedded Python on machines that already have Python 3.12.8 registered (switched to the embeddable zip distribution)",
-      "install.bat no longer relies on the WiX bundle installer — extracts the embeddable zip and bootstraps pip via get-pip.py, so it is no longer skipped when the same Python version is already registered system-wide"
+      "Fix install.bat writing a UTF-8 BOM into python._pth after switching to the embeddable zip, which broke python.exe startup with 'ModuleNotFoundError: No module named encodings'",
+      "Fix install.bat failing to create the embedded Python on machines that already have Python 3.12.8 registered (switched to the embeddable zip distribution)"
     ],
     "zh-TW": [
-      "修復在已安裝 Python 3.12.8 的電腦上 install.bat 不會建立 embedded Python 的問題(改用 embeddable zip 發行版)",
-      "install.bat 不再依賴 WiX 安裝器,改為直接解壓 zip 並以 get-pip.py 啟用 pip,避免系統已註冊同版本時被跳過"
+      "修復 install.bat 改用 embeddable zip 後,python._pth 被寫入 UTF-8 BOM,造成 python.exe 啟動時找不到 stdlib(ModuleNotFoundError: No module named 'encodings')",
+      "修復在已安裝 Python 3.12.8 的電腦上 install.bat 不會建立 embedded Python 的問題(改用 embeddable zip 發行版)"
     ]
   }
 }

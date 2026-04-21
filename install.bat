@@ -73,7 +73,12 @@ echo       Enabling site-packages in python._pth...
 :: Embeddable builds ship with `#import site` commented out in python3XX._pth,
 :: which prevents pip-installed packages (e.g. PySide6) from being importable.
 :: Uncomment it so Lib\site-packages\ is on sys.path.
-powershell -NoProfile -Command "Get-ChildItem -LiteralPath '%PYTHON_DIR%' -Filter 'python*._pth' | ForEach-Object { (Get-Content -LiteralPath $_.FullName) -replace '^#import site', 'import site' | Set-Content -LiteralPath $_.FullName -Encoding UTF8 }"
+:: Must write the file back WITHOUT a BOM. `Set-Content -Encoding UTF8` in
+:: Windows PowerShell 5.1 prepends a BOM, which corrupts the first line of
+:: python*._pth (e.g. `python312.zip`) and makes Python fail to locate the
+:: stdlib zip with "ModuleNotFoundError: No module named 'encodings'".
+:: The file is pure ASCII, so -Encoding ASCII is safe and BOM-free.
+powershell -NoProfile -Command "Get-ChildItem -LiteralPath '%PYTHON_DIR%' -Filter 'python*._pth' | ForEach-Object { (Get-Content -LiteralPath $_.FullName) -replace '^#import site', 'import site' | Set-Content -LiteralPath $_.FullName -Encoding ASCII }"
 
 echo       Bootstrapping pip via get-pip.py...
 set "GET_PIP=%TEMP_DIR%\get-pip.py"
