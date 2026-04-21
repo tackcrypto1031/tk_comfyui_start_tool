@@ -103,14 +103,15 @@
         return BridgeAPI.listRunning().then(function(running) {
             var runMap = {};
             (running || []).forEach(function(r) {
-                var name = typeof r === 'string' ? r : (r.name || r.env || '');
+                var name = typeof r === 'string' ? r : (r.env_name || r.name || r.env || '');
                 if (!name) return;
                 runMap[name] = r && typeof r === 'object' ? r : { name: name };
             });
             return envs.map(function(e) {
-                if (runMap[e.name]) {
-                    e.status = 'running';
-                    if (runMap[e.name].port) e.port = runMap[e.name].port;
+                var r = runMap[e.name];
+                if (r) {
+                    e.status = r.status === 'starting' ? 'starting' : 'running';
+                    if (r.port) e.port = r.port;
                 }
                 return e;
             });

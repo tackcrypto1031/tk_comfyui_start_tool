@@ -1,16 +1,16 @@
 {
-  "version": "0.6.6",
+  "version": "0.6.7",
   "min_python": "3.10",
-  "release_notes": "修復「建立環境」對話框跳出後閃爍、短暫消失的問題",
+  "release_notes": "修復啟動環境後狀態小點仍顯示灰色的問題",
   "changes": [
-    "「建立環境」對話框不再閃爍消失 — GPU 偵測(nvidia-smi 子程序)改為背景執行緒,避免 Qt UI 執行緒被阻塞導致 modal 動畫中斷"
+    "啟動 ComfyUI 後,左側側邊欄與環境管理頁的環境名稱旁狀態小點正確由灰轉綠(前端合併 list_running 結果時的欄位名稱錯配已修正,環境管理頁也會一併讀取執行中清單)"
   ],
   "changes_i18n": {
     "en": [
-      "'Create environment' dialog no longer flickers — GPU detection (nvidia-smi subprocess) now runs on a worker thread so the Qt UI thread stays responsive while the initial loading modal is shown"
+      "Fixed environment status dot staying grey after launch — sidebar pill and the environments page now correctly turn green (sidebar merge looked up the wrong field from list_running, and the environments page did not merge running state at all)"
     ],
     "zh-TW": [
-      "「建立環境」對話框不再閃爍消失 — GPU 偵測(nvidia-smi 子程序)改為背景執行緒,避免 Qt UI 執行緒被阻塞導致 modal 動畫中斷"
+      "啟動 ComfyUI 後,左側側邊欄與環境管理頁的環境名稱旁狀態小點正確由灰轉綠(前端合併 list_running 結果時的欄位名稱錯配已修正,環境管理頁也會一併讀取執行中清單)"
     ]
   }
 }

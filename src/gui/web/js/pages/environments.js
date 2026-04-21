@@ -284,10 +284,32 @@
 
     let selectedEnvName = null;
 
+    function fetchRunningMap() {
+        if (!BridgeAPI || !BridgeAPI.listRunning) return Promise.resolve({});
+        return BridgeAPI.listRunning().then(function(running) {
+            var map = {};
+            (running || []).forEach(function(r) {
+                var name = typeof r === 'string' ? r : (r.env_name || r.name || r.env || '');
+                if (!name) return;
+                map[name] = r && typeof r === 'object' ? r : { name: name };
+            });
+            return map;
+        }).catch(function() { return {}; });
+    }
+
     function loadEnvironments() {
         const statusEl = document.getElementById('env-status');
         statusEl.textContent = t('loading');
-        BridgeAPI.listEnvironments().then(function(envs) {
+        Promise.all([BridgeAPI.listEnvironments(), fetchRunningMap()]).then(function(results) {
+            var envs = results[0] || [];
+            var runMap = results[1] || {};
+            envs.forEach(function(env) {
+                var r = runMap[env.name];
+                if (r) {
+                    env.status = r.status === 'starting' ? 'starting' : 'running';
+                    if (r.port) env.port = r.port;
+                }
+            });
             const tbody = document.getElementById('env-table-body');
             tbody.innerHTML = '';
 
