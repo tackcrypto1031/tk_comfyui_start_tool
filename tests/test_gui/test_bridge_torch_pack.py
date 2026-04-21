@@ -63,13 +63,38 @@ def test_list_addons_returns_curated_list(bridge_config):
     assert "sage-attention" in ids
 
 
+def _inline_async_bridge(b):
+    """Run AsyncWorker functions inline so detect_gpu_for_recommended can be
+    driven synchronously from tests (mirrors test_bridge_open_browser)."""
+
+    def _inline_run_async(request_id, fn, *args, **kwargs):
+        try:
+            result = fn(*args, **kwargs)
+            b._result_queue[request_id] = json.dumps(
+                {"success": True, "data": result}, default=str, ensure_ascii=False
+            )
+        except Exception as e:  # pragma: no cover
+            b._result_queue[request_id] = json.dumps({"error": str(e)})
+
+    b._run_async = _inline_run_async
+    return b
+
+
+def _call_detect_gpu(bridge, request_id="test-req"):
+    bridge.detect_gpu_for_recommended(request_id)
+    raw = bridge._result_queue.get(request_id)
+    assert raw is not None, "async worker did not produce a result"
+    outer = json.loads(raw)
+    return outer.get("data", outer)
+
+
 def test_detect_gpu_for_recommended_happy(bridge_config, monkeypatch):
-    b = Bridge(bridge_config)
+    b = _inline_async_bridge(Bridge(bridge_config))
     monkeypatch.setattr(
         "src.core.version_manager.VersionManager.detect_gpu",
         lambda self: {"has_gpu": True, "cuda_driver_version": "13.0"},
     )
-    result = json.loads(b.detect_gpu_for_recommended())
+    result = _call_detect_gpu(b)
     assert result["ok"] is True
     assert result["has_gpu"] is True
     assert result["recommended_pack_id"] == "p-new"
@@ -77,12 +102,12 @@ def test_detect_gpu_for_recommended_happy(bridge_config, monkeypatch):
 
 
 def test_detect_gpu_for_recommended_no_gpu(bridge_config, monkeypatch):
-    b = Bridge(bridge_config)
+    b = _inline_async_bridge(Bridge(bridge_config))
     monkeypatch.setattr(
         "src.core.version_manager.VersionManager.detect_gpu",
         lambda self: {"has_gpu": False},
     )
-    result = json.loads(b.detect_gpu_for_recommended())
+    result = _call_detect_gpu(b)
     assert result["ok"] is True
     assert result["has_gpu"] is False
     assert result["recommended_pack_id"] is None

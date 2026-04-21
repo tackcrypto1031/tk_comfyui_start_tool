@@ -1132,24 +1132,27 @@ class Bridge(QObject):
             logger.error(f"refresh_addons_remote error: {exc}")
             return json.dumps({"ok": False, "error": str(exc)})
 
-    @Slot(result=str)
-    def detect_gpu_for_recommended(self) -> str:
-        """Pre-flight GPU check used by the Create Recommended dialog."""
-        try:
+    @Slot(str)
+    def detect_gpu_for_recommended(self, request_id: str) -> None:
+        """Pre-flight GPU check used by the Create Recommended dialog (async).
+
+        detect_gpu() runs nvidia-smi as a subprocess (up to 10s timeout), so it
+        must run off the Qt UI thread — otherwise the Create dialog's initial
+        loading modal appears to freeze/flicker while the slot is blocked.
+        """
+        def _detect():
             from src.core.version_manager import VersionManager
             gpu = VersionManager(self.config).detect_gpu()
             mgr = self._torch_pack_mgr()
             pack = mgr.select_pack_for_gpu(gpu)
-            return json.dumps({
+            return {
                 "ok": True,
                 "has_gpu": gpu.get("has_gpu", False),
                 "driver_version": gpu.get("cuda_driver_version", ""),
                 "recommended_pack_id": pack.id if pack else None,
                 "recommended_pack_label": pack.label if pack else None,
-            })
-        except Exception as exc:
-            logger.error(f"detect_gpu_for_recommended error: {exc}")
-            return json.dumps({"ok": False, "error": str(exc)})
+            }
+        self._run_async(request_id, _detect)
 
     @Slot(str, str, str)
     def create_recommended_env(

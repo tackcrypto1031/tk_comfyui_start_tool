@@ -1,19 +1,16 @@
 {
-  "version": "0.6.5",
+  "version": "0.6.6",
   "min_python": "3.10",
-  "release_notes": "修復點擊「運行 ComfyUI」與「開啟網頁」時整個工具卡住數秒的問題",
+  "release_notes": "修復「建立環境」對話框跳出後閃爍、短暫消失的問題",
   "changes": [
-    "首頁點「運行 ComfyUI」不再卡住 UI 約 5 秒(pip freeze、junction 驗證、Popen 等移到背景執行緒)",
-    "運行列表與首頁點「開啟網頁」不再卡住 UI 約 3-5 秒(list_running 掃描與 webbrowser.open 移到背景執行緒)"
+    "「建立環境」對話框不再閃爍消失 — GPU 偵測(nvidia-smi 子程序)改為背景執行緒,避免 Qt UI 執行緒被阻塞導致 modal 動畫中斷"
   ],
   "changes_i18n": {
     "en": [
-      "Home page 'Run ComfyUI' no longer freezes the UI for ~5s — pip freeze, shared-model junction verification, and subprocess launch now run on a worker thread",
-      "Home page and running list 'Open Webpage' no longer freezes the UI for 3-5s — list_running psutil scan and webbrowser.open now run on a worker thread"
+      "'Create environment' dialog no longer flickers — GPU detection (nvidia-smi subprocess) now runs on a worker thread so the Qt UI thread stays responsive while the initial loading modal is shown"
     ],
     "zh-TW": [
-      "首頁點「運行 ComfyUI」不再卡住 UI 約 5 秒(pip freeze、junction 驗證、Popen 等移到背景執行緒)",
-      "運行列表與首頁點「開啟網頁」不再卡住 UI 約 3-5 秒(list_running 掃描與 webbrowser.open 移到背景執行緒)"
+      "「建立環境」對話框不再閃爍消失 — GPU 偵測(nvidia-smi 子程序)改為背景執行緒,避免 Qt UI 執行緒被阻塞導致 modal 動畫中斷"
     ]
   }
 }

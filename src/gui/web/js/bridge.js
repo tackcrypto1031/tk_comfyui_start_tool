@@ -264,7 +264,10 @@ var BridgeAPI = (function() {
         uninstallAddon: function(envName, addonId, onProgress) {
             return callAsync('uninstall_addon', envName, addonId, {onProgress: onProgress, timeoutMinutes: 30});
         },
-        detectGpuForRecommended: function() { return callSlot('detect_gpu_for_recommended'); },
+        // detect_gpu_for_recommended runs nvidia-smi (up to 10s) — must be async
+        // so the Qt UI thread doesn't freeze while the Create dialog's loading
+        // modal is showing (caused the modal to flicker / disappear momentarily).
+        detectGpuForRecommended: function() { return callAsync('detect_gpu_for_recommended'); },
         createRecommendedEnv: function(name, addonIds, onProgress) {
             return callAsync('create_recommended_env', name, JSON.stringify(addonIds), {onProgress: onProgress, timeoutMinutes: 60});
         },
