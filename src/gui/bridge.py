@@ -522,10 +522,24 @@ class Bridge(QObject):
             }
         self._run_async(request_id, _analyze)
 
-    @Slot(str, result=str)
-    def list_plugins(self, env_name):
-        """List custom nodes for an environment. Returns JSON array."""
-        return self._safe_call(self.env_manager.list_custom_nodes, env_name)
+    @Slot(str, str)
+    def list_plugins(self, request_id, env_name):
+        """List custom nodes for an environment (async, no remote update check).
+
+        Runs on a worker thread so the UI stays responsive. The remote update
+        check is skipped here — call ``check_plugin_updates`` afterwards to
+        populate ``has_update`` flags lazily.
+        """
+        def _list():
+            return self.env_manager.list_custom_nodes(env_name, check_updates=False)
+        self._run_async(request_id, _list)
+
+    @Slot(str, str)
+    def check_plugin_updates(self, request_id, env_name):
+        """Probe remote origin for update flags per enabled plugin (async)."""
+        def _check():
+            return self.env_manager.check_plugin_remote_updates(env_name)
+        self._run_async(request_id, _check)
 
     @Slot(str, str, str)
     def install_plugin(self, request_id, env_name, git_url):

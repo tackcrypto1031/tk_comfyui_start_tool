@@ -1354,11 +1354,16 @@ class EnvManager:
     # Plugin / custom-node management
     # ------------------------------------------------------------------
 
-    def list_custom_nodes(self, env_name: str) -> list:
+    def list_custom_nodes(self, env_name: str, check_updates: bool = True) -> list:
         """Return a list of custom nodes for env_name, reconciling disk vs meta.
 
         Each item is a dict:
-            {name: str, status: "enabled"|"disabled"|"untracked", repo_url: str, commit: str}
+            {name: str, status: "enabled"|"disabled"|"untracked", repo_url: str, commit: str,
+             has_update: bool|None}
+
+        When ``check_updates`` is False, ``has_update`` is always None and no network
+        calls are made — required to keep the listing fast enough for the UI thread.
+        Use :meth:`check_plugin_remote_updates` to fetch update flags in the background.
         """
         env_dir = Path(self.config["environments_dir"]) / env_name
         custom_nodes_dir = env_dir / "ComfyUI" / "custom_nodes"
@@ -1416,7 +1421,7 @@ class EnvManager:
                 status = "enabled"
 
             has_update = None
-            if status == "enabled" and entry.get("repo_url"):
+            if check_updates and status == "enabled" and entry.get("repo_url"):
                 node_path = custom_nodes_dir / entry["name"]
                 if node_path.exists():
                     has_update = git_ops.has_remote_updates(str(node_path))
@@ -1430,6 +1435,36 @@ class EnvManager:
             })
 
         return result
+
+    def check_plugin_remote_updates(self, env_name: str) -> dict:
+        """Probe remote origin for each enabled, tracked plugin and return update flags.
+
+        Returns a dict ``{node_name: bool|None}`` — True when the remote head differs
+        from local HEAD, False when equal, None when undetermined (no repo_url,
+        detached HEAD, network error, etc.). Always performs network I/O — call from
+        a worker thread only, never from the Qt UI thread.
+        """
+        env_dir = Path(self.config["environments_dir"]) / env_name
+        custom_nodes_dir = env_dir / "ComfyUI" / "custom_nodes"
+        try:
+            env = Environment.load_meta(str(env_dir))
+        except Exception:
+            return {}
+
+        results: dict = {}
+        for entry in env.custom_nodes:
+            if not entry.get("enabled"):
+                continue
+            if not entry.get("repo_url"):
+                continue
+            node_path = custom_nodes_dir / entry["name"]
+            if not node_path.exists():
+                continue
+            try:
+                results[entry["name"]] = git_ops.has_remote_updates(str(node_path))
+            except Exception:
+                results[entry["name"]] = None
+        return results
 
     def disable_custom_node(self, env_name: str, node_name: str) -> None:
         """Rename custom_nodes/{node_name} -> {node_name}.disabled and update meta."""

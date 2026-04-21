@@ -179,7 +179,8 @@ var BridgeAPI = (function() {
 
         // Plugins
         analyzePlugin: function(envName, pluginPath) { return callAsync('analyze_plugin', envName, pluginPath); },
-        listPlugins: function(envName) { return callSlot('list_plugins', envName); },
+        listPlugins: function(envName) { return callAsync('list_plugins', envName); },
+        checkPluginUpdates: function(envName) { return callAsync('check_plugin_updates', envName); },
         installPlugin: function(envName, gitUrl, onProgress) {
             return callAsync('install_plugin', envName, gitUrl, {onProgress: onProgress, timeoutMinutes: 30});
         },

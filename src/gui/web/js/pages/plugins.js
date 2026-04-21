@@ -8,6 +8,7 @@
     var _filter = '';
     var _lastRiskLevel = null;
     var _installOpen = false;
+    var _updateCheckToken = 0;
 
     function render(container) {
         container.innerHTML =
@@ -125,11 +126,29 @@
     function loadPlugins() {
         var envName = document.getElementById('plug-env').value;
         if (!envName) { renderList(); return; }
+        // Invalidate any in-flight background update-check for a previous env
+        var token = ++_updateCheckToken;
         document.getElementById('plug-status').textContent = t('loading');
         BridgeAPI.listPlugins(envName).then(function(plugins) {
             _plugins = plugins || [];
             document.getElementById('plug-status').textContent = '';
             renderList();
+            // Fire remote-update probe in the background; patch rows when it returns.
+            if (BridgeAPI.checkPluginUpdates) {
+                BridgeAPI.checkPluginUpdates(envName).then(function(updates) {
+                    if (token !== _updateCheckToken) return;
+                    if (document.getElementById('plug-env').value !== envName) return;
+                    if (!updates) return;
+                    var changed = false;
+                    _plugins.forEach(function(p) {
+                        if (p && p.name && Object.prototype.hasOwnProperty.call(updates, p.name)) {
+                            p.has_update = updates[p.name];
+                            changed = true;
+                        }
+                    });
+                    if (changed) renderList();
+                }).catch(function() { /* non-fatal: leave has_update null */ });
+            }
         }).catch(function(e) {
             document.getElementById('plug-status').textContent = t('error') + ': ' + e;
         });
