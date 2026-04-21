@@ -294,7 +294,7 @@
             // Update summary sub-heading
             var sub = document.getElementById('env-sub');
             if (sub) {
-                sub.textContent = (t('env_manage_desc') || '管理你的 ComfyUI 安裝環境') + ' · ' + envs.length + ' 個';
+                sub.textContent = t('env_manage_desc') + ' · ' + t('env_count').replace('{}', envs.length);
             }
 
             envs.forEach(env => {

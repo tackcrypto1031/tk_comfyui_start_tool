@@ -190,8 +190,8 @@
         var st = e.status;
         var statusLabel = st === 'running' ? 'RUNNING' : st === 'starting' ? 'STARTING' : 'READY';
         var subText = st === 'running'
-            ? ('ComfyUI 已在 port ' + e.port + ' 運行。點擊右側按鈕在瀏覽器中開啟。')
-            : '一鍵啟動 ComfyUI — 你的模型與輸出都已經準備好。';
+            ? t('home_sub_running').replace('{0}', e.port)
+            : t('home_sub_ready');
 
         var launchHtml = '';
         if (st === 'stopped') {
@@ -229,7 +229,7 @@
                     '<div class="ti-hero-col">' +
                         '<div class="ti-hero-eyebrow">' +
                             '<span class="dot ' + (st === 'running' ? 'on' : '') + '"></span>' +
-                            '<span>當前環境 · ' + statusLabel + '</span>' +
+                            '<span>' + safeText(t('home_current_env_label')) + ' · ' + statusLabel + '</span>' +
                         '</div>' +
                         '<h1 class="ti-hero-title">' +
                             safeText(t('home_hello')) + '<br/>' +
@@ -369,8 +369,8 @@
         document.getElementById('ti-env-pill-name').textContent = e.name;
         var meta = document.getElementById('ti-env-pill-meta');
         meta.textContent = e.status === 'running'
-            ? (':' + e.port + ' · 運行中')
-            : e.status === 'starting' ? '啟動中...' : e.branch;
+            ? t('home_pill_meta_running').replace('{0}', e.port)
+            : e.status === 'starting' ? t('home_pill_meta_starting') : e.branch;
 
         if (!pill._tiBound) {
             pill._tiBound = true;
@@ -414,7 +414,7 @@
         '<div class="ti-env-menu-sep"></div>' +
         '<div class="ti-env-menu-action" id="ti-env-menu-new">' +
             '<span class="material-symbols-outlined" style="font-size:14px">add</span>' +
-            '<span>建立新環境</span>' +
+            '<span>' + safeText(t('home_create_new_env')) + '</span>' +
         '</div>';
 
         menu.querySelectorAll('.ti-env-menu-item').forEach(function(it) {

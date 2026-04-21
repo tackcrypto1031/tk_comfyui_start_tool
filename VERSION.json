@@ -1,19 +1,28 @@
 {
-  "version": "0.6.3",
+  "version": "0.6.4",
   "min_python": "3.10",
-  "release_notes": "修正 embeddable Python 下 launcher.py/cli.py 找不到 src 套件的問題",
+  "release_notes": "完善中英介面切換,修正首頁等多處未翻譯的中文字串",
   "changes": [
-    "修復 embeddable Python 啟動時,launcher.py 與 cli.py 因 safe_path=1 不會自動將專案根目錄加入 sys.path,導致 ModuleNotFoundError: No module named 'src'",
-    "修復 install.bat 改用 embeddable zip 後,python._pth 被寫入 UTF-8 BOM,造成 python.exe 啟動失敗"
+    "完善語言切換:首頁 hero 副標、當前環境標籤、環境 pill 狀態文字,切換英文時正確顯示",
+    "側邊欄分區標題(工作區/管理/其他)與指令面板 placeholder 現已支援中英切換",
+    "版本管理頁的「當前 commit」、「已是最新」、「個 commit 落後」與空狀態提示支援中英切換",
+    "插件管理頁搜尋框 placeholder、狀態 chip(啟用/停用/更新)、啟用比例支援中英切換",
+    "快照與環境列表的數量標籤改為使用 i18n"
   ],
   "changes_i18n": {
     "en": [
-      "Fix ModuleNotFoundError: No module named 'src' when launching under the embeddable Python — launcher.py and cli.py now explicitly put the project root on sys.path (embeddable's ._pth sets safe_path=1 which suppresses the default script-dir entry)",
-      "Fix install.bat writing a UTF-8 BOM into python._pth which broke python.exe startup with 'ModuleNotFoundError: No module named encodings'"
+      "Fix missing translations on the Home page hero, current-env label, and env pill status — English mode now displays all UI strings in English",
+      "Sidebar section headers (Workspace/Manage/Other) and command palette placeholder are now localized",
+      "Versions page: current commit label, 'Up to date', 'commits behind', and empty-state hint now switch with language",
+      "Plugins page: search placeholder, status chips (enabled/disabled/update), and enabled ratio are now localized",
+      "Snapshot count and environment count summaries now use i18n keys"
     ],
     "zh-TW": [
-      "修復 embeddable Python 啟動時,launcher.py 與 cli.py 因 safe_path=1 不會自動將專案根目錄加入 sys.path,導致 ModuleNotFoundError: No module named 'src'",
-      "修復 install.bat 改用 embeddable zip 後,python._pth 被寫入 UTF-8 BOM,造成 python.exe 啟動失敗"
+      "完善語言切換:首頁 hero 副標、當前環境標籤、環境 pill 狀態文字,切換英文時正確顯示",
+      "側邊欄分區標題(工作區/管理/其他)與指令面板 placeholder 現已支援中英切換",
+      "版本管理頁的「當前 commit」、「已是最新」、「個 commit 落後」與空狀態提示支援中英切換",
+      "插件管理頁搜尋框 placeholder、狀態 chip(啟用/停用/更新)、啟用比例支援中英切換",
+      "快照與環境列表的數量標籤改為使用 i18n"
     ]
   }
 }

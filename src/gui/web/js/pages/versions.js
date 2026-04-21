@@ -365,7 +365,7 @@
         _currentCommit = env ? (env.comfyui_commit || '') : '';
         var sub = document.getElementById('ver-sub');
         if (env) {
-            sub.innerHTML = '<span class="accent">' + h(env.name) + '</span> · 當前 commit <span class="mono" style="color:var(--text-1)">' + h((_currentCommit || '—').substring(0, 7)) + '</span>';
+            sub.innerHTML = '<span class="accent">' + h(env.name) + '</span> · ' + h(t('version_current_commit_label')) + ' <span class="mono" style="color:var(--text-1)">' + h((_currentCommit || '—').substring(0, 7)) + '</span>';
         } else {
             sub.textContent = '—';
         }
@@ -424,10 +424,10 @@
         if (!el) return;
         var behind = versions && versions.commits_behind;
         if (behind && behind > 0) {
-            el.innerHTML = '<span class="chip accent">● ' + (t('version_has_update') || '有新版本') + '</span>' +
-                '<span style="font-size:12px;color:var(--text-3)">' + behind + ' 個 commit 落後</span>';
+            el.innerHTML = '<span class="chip accent">● ' + h(t('version_has_update')) + '</span>' +
+                '<span style="font-size:12px;color:var(--text-3)">' + h(t('version_behind_suffix').replace('{0}', behind)) + '</span>';
         } else {
-            el.innerHTML = '<span class="chip">已是最新</span>';
+            el.innerHTML = '<span class="chip">' + h(t('version_up_to_date')) + '</span>';
         }
     }
 
@@ -438,7 +438,7 @@
         var matched = false;
 
         if (!_tags.length) {
-            wrap.innerHTML = '<div class="ti-list-empty" style="border:0;padding:20px"><span class="material-symbols-outlined">tag</span><div>點擊右上角 "更新版本列表" 來載入</div></div>';
+            wrap.innerHTML = '<div class="ti-list-empty" style="border:0;padding:20px"><span class="material-symbols-outlined">tag</span><div>' + h(t('version_empty_hint')) + '</div></div>';
             return;
         }
 

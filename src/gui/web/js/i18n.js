@@ -63,6 +63,18 @@ const I18N = (function() {
             "home_starting": "Starting {0}...",
             "home_started": "{0} started",
             "home_stopped": "{0} stopped",
+            "home_sub_running": "ComfyUI is running on port {0}. Click the button on the right to open it in your browser.",
+            "home_sub_ready": "One-click launch ComfyUI — your models and outputs are ready.",
+            "home_current_env_label": "CURRENT ENV",
+            "home_pill_meta_running": ":{0} · running",
+            "home_pill_meta_starting": "starting...",
+            "home_create_new_env": "Create new environment",
+
+            // Sidebar sections
+            "nav_section_workspace": "WORKSPACE",
+            "nav_section_manage": "MANAGE",
+            "nav_section_other": "OTHER",
+            "cmd_placeholder": "Type an action, environment, or page...",
 
             // Command palette
             "cmd_group_actions": "Quick actions",
@@ -362,6 +374,11 @@ const I18N = (function() {
             "plugin_already_latest": "Plugin '{}' is already up to date.",
             "plugin_update_all_result": "Update complete: {} updated, {} already latest, {} failed.",
             "plugin_update_all_no_targets": "No updatable plugins found (need enabled + git URL).",
+            "plugin_search_placeholder": "Search plugins...",
+            "plugin_enabled_ratio": "{}/{} enabled",
+            "plugin_chip_enabled": "enabled",
+            "plugin_chip_disabled": "disabled",
+            "plugin_chip_update": "update",
 
             // Version panel
             "version_environment": "Environment:",
@@ -395,6 +412,10 @@ const I18N = (function() {
             "version_current": "Current",
             "version_not_on_tag": "Current environment is not on any known tag (commit: {})",
             "version_branch_count": "{} branch(es) available",
+            "version_current_commit_label": "current commit",
+            "version_behind_suffix": "{0} commit(s) behind",
+            "version_up_to_date": "Up to date",
+            "version_empty_hint": "Click \u201cRefresh Versions\u201d at the top right to load.",
 
             // Snapshot panel
             "snapshot_environment": "Environment:",
@@ -591,6 +612,18 @@ const I18N = (function() {
             "home_starting": "正在啟動 {0}...",
             "home_started": "{0} 已啟動",
             "home_stopped": "{0} 已停止",
+            "home_sub_running": "ComfyUI 已在 port {0} 運行。點擊右側按鈕在瀏覽器中開啟。",
+            "home_sub_ready": "一鍵啟動 ComfyUI — 你的模型與輸出都已經準備好。",
+            "home_current_env_label": "當前環境",
+            "home_pill_meta_running": ":{0} · 運行中",
+            "home_pill_meta_starting": "啟動中...",
+            "home_create_new_env": "建立新環境",
+
+            // Sidebar sections
+            "nav_section_workspace": "工作區",
+            "nav_section_manage": "管理",
+            "nav_section_other": "其他",
+            "cmd_placeholder": "輸入動作、環境名稱或頁面...",
 
             // Command palette
             "cmd_group_actions": "快速動作",
@@ -890,6 +923,11 @@ const I18N = (function() {
             "plugin_already_latest": "插件 '{}' 已是最新版本。",
             "plugin_update_all_result": "更新完成：{} 個已更新、{} 個已是最新、{} 個失敗。",
             "plugin_update_all_no_targets": "沒有可更新的插件（需為啟用中且有 git URL）。",
+            "plugin_search_placeholder": "搜尋插件...",
+            "plugin_enabled_ratio": "{}/{} 啟用中",
+            "plugin_chip_enabled": "啟用",
+            "plugin_chip_disabled": "停用",
+            "plugin_chip_update": "更新",
 
             // Version panel
             "version_environment": "環境：",
@@ -923,6 +961,10 @@ const I18N = (function() {
             "version_current": "當前",
             "version_not_on_tag": "當前環境不在任何已知標籤上 (commit: {})",
             "version_branch_count": "{} 個分支可用",
+            "version_current_commit_label": "當前 commit",
+            "version_behind_suffix": "{0} 個 commit 落後",
+            "version_up_to_date": "已是最新",
+            "version_empty_hint": "點擊右上角「更新版本列表」來載入",
 
             // Snapshot panel
             "snapshot_environment": "環境：",
@@ -1091,6 +1133,12 @@ const I18N = (function() {
     function retranslateAll() {
         document.querySelectorAll('[data-i18n]').forEach(function(el) {
             el.textContent = t(el.dataset.i18n);
+        });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) {
+            el.setAttribute('placeholder', t(el.dataset.i18nPlaceholder));
+        });
+        document.querySelectorAll('[data-i18n-title]').forEach(function(el) {
+            el.setAttribute('title', t(el.dataset.i18nTitle));
         });
         // Update page title in header
         var pageTitle = document.getElementById('page-title');

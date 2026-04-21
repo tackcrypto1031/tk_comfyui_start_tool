@@ -62,7 +62,7 @@
             renderList();
             statusEl.textContent = t('snapshot_count', _snaps.length);
             document.getElementById('snap-sub').innerHTML =
-                _snaps.length + ' 個快照 · <span class="accent">' + h(envName) + '</span>';
+                h(t('snapshot_count').replace('{}', _snaps.length)) + ' · <span class="accent">' + h(envName) + '</span>';
         }).catch(function(e) {
             statusEl.textContent = t('error') + ': ' + e;
             App.showToast(e.toString(), 'error');

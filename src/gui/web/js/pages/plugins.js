@@ -23,7 +23,7 @@
                         '</div>' +
                         '<div class="ti-search-box">' +
                             '<span class="material-symbols-outlined">search</span>' +
-                            '<input id="plug-search" type="text" placeholder="' + h(t('search') || '搜尋插件...') + '">' +
+                            '<input id="plug-search" type="text" placeholder="' + h(t('plugin_search_placeholder')) + '">' +
                         '</div>' +
                         '<button id="plug-btn-update-all" class="btn btn-secondary" title="' + h(t('plugin_update_all')) + '">' +
                             '<span class="material-symbols-outlined" style="font-size:14px">update</span>' +
@@ -147,7 +147,7 @@
         var sub = document.getElementById('plug-sub');
         var total = _plugins.length;
         var enabled = _plugins.filter(function(p) { return p.status === 'enabled'; }).length;
-        sub.innerHTML = '<span class="accent">' + h(envName || '—') + '</span> · ' + enabled + '/' + total + ' 啟用中';
+        sub.innerHTML = '<span class="accent">' + h(envName || '—') + '</span> · ' + h(t('plugin_enabled_ratio', enabled, total));
 
         if (!filtered.length) {
             wrap.innerHTML =
@@ -173,10 +173,10 @@
             var isEnabled = status === 'enabled';
             var canUpdate = isEnabled && p.repo_url && p.has_update === true;
             var statusChip = isEnabled
-                ? '<span class="chip accent">● 啟用</span>'
-                : (status === 'disabled' ? '<span class="chip" style="color:var(--warn);border-color:var(--warn);background:transparent">○ 停用</span>'
+                ? '<span class="chip accent">● ' + h(t('plugin_chip_enabled')) + '</span>'
+                : (status === 'disabled' ? '<span class="chip" style="color:var(--warn);border-color:var(--warn);background:transparent">○ ' + h(t('plugin_chip_disabled')) + '</span>'
                                          : '<span class="chip">· ' + h(t('plugin_status_untracked')) + '</span>');
-            var updateChip = canUpdate ? '<span class="chip accent">● 更新</span>' : '';
+            var updateChip = canUpdate ? '<span class="chip accent">● ' + h(t('plugin_chip_update')) + '</span>' : '';
             rowsHtml +=
                 '<div class="ti-plugin-row" data-name="' + h(name) + '">' +
                     '<div class="ti-plugin-check ' + (isEnabled ? 'on' : '') + '" data-toggle="' + h(name) + '" data-status="' + h(status) + '">' +
