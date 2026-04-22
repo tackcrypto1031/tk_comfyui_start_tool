@@ -1,16 +1,16 @@
 {
-  "version": "0.6.7",
+  "version": "0.6.8",
   "min_python": "3.10",
-  "release_notes": "修復啟動環境後狀態小點仍顯示灰色的問題",
+  "release_notes": "修復啟動 ComfyUI 後首頁狀態卡在「開啟中」不會自動轉為「已啟動」的問題",
   "changes": [
-    "啟動 ComfyUI 後,左側側邊欄與環境管理頁的環境名稱旁狀態小點正確由灰轉綠(前端合併 list_running 結果時的欄位名稱錯配已修正,環境管理頁也會一併讀取執行中清單)"
+    "啟動 ComfyUI 後,首頁按鈕/狀態文字會在背景每 2 秒輪詢一次,等到環境真正就緒時自動從「開啟中」轉為「已啟動」,不再需要手動切換分頁才能刷新(最多等 120 秒後自動停止輪詢)"
   ],
   "changes_i18n": {
     "en": [
-      "Fixed environment status dot staying grey after launch — sidebar pill and the environments page now correctly turn green (sidebar merge looked up the wrong field from list_running, and the environments page did not merge running state at all)"
+      "After launching ComfyUI, the home page button and status text now poll every 2s in the background and automatically flip from \"Launching\" to \"Running\" once the environment is actually ready — no more needing to switch tabs to refresh (polling auto-stops after 120s)"
     ],
     "zh-TW": [
-      "啟動 ComfyUI 後,左側側邊欄與環境管理頁的環境名稱旁狀態小點正確由灰轉綠(前端合併 list_running 結果時的欄位名稱錯配已修正,環境管理頁也會一併讀取執行中清單)"
+      "啟動 ComfyUI 後,首頁按鈕/狀態文字會在背景每 2 秒輪詢一次,等到環境真正就緒時自動從「開啟中」轉為「已啟動」,不再需要手動切換分頁才能刷新(最多等 120 秒後自動停止輪詢)"
     ]
   }
 }

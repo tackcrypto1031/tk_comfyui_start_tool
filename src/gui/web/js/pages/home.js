@@ -14,10 +14,13 @@
     };
 
     var _logPollTimer = null;
+    var _startingPollTimer = null;
+    var _startingPollDeadline = 0;
 
     // ─── Public: render ───────────────────────────────────────────
 
     function render(container) {
+        stopStartingPoll();
         container.innerHTML =
             '<div class="ti-content fade-in">' +
                 '<div id="ti-home-hero"></div>' +
@@ -477,12 +480,40 @@
         BridgeAPI.startComfyUI(name, state.activeEnv.port || '').then(function() {
             loadEnvs().then(renderAll);
             App.showToast(t('home_started').replace('{0}', name), 'success');
+            startStartingPoll(name);
         }).catch(function(err) {
+            stopStartingPoll();
             if (state.activeEnv) state.activeEnv.status = 'stopped';
             state.runningEnv = null;
             renderAll();
             App.showToast(String(err || 'Launch failed'), 'error');
         });
+    }
+
+    // Polls list_running() until the just-launched env flips from 'starting'
+    // to 'running'. launcher.start() returns as soon as Popen finishes, long
+    // before ComfyUI actually binds its port, so the single post-resolve
+    // loadEnvs() call leaves the UI stuck on 'starting' until the user
+    // switches tabs (which re-mounts the page and triggers a fresh fetch).
+    function startStartingPoll(name) {
+        stopStartingPoll();
+        _startingPollDeadline = Date.now() + 120 * 1000; // matches STARTING_STATE_TIMEOUT_SEC
+        _startingPollTimer = setInterval(function() {
+            loadEnvs().then(function() {
+                var e = findEnv(name);
+                if (!e || e.status !== 'starting' || Date.now() > _startingPollDeadline) {
+                    stopStartingPoll();
+                }
+                renderAll();
+            }).catch(function() { /* transient */ });
+        }, 2000);
+    }
+
+    function stopStartingPoll() {
+        if (_startingPollTimer) {
+            clearInterval(_startingPollTimer);
+            _startingPollTimer = null;
+        }
     }
 
     function doStop() {
@@ -492,6 +523,7 @@
             App.showToast('stopComfyUI not available', 'error');
             return;
         }
+        stopStartingPoll();
         BridgeAPI.stopComfyUI(name).then(function() {
             loadEnvs().then(renderAll);
             App.showToast(t('home_stopped').replace('{0}', name), 'info');
