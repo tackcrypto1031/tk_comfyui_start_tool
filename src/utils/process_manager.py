@@ -46,17 +46,57 @@ def start_process(cmd: list, cwd: str = None, env: dict = None,
 
 
 def stop_process(pid: int, graceful_timeout: int = 5) -> bool:
-    """Stop a process gracefully, then force kill if needed."""
+    """Stop a process and its entire descendant tree.
+
+    ComfyUI spawns children at runtime (torch DataLoader workers,
+    ComfyUI-Manager's git/pip subprocesses, custom-node helpers) that can
+    inherit the listening socket on port 8188. On Windows, ``terminate()``
+    maps to ``TerminateProcess`` which is NOT recursive — killing only the
+    parent leaves children alive and still bound to the port, which matches
+    the user-reported "Stop did nothing" symptom on some machines.
+
+    Enumerate descendants first, terminate children then parent, wait, and
+    force ``kill()`` any survivor.
+    """
     try:
         proc = psutil.Process(pid)
-        proc.terminate()
-        proc.wait(timeout=graceful_timeout)
-        return True
-    except psutil.TimeoutExpired:
-        proc.kill()
-        return True
     except psutil.NoSuchProcess:
         return False
+
+    # Collect descendants BEFORE terminating the parent, otherwise they may
+    # be reparented or reaped before we can see them.
+    try:
+        children = proc.children(recursive=True)
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        children = []
+
+    for child in children:
+        try:
+            child.terminate()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+
+    try:
+        proc.terminate()
+        proc.wait(timeout=graceful_timeout)
+        result = True
+    except psutil.TimeoutExpired:
+        try:
+            proc.kill()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+        result = True
+    except psutil.NoSuchProcess:
+        result = False
+
+    for child in children:
+        try:
+            if child.is_running():
+                child.kill()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+
+    return result
 
 
 def is_process_running(pid: int) -> bool:

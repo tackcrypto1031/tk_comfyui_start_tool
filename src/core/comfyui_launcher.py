@@ -489,11 +489,31 @@ class ComfyUILauncher:
             if self._pid_belongs_to_env(pid, env_dir):
                 process_manager.stop_process(pid)
             else:
-                logger.warning(
-                    "Refusing to kill pid %d for env '%s': process does not "
-                    "belong to this environment (stale/poisoned pid file).",
-                    pid, env_name,
+                # _pid_belongs_to_env relies on psutil.Process.cwd()/exe()/
+                # cmdline(), all of which can raise AccessDenied under AV or
+                # UAC on some Windows setups, producing a false negative. If
+                # the recorded pid is still the live listener on its recorded
+                # port, it really IS ours — fall back to killing it with a
+                # warning rather than silently leaving it running (the exact
+                # "Stop did nothing on machine B" failure mode).
+                port = data.get("port")
+                port_owner = (
+                    process_manager.find_pid_on_port(port) if port else None
                 )
+                if port and port_owner == pid:
+                    logger.warning(
+                        "Ownership probe for pid %d failed (likely AccessDenied "
+                        "on cwd/exe under AV/UAC), but the recorded pid still "
+                        "owns port %d — killing anyway.",
+                        pid, port,
+                    )
+                    process_manager.stop_process(pid)
+                else:
+                    logger.warning(
+                        "Refusing to kill pid %d for env '%s': process does not "
+                        "belong to this environment (stale/poisoned pid file).",
+                        pid, env_name,
+                    )
 
         # Do NOT fall back to killing whoever is listening on the port:
         # that would kill another env's ComfyUI that happens to be on the

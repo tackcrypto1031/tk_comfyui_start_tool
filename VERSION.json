@@ -1,16 +1,19 @@
 {
-  "version": "0.6.8",
+  "version": "0.6.9",
   "min_python": "3.10",
-  "release_notes": "修復啟動 ComfyUI 後首頁狀態卡在「開啟中」不會自動轉為「已啟動」的問題",
+  "release_notes": "修復某些電腦上按下「停止」無法真正終止 ComfyUI 的問題",
   "changes": [
-    "啟動 ComfyUI 後,首頁按鈕/狀態文字會在背景每 2 秒輪詢一次,等到環境真正就緒時自動從「開啟中」轉為「已啟動」,不再需要手動切換分頁才能刷新(最多等 120 秒後自動停止輪詢)"
+    "按下「停止」時會連同 ComfyUI 派生的所有子程序(torch DataLoader workers、ComfyUI-Manager 的 git/pip、自訂節點的輔助程序等)一起結束,避免父程序被殺後仍有子程序繼續佔用 8188 port",
+    "當 psutil 因防毒軟體 / UAC 權限無法讀取程序 cwd 而誤判「此 pid 不屬於此環境」時,若確認該 pid 仍是 port 的實際擁有者,會直接結束它並在 log 留下警告,不再靜默放過"
   ],
   "changes_i18n": {
     "en": [
-      "After launching ComfyUI, the home page button and status text now poll every 2s in the background and automatically flip from \"Launching\" to \"Running\" once the environment is actually ready — no more needing to switch tabs to refresh (polling auto-stops after 120s)"
+      "Stop now also terminates every child process spawned by ComfyUI (torch DataLoader workers, ComfyUI-Manager's git/pip, custom-node helpers) so the port is no longer held by a surviving child after the parent is killed",
+      "When psutil cannot read a process's cwd due to AV/UAC restrictions and falsely concludes \"this pid doesn't belong to this environment\", Stop now verifies port ownership and kills the pid anyway if it is the actual listener — with a warning logged instead of silently refusing"
     ],
     "zh-TW": [
-      "啟動 ComfyUI 後,首頁按鈕/狀態文字會在背景每 2 秒輪詢一次,等到環境真正就緒時自動從「開啟中」轉為「已啟動」,不再需要手動切換分頁才能刷新(最多等 120 秒後自動停止輪詢)"
+      "按下「停止」時會連同 ComfyUI 派生的所有子程序(torch DataLoader workers、ComfyUI-Manager 的 git/pip、自訂節點的輔助程序等)一起結束,避免父程序被殺後仍有子程序繼續佔用 8188 port",
+      "當 psutil 因防毒軟體 / UAC 權限無法讀取程序 cwd 而誤判「此 pid 不屬於此環境」時,若確認該 pid 仍是 port 的實際擁有者,會直接結束它並在 log 留下警告,不再靜默放過"
     ]
   }
 }
