@@ -1,19 +1,16 @@
 {
-  "version": "0.6.9",
+  "version": "0.7.0",
   "min_python": "3.10",
-  "release_notes": "修復某些電腦上按下「停止」無法真正終止 ComfyUI 的問題",
+  "release_notes": "啟動環境前若偵測到埠號已被其他環境佔用,會先彈窗確認再關閉舊環境",
   "changes": [
-    "按下「停止」時會連同 ComfyUI 派生的所有子程序(torch DataLoader workers、ComfyUI-Manager 的 git/pip、自訂節點的輔助程序等)一起結束,避免父程序被殺後仍有子程序繼續佔用 8188 port",
-    "當 psutil 因防毒軟體 / UAC 權限無法讀取程序 cwd 而誤判「此 pid 不屬於此環境」時,若確認該 pid 仍是 port 的實際擁有者,會直接結束它並在 log 留下警告,不再靜默放過"
+    "啟動 ComfyUI 前會檢查目標埠號是否已被其他執行中的環境佔用,若有則彈出對話框顯示「環境『X』正使用埠號 Y,啟動『Z』會先關閉它,確定繼續嗎?」,讓使用者可以看清楚後再決定關閉或取消,而不是背景靜默把舊環境關掉"
   ],
   "changes_i18n": {
     "en": [
-      "Stop now also terminates every child process spawned by ComfyUI (torch DataLoader workers, ComfyUI-Manager's git/pip, custom-node helpers) so the port is no longer held by a surviving child after the parent is killed",
-      "When psutil cannot read a process's cwd due to AV/UAC restrictions and falsely concludes \"this pid doesn't belong to this environment\", Stop now verifies port ownership and kills the pid anyway if it is the actual listener — with a warning logged instead of silently refusing"
+      "Before launching ComfyUI the app now checks whether the target port is already used by another running environment. If so, a confirmation dialog shows which environment owns the port and what will be stopped — you can cancel instead of letting the previous env be killed silently in the background"
     ],
     "zh-TW": [
-      "按下「停止」時會連同 ComfyUI 派生的所有子程序(torch DataLoader workers、ComfyUI-Manager 的 git/pip、自訂節點的輔助程序等)一起結束,避免父程序被殺後仍有子程序繼續佔用 8188 port",
-      "當 psutil 因防毒軟體 / UAC 權限無法讀取程序 cwd 而誤判「此 pid 不屬於此環境」時,若確認該 pid 仍是 port 的實際擁有者,會直接結束它並在 log 留下警告,不再靜默放過"
+      "啟動 ComfyUI 前會檢查目標埠號是否已被其他執行中的環境佔用,若有則彈出對話框顯示「環境『X』正使用埠號 Y,啟動『Z』會先關閉它,確定繼續嗎?」,讓使用者可以看清楚後再決定關閉或取消,而不是背景靜默把舊環境關掉"
     ]
   }
 }

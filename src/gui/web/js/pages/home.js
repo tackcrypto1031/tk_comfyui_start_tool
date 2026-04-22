@@ -459,34 +459,81 @@
     function doLaunch() {
         if (!state.activeEnv) return;
         var name = state.activeEnv.name;
+        var targetPort = parseInt(state.activeEnv.port, 10) || 8188;
 
-        // If another env is running, stop it first (optimistic UI)
-        if (state.runningEnv && state.runningEnv.name !== name) {
-            var prev = state.runningEnv.name;
-            if (BridgeAPI.stopComfyUI) BridgeAPI.stopComfyUI(prev).catch(function(){});
-            var prevEnv = findEnv(prev);
+        // Authoritative running list (beats possibly-stale client state).
+        var runningP = (BridgeAPI && BridgeAPI.listRunning)
+            ? BridgeAPI.listRunning().catch(function() { return []; })
+            : Promise.resolve([]);
+
+        runningP.then(function(running) {
+            var portOwner = null;
+            (running || []).forEach(function(r) {
+                if (!r || typeof r !== 'object') return;
+                var rname = r.env_name || r.name || r.env;
+                if (!rname || rname === name) return;
+                if (parseInt(r.port, 10) === targetPort) portOwner = rname;
+            });
+
+            if (portOwner) {
+                var body = t('port_conflict_body')
+                    .replace('{owner}', safeText(portOwner))
+                    .replace('{port}', String(targetPort))
+                    .replace('{name}', safeText(name));
+                App.showModal({
+                    title: t('port_conflict_title'),
+                    body: '<p class="text-on-surface-variant">' + body + '</p>',
+                    buttons: [
+                        { text: t('port_conflict_cancel'), class: 'btn-secondary', onClick: function(){} },
+                        { text: t('port_conflict_ok'), class: 'btn-primary',
+                          onClick: function() { _performLaunch(name, portOwner, true); } },
+                    ],
+                });
+                return;
+            }
+
+            // No port conflict — keep previous optimistic "stop any other
+            // running env first" behaviour for different-port cases.
+            var stopFirst = (state.runningEnv && state.runningEnv.name !== name)
+                ? state.runningEnv.name : null;
+            _performLaunch(name, stopFirst, false);
+        });
+    }
+
+    function _performLaunch(name, stopFirst, awaitStop) {
+        var prep = Promise.resolve();
+        if (stopFirst) {
+            var prevEnv = findEnv(stopFirst);
             if (prevEnv) prevEnv.status = 'stopped';
+            var stopCall = (BridgeAPI && BridgeAPI.stopComfyUI)
+                ? BridgeAPI.stopComfyUI(stopFirst).catch(function(){})
+                : Promise.resolve();
+            // For same-port conflicts we MUST wait for the port to be
+            // released before trying to bind it with the new env.
+            if (awaitStop) prep = stopCall;
         }
 
-        state.activeEnv.status = 'starting';
-        state.runningEnv = state.activeEnv;
-        renderAll();
-        App.showToast(t('home_starting').replace('{0}', name), 'info');
-
-        if (!BridgeAPI.startComfyUI) {
-            App.showToast('startComfyUI not available', 'error');
-            return;
-        }
-        BridgeAPI.startComfyUI(name, state.activeEnv.port || '').then(function() {
-            loadEnvs().then(renderAll);
-            App.showToast(t('home_started').replace('{0}', name), 'success');
-            startStartingPoll(name);
-        }).catch(function(err) {
-            stopStartingPoll();
-            if (state.activeEnv) state.activeEnv.status = 'stopped';
-            state.runningEnv = null;
+        prep.then(function() {
+            state.activeEnv.status = 'starting';
+            state.runningEnv = state.activeEnv;
             renderAll();
-            App.showToast(String(err || 'Launch failed'), 'error');
+            App.showToast(t('home_starting').replace('{0}', name), 'info');
+
+            if (!BridgeAPI.startComfyUI) {
+                App.showToast('startComfyUI not available', 'error');
+                return;
+            }
+            BridgeAPI.startComfyUI(name, state.activeEnv.port || '').then(function() {
+                loadEnvs().then(renderAll);
+                App.showToast(t('home_started').replace('{0}', name), 'success');
+                startStartingPoll(name);
+            }).catch(function(err) {
+                stopStartingPoll();
+                if (state.activeEnv) state.activeEnv.status = 'stopped';
+                state.runningEnv = null;
+                renderAll();
+                App.showToast(String(err || 'Launch failed'), 'error');
+            });
         });
     }
 
