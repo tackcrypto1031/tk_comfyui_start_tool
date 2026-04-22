@@ -69,7 +69,7 @@ def install_addon(
         )
     elif addon.kind == "custom_node":
         _install_custom_node_addon(
-            addon, env_dir, tools_dir, uv_version,
+            addon, current_pack, env_dir, tools_dir, uv_version,
             package_manager, progress_callback,
         )
     else:  # pragma: no cover — guarded by Literal
@@ -106,11 +106,29 @@ def _install_pip_addon(
 
 
 def _install_custom_node_addon(
-    addon: Addon, env_dir: Path, tools_dir: Path,
+    addon: Addon, pack_id: str, env_dir: Path, tools_dir: Path,
     uv_version: str, package_manager: str, progress_callback,
 ) -> None:
     """Clone the add-on's repo at source_ref, install its requirements,
-    then run source_post_install."""
+    then run source_post_install.
+
+    If the add-on also declares a pack-matched wheel (``wheels_by_pack``)
+    or a ``pip_spec``, install that first — some ComfyUI plugins (e.g.
+    Nunchaku) ship their CUDA runtime as a separate wheel that the node
+    repo's ``__init__.py`` imports at load time, so the wheel MUST be
+    present before ComfyUI scans ``custom_nodes/``.
+    """
+    wheel_target = (addon.wheels_by_pack or {}).get(pack_id) or addon.pip_spec
+    if wheel_target:
+        pkg_ops.run_install(
+            venv_path=str(env_dir / "venv"),
+            args=["install", wheel_target],
+            tools_dir=tools_dir,
+            uv_version=uv_version,
+            package_manager=package_manager,
+            progress_callback=progress_callback,
+        )
+
     node_dir = env_dir / "ComfyUI" / "custom_nodes" / addon.id
     node_dir.parent.mkdir(parents=True, exist_ok=True)
 
@@ -262,6 +280,21 @@ def uninstall_addon(
                 os.chmod(path, stat.S_IWRITE)
                 func(path)
             shutil.rmtree(str(node_dir), onerror=_on_rm_error)
+        # Mirror of the install-time wheel step: if this custom_node also
+        # installed a separate runtime wheel (e.g. Nunchaku), remove it too.
+        if addon.pip_project_name:
+            try:
+                pkg_ops.run_install(
+                    venv_path=str(env_dir / "venv"),
+                    args=["uninstall", "-y", addon.pip_project_name],
+                    tools_dir=tools_dir,
+                    uv_version=uv_version,
+                    package_manager=package_manager,
+                    progress_callback=progress_callback,
+                )
+            except Exception:
+                # Package may already be gone — don't block env cleanup.
+                pass
 
     env = Environment.load_meta(str(env_dir))
     env.installed_addons = [

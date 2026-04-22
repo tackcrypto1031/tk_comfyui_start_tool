@@ -1,16 +1,22 @@
 {
-  "version": "0.7.0",
+  "version": "0.7.1",
   "min_python": "3.10",
-  "release_notes": "啟動環境前若偵測到埠號已被其他環境佔用,會先彈窗確認再關閉舊環境",
+  "release_notes": "修復 Nunchaku add-on 安裝後 ComfyUI 看不到節點的問題",
   "changes": [
-    "啟動 ComfyUI 前會檢查目標埠號是否已被其他執行中的環境佔用,若有則彈出對話框顯示「環境『X』正使用埠號 Y,啟動『Z』會先關閉它,確定繼續嗎?」,讓使用者可以看清楚後再決定關閉或取消,而不是背景靜默把舊環境關掉"
+    "Nunchaku v1.2.1 add-on 現在會同時安裝預編 CUDA wheel 和 ComfyUI-nunchaku 節點倉庫(v1.2.1),之前只裝了 runtime library 導致 ComfyUI 看不到節點",
+    "add-on 系統的 custom_node 類型現在允許同時指定 wheels_by_pack / pip_spec,安裝時會先裝 wheel 再 clone 節點倉庫(某些 ComfyUI 外掛需要 runtime 就緒才能被節點 __init__.py import)",
+    "custom_node 類型 add-on 的解除安裝現在會同時移除配對的 pip 套件(若有設定 pip_project_name)"
   ],
   "changes_i18n": {
     "en": [
-      "Before launching ComfyUI the app now checks whether the target port is already used by another running environment. If so, a confirmation dialog shows which environment owns the port and what will be stopped — you can cancel instead of letting the previous env be killed silently in the background"
+      "Nunchaku v1.2.1 add-on now installs both the prebuilt CUDA wheel and the ComfyUI-nunchaku node repo (at v1.2.1). Previously only the runtime library was installed, so ComfyUI had no Nunchaku nodes to show",
+      "The add-on system's custom_node kind now allows wheels_by_pack / pip_spec alongside source_repo — the wheel is installed BEFORE the node repo is cloned, so plugins whose __init__.py imports the runtime work correctly",
+      "Uninstalling a custom_node add-on now also removes the paired pip package when pip_project_name is set"
     ],
     "zh-TW": [
-      "啟動 ComfyUI 前會檢查目標埠號是否已被其他執行中的環境佔用,若有則彈出對話框顯示「環境『X』正使用埠號 Y,啟動『Z』會先關閉它,確定繼續嗎?」,讓使用者可以看清楚後再決定關閉或取消,而不是背景靜默把舊環境關掉"
+      "Nunchaku v1.2.1 add-on 現在會同時安裝預編 CUDA wheel 和 ComfyUI-nunchaku 節點倉庫(v1.2.1),之前只裝了 runtime library 導致 ComfyUI 看不到節點",
+      "add-on 系統的 custom_node 類型現在允許同時指定 wheels_by_pack / pip_spec,安裝時會先裝 wheel 再 clone 節點倉庫(某些 ComfyUI 外掛需要 runtime 就緒才能被節點 __init__.py import)",
+      "custom_node 類型 add-on 的解除安裝現在會同時移除配對的 pip 套件(若有設定 pip_project_name)"
     ]
   }
 }

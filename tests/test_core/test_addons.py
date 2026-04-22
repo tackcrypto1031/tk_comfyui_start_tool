@@ -261,6 +261,88 @@ def test_uninstall_custom_node_addon(tmp_path, monkeypatch):
     assert env.installed_addons == []
 
 
+def test_install_custom_node_addon_installs_wheel_before_clone(tmp_path, monkeypatch):
+    """Nunchaku-style: kind='custom_node' with wheels_by_pack must pip-install
+    the pack-matched wheel BEFORE the git clone, so the node repo's
+    __init__.py can import the runtime at ComfyUI load time.
+    """
+    env_dir = _make_env(tmp_path, torch_pack="torch-2.9.1-cu130")
+    calls = []
+
+    def _fake_clone(url, dest, branch=None, commit=None, progress_callback=None):
+        calls.append(("clone", url, dest, branch))
+        Path(dest).mkdir(parents=True)
+        (Path(dest) / "requirements.txt").write_text("diffusers\n")
+
+    def _fake_install(venv_path, args, tools_dir, uv_version,
+                      package_manager="uv", progress_callback=None):
+        calls.append(("install", tuple(args)))
+
+    monkeypatch.setattr("src.core.addons.git_ops.clone_repo", _fake_clone)
+    monkeypatch.setattr("src.core.addons.pkg_ops.run_install", _fake_install)
+
+    install_addon(
+        _config(tmp_path),
+        addon_id="nunchaku",
+        env_dir=env_dir,
+        tools_dir=tmp_path / "tools",
+        uv_version="0.9.7",
+    )
+
+    # Ordering contract: wheel install MUST come before clone.
+    assert calls[0][0] == "install"
+    assert "nunchaku-1.2.1+cu13.0torch2.9" in calls[0][1][1]
+    assert calls[1][0] == "clone"
+    assert calls[1][1] == "https://github.com/nunchaku-ai/ComfyUI-nunchaku.git"
+    assert calls[1][3] == "v1.2.1"
+
+    # Then requirements.txt and the post_install `pip install -r requirements.txt`.
+    later_installs = [c for c in calls[2:] if c[0] == "install"]
+    assert any("-r" in c[1] for c in later_installs)
+
+    env = Environment.load_meta(str(env_dir))
+    assert any(a["id"] == "nunchaku" for a in env.installed_addons)
+
+
+def test_uninstall_custom_node_with_pip_project_name_also_pip_uninstalls(
+    tmp_path, monkeypatch,
+):
+    """Nunchaku-style uninstall must remove BOTH the node dir and the pip
+    runtime (pip_project_name)."""
+    env_dir = _make_env(tmp_path, torch_pack="torch-2.9.1-cu130")
+    node_dir = env_dir / "ComfyUI" / "custom_nodes" / "nunchaku"
+    node_dir.mkdir(parents=True)
+    (node_dir / "__init__.py").write_text("x")
+    env = Environment.load_meta(str(env_dir))
+    env.installed_addons.append({
+        "id": "nunchaku",
+        "installed_at": "2026-04-22T00:00:00Z",
+        "torch_pack_at_install": "torch-2.9.1-cu130",
+    })
+    env.save_meta()
+
+    calls = []
+
+    def _fake_install(venv_path, args, tools_dir, uv_version,
+                      package_manager="uv", progress_callback=None):
+        calls.append(tuple(args))
+
+    monkeypatch.setattr("src.core.addons.pkg_ops.run_install", _fake_install)
+
+    uninstall_addon(
+        _config(tmp_path),
+        addon_id="nunchaku",
+        env_dir=env_dir,
+        tools_dir=tmp_path / "tools",
+        uv_version="0.9.7",
+    )
+
+    assert not node_dir.exists()
+    assert calls == [("uninstall", "-y", "nunchaku")]
+    env = Environment.load_meta(str(env_dir))
+    assert env.installed_addons == []
+
+
 def test_uninstall_orphan_addon_generic_cleanup(tmp_path, monkeypatch):
     """Uninstalling an id not in registry removes the dir + meta entry."""
     env_dir = _make_env(tmp_path)

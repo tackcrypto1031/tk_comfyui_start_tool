@@ -55,7 +55,7 @@
       "id": "nunchaku",
       "label": "Nunchaku v1.2.1",
       "description": "Quantized inference (4-bit FLUX)",
-      "kind": "pip",
+      "kind": "custom_node",
       "compatible_packs": [
         "torch-2.9.1-cu130",
         "torch-2.8.0-cu128"
@@ -66,12 +66,12 @@
       },
       "pip_spec": null,
       "pip_project_name": "nunchaku",
-      "source_repo": null,
-      "source_ref": null,
-      "source_post_install": null,
+      "source_repo": "https://github.com/nunchaku-ai/ComfyUI-nunchaku.git",
+      "source_ref": "v1.2.1",
+      "source_post_install": ["pip", "install", "-r", "requirements.txt"],
       "requires_compile": false,
       "pack_pinned": true,
-      "risk_note": null
+      "risk_note": "Installs both the prebuilt CUDA runtime wheel and the ComfyUI-nunchaku node repo at v1.2.1."
     },
     {
       "id": "trellis2",
